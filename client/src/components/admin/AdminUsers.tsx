@@ -1,15 +1,16 @@
- import { useQuery } from "@tanstack/react-query";
+ import { useQuery, useMutation } from "@tanstack/react-query";
 import { SafeUser, InsertUser, UpdateUser, Msp, type QualificationWithStatus } from "@shared/schema";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Plus, Pencil, Trash2, Search, X } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, X, Users } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertUserSchema, updateUserSchema } from "@shared/schema";
@@ -42,9 +43,11 @@ type FilterTag = {
 interface AdminUsersProps {
   showCreateDialog: boolean;
   setShowCreateDialog: (show: boolean) => void;
+  showBatchImport: boolean;
+  setShowBatchImport: (show: boolean) => void;
 }
 
-export function AdminUsers({ showCreateDialog, setShowCreateDialog }: AdminUsersProps) {
+export function AdminUsers({ showCreateDialog, setShowCreateDialog, showBatchImport, setShowBatchImport }: AdminUsersProps) {
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [filterTags, setFilterTags] = useState<FilterTag[]>([]);
@@ -52,6 +55,8 @@ export function AdminUsers({ showCreateDialog, setShowCreateDialog }: AdminUsers
   const [deletingUser, setDeletingUser] = useState<SafeUser | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showFilterPopover, setShowFilterPopover] = useState(false);
+  const [batchImportData, setBatchImportData] = useState("");
+  const [importResults, setImportResults] = useState<any>(null);
 
   const { data: users = [], isLoading } = useQuery<SafeUser[]>({
     queryKey: ["/api/admin/users"],
@@ -288,6 +293,46 @@ export function AdminUsers({ showCreateDialog, setShowCreateDialog }: AdminUsers
         description: error.message || "Failed to delete user",
       });
     }
+  };
+
+  const batchImportMutation = useMutation({
+    mutationFn: async (data: string) => {
+      return await apiRequest("POST", "/api/admin/users/batch-import", { data });
+    },
+    onSuccess: (response: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
+      setImportResults(response.results);
+      toast({
+        title: "Batch import complete",
+        description: response.message,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        variant: "destructive",
+        title: "Batch import failed",
+        description: error.message || "Please try again",
+      });
+    },
+  });
+
+  const handleBatchImport = () => {
+    if (!batchImportData.trim()) {
+      toast({
+        variant: "destructive",
+        title: "No data",
+        description: "Please paste the user data",
+      });
+      return;
+    }
+    batchImportMutation.mutate(batchImportData);
+  };
+
+  const closeBatchImport = () => {
+    setShowBatchImport(false);
+    setBatchImportData("");
+    setImportResults(null);
   };
 
   const openEditDialog = (user: SafeUser) => {
@@ -957,6 +1002,137 @@ export function AdminUsers({ showCreateDialog, setShowCreateDialog }: AdminUsers
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={showBatchImport} onOpenChange={closeBatchImport}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto" data-testid="dialog-batch-import-users">
+          <DialogHeader>
+            <DialogTitle>Batch Import Users</DialogTitle>
+            <DialogDescription>
+              Paste tab-separated data with format: Username, Full Name, Rank, MSP
+            </DialogDescription>
+          </DialogHeader>
+
+          {!importResults ? (
+            <div className="space-y-4">
+              <div className="rounded-md bg-muted p-4 text-sm">
+                <p className="font-semibold mb-2">Expected Format:</p>
+                <code className="text-xs">john_doe&nbsp;&nbsp;&nbsp;&nbsp;JOHN DOE&nbsp;&nbsp;&nbsp;&nbsp;PTE&nbsp;&nbsp;&nbsp;&nbsp;MSP 1</code>
+                <p className="mt-2 text-muted-foreground">
+                  Each line should have: Username (tab) Full Name (tab) Rank (tab) MSP
+                </p>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  All users will be created with default password: <code className="bg-background px-1 py-0.5 rounded">password123</code>
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Rank determines role: Sergeants and above (3SG, 2SG, 1SG, 3WO, 2WO, 1WO, 2LT, CPT) become commanders.
+                </p>
+              </div>
+
+              <Textarea
+                placeholder="Paste your user data here..."
+                value={batchImportData}
+                onChange={(e) => setBatchImportData(e.target.value)}
+                className="min-h-[300px] font-mono text-sm"
+                disabled={batchImportMutation.isPending}
+                data-testid="textarea-batch-import-users"
+              />
+
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={closeBatchImport}
+                  disabled={batchImportMutation.isPending}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleBatchImport}
+                  disabled={batchImportMutation.isPending || !batchImportData.trim()}
+                  data-testid="button-submit-batch-import-users"
+                >
+                  {batchImportMutation.isPending ? "Importing..." : "Import Users"}
+                </Button>
+              </DialogFooter>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Users className="h-5 w-5 text-green-600" />
+                  <h3 className="font-semibold text-lg">Import Complete</h3>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Successfully imported {importResults.success.length} users.
+                  {importResults.failed.length > 0 && ` ${importResults.failed.length} failed.`}
+                </p>
+              </div>
+
+              {importResults.success.length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-green-600">Successful Imports ({importResults.success.length})</h4>
+                  <div className="rounded-md border max-h-[200px] overflow-y-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted sticky top-0">
+                        <tr>
+                          <th className="text-left p-2">Username</th>
+                          <th className="text-left p-2">Full Name</th>
+                          <th className="text-left p-2">Rank</th>
+                          <th className="text-left p-2">MSP</th>
+                          <th className="text-left p-2">Role</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {importResults.success.map((item: any, idx: number) => (
+                          <tr key={idx} className="border-t">
+                            <td className="p-2 font-mono text-xs">{item.username}</td>
+                            <td className="p-2">{item.fullName}</td>
+                            <td className="p-2">{item.rank || '-'}</td>
+                            <td className="p-2">{item.msp}</td>
+                            <td className="p-2">
+                              <Badge variant={item.role === 'commander' ? 'default' : 'secondary'}>
+                                {item.role}
+                              </Badge>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {importResults.failed.length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-destructive">Failed Imports ({importResults.failed.length})</h4>
+                  <div className="rounded-md border max-h-[200px] overflow-y-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted sticky top-0">
+                        <tr>
+                          <th className="text-left p-2">Line</th>
+                          <th className="text-left p-2">Reason</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {importResults.failed.map((item: any, idx: number) => (
+                          <tr key={idx} className="border-t">
+                            <td className="p-2 font-mono text-xs">{item.line}</td>
+                            <td className="p-2 text-destructive">{item.reason}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              <DialogFooter>
+                <Button onClick={closeBatchImport}>Close</Button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

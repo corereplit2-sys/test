@@ -1135,6 +1135,123 @@ export default function CurrencyTracker() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={showBatchImport} onOpenChange={closeBatchImport}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto" data-testid="dialog-batch-import">
+          <DialogHeader>
+            <DialogTitle>Batch Import Qualifications</DialogTitle>
+            <DialogDescription>
+              Paste tab-separated data with format: Name, Vehicle Type, Date (M/D/YYYY)
+            </DialogDescription>
+          </DialogHeader>
+
+          {!importResults ? (
+            <div className="space-y-4">
+              <div className="rounded-md bg-muted p-4 text-sm">
+                <p className="font-semibold mb-2">Expected Format:</p>
+                <code className="text-xs">LAU LU WEI&nbsp;&nbsp;&nbsp;&nbsp;Terrex&nbsp;&nbsp;5/23/2025</code>
+                <p className="mt-2 text-muted-foreground">
+                  Each line should have: Full Name (tab) Vehicle Type (tab) Date
+                </p>
+              </div>
+
+              <Textarea
+                placeholder="Paste your qualification data here..."
+                value={batchImportData}
+                onChange={(e) => setBatchImportData(e.target.value)}
+                className="min-h-[300px] font-mono text-sm"
+                disabled={batchImportMutation.isPending}
+                data-testid="textarea-batch-import"
+              />
+
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={closeBatchImport}
+                  disabled={batchImportMutation.isPending}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleBatchImport}
+                  disabled={batchImportMutation.isPending || !batchImportData.trim()}
+                  data-testid="button-submit-batch-import"
+                >
+                  {batchImportMutation.isPending ? "Importing..." : "Import Qualifications"}
+                </Button>
+              </DialogFooter>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Award className="h-5 w-5 text-green-600" />
+                  <h3 className="font-semibold text-lg">Import Complete</h3>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Successfully imported {importResults.success.length} qualifications.
+                  {importResults.failed.length > 0 && ` ${importResults.failed.length} failed.`}
+                </p>
+              </div>
+
+              {importResults.success.length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-green-600">Successful Imports ({importResults.success.length})</h4>
+                  <div className="rounded-md border max-h-[200px] overflow-y-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted sticky top-0">
+                        <tr>
+                          <th className="text-left p-2">Name</th>
+                          <th className="text-left p-2">Vehicle</th>
+                          <th className="text-left p-2">Qualified Date</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {importResults.success.map((item: any, idx: number) => (
+                          <tr key={idx} className="border-t">
+                            <td className="p-2">{item.user}</td>
+                            <td className="p-2">{item.vehicleType}</td>
+                            <td className="p-2">{format(new Date(item.qualifiedDate), "MMM dd, yyyy")}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {importResults.failed.length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-destructive">Failed Imports ({importResults.failed.length})</h4>
+                  <div className="rounded-md border max-h-[200px] overflow-y-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted sticky top-0">
+                        <tr>
+                          <th className="text-left p-2">Line</th>
+                          <th className="text-left p-2">Reason</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {importResults.failed.map((item: any, idx: number) => (
+                          <tr key={idx} className="border-t">
+                            <td className="p-2 font-mono text-xs">{item.line}</td>
+                            <td className="p-2 text-destructive">{item.reason}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              <DialogFooter>
+                <Button onClick={closeBatchImport}>Close</Button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -598,6 +598,99 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/admin/users/batch-import", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const { data } = req.body;
+      
+      if (!data || typeof data !== "string") {
+        return res.status(400).json({ message: "Invalid import data" });
+      }
+
+      const lines = data.trim().split('\n').filter((line: string) => line.trim());
+      const allMsps = await storage.getAllMsps();
+      
+      const results = {
+        success: [] as any[],
+        failed: [] as any[],
+      };
+
+      // Helper to determine role based on rank
+      const getRoleFromRank = (rank: string | null): "soldier" | "commander" => {
+        if (!rank) return "soldier";
+        const sergeantAndAbove = ["CPT", "2LT", "1WO", "2WO", "3WO", "1SG", "2SG", "3SG"];
+        return sergeantAndAbove.includes(rank) ? "commander" : "soldier";
+      };
+
+      for (const line of lines) {
+        const parts = line.split('\t').map((p: string) => p.trim());
+        
+        if (parts.length < 4) {
+          results.failed.push({ line, reason: "Invalid format - expected 4 tab-separated fields (Username, Full Name, Rank, MSP)" });
+          continue;
+        }
+
+        const [username, fullName, rank, mspName] = parts;
+        
+        // Validate username format (lowercase, no spaces)
+        if (!/^[a-z0-9_]+$/.test(username)) {
+          results.failed.push({ line, reason: "Username must be lowercase letters, numbers, and underscores only" });
+          continue;
+        }
+
+        // Check if user already exists
+        const existingUser = await storage.getUserByUsername(username);
+        if (existingUser) {
+          results.failed.push({ line, reason: `Username already exists: ${username}` });
+          continue;
+        }
+
+        // Find MSP
+        const msp = allMsps.find(m => m.name.toUpperCase() === mspName.toUpperCase());
+        if (!msp) {
+          results.failed.push({ line, reason: `MSP not found: ${mspName}` });
+          continue;
+        }
+
+        // Determine role from rank
+        const role = getRoleFromRank(rank || null);
+
+        // Create user with default password
+        try {
+          const defaultPassword = "password123";
+          const passwordHash = await bcrypt.hash(defaultPassword, 10);
+          
+          const user = await storage.createUser({
+            username,
+            fullName,
+            rank: rank || null,
+            mspId: msp.id,
+            role,
+            credits: 10,
+            passwordHash,
+            password: defaultPassword,
+          });
+
+          results.success.push({
+            username: user.username,
+            fullName: user.fullName,
+            rank: user.rank,
+            msp: msp.name,
+            role: user.role,
+          });
+        } catch (error: any) {
+          results.failed.push({ line, reason: error.message || "Failed to create user" });
+        }
+      }
+
+      res.json({
+        message: `Batch import complete: ${results.success.length} succeeded, ${results.failed.length} failed`,
+        results,
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || "Failed to import users" });
+    }
+  });
+
   // Helper function to check and perform automatic weekly credit reset
   const checkAndResetCreditsIfNeeded = async () => {
     try {
