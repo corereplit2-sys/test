@@ -3,11 +3,12 @@ import { SafeUser } from "@shared/schema";
 import { Navbar } from "@/components/Navbar";
 import { AdminUsers } from "@/components/admin/AdminUsers";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Plus, Upload } from "lucide-react";
 import { useState } from "react";
 
 export default function Users() {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [showBatchImport, setShowBatchImport] = useState(false);
   
   const { data: user, isLoading } = useQuery<SafeUser>({
     queryKey: ["/api/auth/me"],
@@ -31,12 +32,23 @@ export default function Users() {
               <h1 className="text-3xl font-bold" data-testid="text-page-title">User Management</h1>
               <p className="text-muted-foreground mt-1">Manage soldiers, MSP assignments, and ranks</p>
             </div>
-            <Button onClick={() => setShowCreateDialog(true)} data-testid="button-add-user">
-              <Plus className="w-4 h-4 mr-2" />
-              Add User
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setShowBatchImport(true)} data-testid="button-batch-import-users">
+                <Upload className="w-4 h-4 mr-2" />
+                Batch Import
+              </Button>
+              <Button onClick={() => setShowCreateDialog(true)} data-testid="button-add-user">
+                <Plus className="w-4 h-4 mr-2" />
+                Add User
+              </Button>
+            </div>
           </div>
-          <AdminUsers showCreateDialog={showCreateDialog} setShowCreateDialog={setShowCreateDialog} />
+          <AdminUsers 
+            showCreateDialog={showCreateDialog} 
+            setShowCreateDialog={setShowCreateDialog}
+            showBatchImport={showBatchImport}
+            setShowBatchImport={setShowBatchImport}
+          />
         </div>
       </div>
     </div>
