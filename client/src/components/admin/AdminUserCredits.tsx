@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Skeleton } from "@/components/ui/skeleton";
-import { User } from "@shared/schema";
+import { User, Msp } from "@shared/schema";
 import { Search, Coins, Edit, Check, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
@@ -18,6 +18,10 @@ export function AdminUserCredits() {
 
   const { data: users, isLoading } = useQuery<User[]>({
     queryKey: ["/api/admin/users"],
+  });
+
+  const { data: msps } = useQuery<Msp[]>({
+    queryKey: ["/api/msps"],
   });
 
   const updateCreditsMutation = useMutation({
@@ -61,6 +65,12 @@ export function AdminUserCredits() {
   const handleCancelEdit = () => {
     setEditingUserId(null);
     setEditCredits(0);
+  };
+
+  const getMspName = (mspId: string | null): string => {
+    if (!mspId || !msps) return '-';
+    const msp = msps.find(m => m.id === mspId);
+    return msp ? msp.name : '-';
   };
 
   if (isLoading) {
@@ -144,7 +154,7 @@ export function AdminUserCredits() {
                         <td className="py-2 px-3">{user.fullName}</td>
                         <td className="py-2 px-3 text-muted-foreground">{user.username}</td>
                         <td className="py-2 px-3 text-muted-foreground">
-                          {user.mspId ? `MSP ${user.mspId.replace('msp-', '')}` : '-'}
+                          {getMspName(user.mspId)}
                         </td>
                         <td className="py-2 px-3 text-right">
                           {editingUserId === user.id ? (
