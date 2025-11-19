@@ -1,6 +1,6 @@
 # Army Company Mess Room Booking System
 
-A credit-based booking system for military unit personnel to reserve the company mess room. Built with React, Express, and in-memory storage.
+A credit-based booking system for military unit personnel to reserve the company mess room. Built with React, Express, and a PostgreSQL database managed through Drizzle ORM.
 
 ## Features
 
@@ -41,12 +41,23 @@ A credit-based booking system for military unit personnel to reserve the company
 
 The application starts automatically on Replit. If running locally:
 
-```bash
-npm install
-npm run dev
-```
+1. Copy the example environment file and fill in your credentials:
 
-The app will be available at `http://localhost:5000`
+   ```bash
+   cp .env.example .env
+   ```
+
+   - Set `DATABASE_URL` to your PostgreSQL connection string. For Neon this can look like `postgresql://neondb_owner:npg_ny7uhzrwgA5e@ep-late-tree-a1qdygfs-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require`.
+   - Optionally override `SESSION_SECRET`.
+
+2. Install dependencies and start the dev server:
+
+   ```bash
+   npm install
+   npm run dev
+   ```
+
+The app will be available at `http://localhost:5000`.
 
 ## Monthly Credit Management
 
@@ -62,7 +73,7 @@ Administrators can configure and execute monthly credit resets:
 
 - **Frontend**: React, TanStack Query, Wouter Router, Shadcn UI
 - **Backend**: Express.js, TypeScript
-- **Storage**: In-memory (resets on server restart)
+- **Storage**: PostgreSQL via Drizzle ORM (compatible with Neon)
 - **Calendar**: FullCalendar
 - **Styling**: Tailwind CSS
 
@@ -104,7 +115,5 @@ Administrators can configure and execute monthly credit resets:
 
 ## Notes
 
-- This is a demonstration system using in-memory storage
-- Data will be lost when the server restarts
-- For production use, integrate with a persistent database
+- The app persists data in PostgreSQL. Configure the `DATABASE_URL` environment variable to point at your instance (e.g., Neon).
 - All times are in the server's local timezone
