@@ -174,7 +174,7 @@ export default function MyCurrency() {
             </Button>
           </div>
 
-          {user.role === "commander" && allQualifications.length > 0 && (
+          {/* {user.role === "commander" && allQualifications.length > 0 && (
             <div className="grid gap-4 md:grid-cols-4">
               <Card data-testid="card-total-qualifications">
                 <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
@@ -229,7 +229,7 @@ export default function MyCurrency() {
                 </CardContent>
               </Card>
             </div>
-          )}
+          )} */}
 
         {qualificationsLoading ? (
           <div className="grid gap-4 md:grid-cols-2">
