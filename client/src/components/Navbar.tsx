@@ -57,7 +57,6 @@ export function Navbar({ user, pageTitle }: NavbarProps) {
     { name: "Mess Booking", path: "/mess-booking", icon: Utensils },
     { name: "IPPT", path: "/ippt", icon: CalendarIcon }, // new
     { name: "IPPT Tracker", path: "/ippt-tracker", icon: LayoutDashboard }, // new
-
   ];
 
   const adminNavItems = [

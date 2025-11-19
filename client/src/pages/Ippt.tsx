@@ -30,7 +30,7 @@ export default function IPPT() {
         IPPT
       </h2>
       <p className="text-sm text-muted-foreground">
-        Placeholder page for IPPT Tracker. Add your UI and data fetching here.
+        Placeholder page for IPPT. Add your UI and data fetching here.
       </p>
     </div>
   );
