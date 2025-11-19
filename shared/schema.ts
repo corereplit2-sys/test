@@ -113,6 +113,11 @@ export const loginSchema = z.object({
   password: z.string().min(1, "Password is required"),
 });
 
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1, "Current password is required"),
+  newPassword: z.string().min(3, "New password must be at least 3 characters"),
+});
+
 // Types
 export type InsertMsp = z.infer<typeof insertMspSchema>;
 export type Msp = typeof msps.$inferSelect;
@@ -132,6 +137,7 @@ export type DriveLog = typeof driveLogs.$inferSelect;
 
 export type Config = typeof config.$inferSelect;
 export type LoginCredentials = z.infer<typeof loginSchema>;
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 
 // Safe user type without password hash (for API responses)
 export type SafeUser = Omit<User, "passwordHash">;

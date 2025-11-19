@@ -9,7 +9,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { LogOut, User as UserIcon, LayoutDashboard, Calendar as CalendarIcon, Car, Utensils, Users } from "lucide-react";
+import { LogOut, User as UserIcon, LayoutDashboard, Car, Utensils, Users, Settings } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation, Link } from "wouter";
@@ -146,6 +146,15 @@ export function Navbar({ user, pageTitle }: NavbarProps) {
                 })}
                 <DropdownMenuSeparator />
               </div>
+              {(user.role === "soldier" || user.role === "commander") && (
+                <>
+                  <DropdownMenuItem onClick={() => setLocation("/account")} data-testid="button-account-settings">
+                    <Settings className="w-4 h-4 mr-2" />
+                    Account settings
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                </>
+              )}
               <DropdownMenuItem onClick={handleLogout} data-testid="button-logout">
                 <LogOut className="w-4 h-4 mr-2" />
                 Logout

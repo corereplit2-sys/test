@@ -3,8 +3,8 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import session from "express-session";
 import bcrypt from "bcryptjs";
-import { 
-  loginSchema, insertUserSchema, updateUserSchema, insertBookingSchema,
+import {
+  loginSchema, changePasswordSchema, insertUserSchema, updateUserSchema, insertBookingSchema,
   insertDriverQualificationSchema, insertDriveLogSchema,
   type User, type SafeUser, type Booking, type BookingWithUser, type DashboardStats, type BookableWeekRange,
   type Msp, type DriverQualification, type DriveLog, type QualificationWithStatus
@@ -210,6 +210,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/auth/me", requireAuth, (req: any, res) => {
     res.json(sanitizeUser(req.user));
+  });
+
+  app.post("/api/auth/change-password", requireAuth, async (req: any, res) => {
+    try {
+      if (req.user.role !== "soldier" && req.user.role !== "commander") {
+        return res.status(403).json({ message: "Password changes are only available to soldiers and commanders" });
+      }
+
+      const { currentPassword, newPassword } = changePasswordSchema.parse(req.body);
+
+      const user = await storage.getUser(req.user.id);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const isValidPassword = await bcrypt.compare(currentPassword, user.passwordHash);
+      if (!isValidPassword) {
+        return res.status(400).json({ message: "Current password is incorrect" });
+      }
+
+      const passwordHash = await bcrypt.hash(newPassword, 10);
+      await storage.updateUser(user.id, { passwordHash });
+
+      res.json({ message: "Password updated successfully" });
+    } catch (error: any) {
+      res.status(400).json({ message: error.message || "Failed to change password" });
+    }
   });
 
   // Booking routes

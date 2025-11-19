@@ -13,6 +13,7 @@ import MyCurrency from "@/pages/MyCurrency";
 import CurrencyTracker from "@/pages/CurrencyTracker";
 import MessBooking from "@/pages/MessBooking";
 import Users from "@/pages/Users";
+import AccountSettings from "@/pages/AccountSettings";
 import { SafeUser } from "@shared/schema";
 
 function ProtectedRoute({ component: Component, allowedRoles }: { component: any; allowedRoles?: string[] }) {
@@ -85,6 +86,9 @@ function Router() {
       </Route>
       <Route path="/users">
         {() => <ProtectedRoute component={Users} allowedRoles={["admin"]} />}
+      </Route>
+      <Route path="/account">
+        {() => <ProtectedRoute component={AccountSettings} allowedRoles={["soldier", "commander"]} />}
       </Route>
       <Route path="/currency-tracker">
         {() => <ProtectedRoute component={CurrencyTracker} allowedRoles={["admin", "commander"]} />}
