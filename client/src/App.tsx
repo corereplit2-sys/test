@@ -14,6 +14,8 @@ import CurrencyTracker from "@/pages/CurrencyTracker";
 import MessBooking from "@/pages/MessBooking";
 import Users from "@/pages/Users";
 import { SafeUser } from "@shared/schema";
+import IPPT from "./pages/Ippt";
+import IPPTTracker from "./pages/IpptTracker";
 
 function ProtectedRoute({ component: Component, allowedRoles }: { component: any; allowedRoles?: string[] }) {
   const { data: user, isLoading } = useQuery<SafeUser>({
@@ -91,6 +93,12 @@ function Router() {
       </Route>
       <Route path="/mess-booking">
         {() => <ProtectedRoute component={MessBooking} />}
+      </Route>
+      <Route path="/ippt">
+        {() => <ProtectedRoute component={IPPT} />}
+      </Route>
+      <Route path="/ippt-tracker">
+        {() => <ProtectedRoute component={IPPTTracker} allowedRoles={["admin"]} />}
       </Route>
       <Route component={NotFound} />
     </Switch>

@@ -67,15 +67,33 @@ app.use((req, res, next) => {
   }
 
   // ALWAYS serve the app on the port specified in the environment variable PORT
-  // Other ports are firewalled. Default to 5000 if not specified.
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
   const port = parseInt(process.env.PORT || '5000', 10);
-  server.listen({
-    port,
-    host: "0.0.0.0",
-    reusePort: true,
-  }, () => {
+
+  // only enable reusePort on non-Windows platforms
+  const listenOptions: any = { port, host: "0.0.0.0" };
+  if (process.platform !== "win32") {
+    listenOptions.reusePort = true;
+  }
+
+  // handle listen errors (retry without reusePort / on localhost)
+  server.on("error", (err: NodeJS.ErrnoException) => {
+    console.error("server error:", err?.code ?? err);
+    if (err && (err.code === "ENOTSUP" || err.code === "EOPNOTSUPP" || err.code === "EADDRNOTAVAIL")) {
+      console.warn("listen failed (unsupported). Retrying without reusePort on 127.0.0.1...");
+      try {
+        server.listen({ port, host: "127.0.0.1" }, () => {
+          log(`serving on 127.0.0.1:${port} (fallback)`);
+        });
+      } catch (e) {
+        console.error("fallback listen also failed:", (e as Error).message);
+        process.exit(1);
+      }
+      return;
+    }
+    process.exit(1);
+  });
+
+  server.listen(listenOptions, () => {
     log(`serving on port ${port}`);
   });
 })();
