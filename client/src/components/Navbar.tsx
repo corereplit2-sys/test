@@ -47,6 +47,7 @@ export function Navbar({ user, pageTitle }: NavbarProps) {
     { name: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
     { name: "My Currency", path: "/my-currency", icon: Car },
     { name: "Mess Booking", path: "/mess-booking", icon: Utensils },
+    { name: "IPPT", path: "/ippt", icon: CalendarIcon }, // new
   ];
 
   const commanderNavItems = [
@@ -54,6 +55,9 @@ export function Navbar({ user, pageTitle }: NavbarProps) {
     { name: "My Currency", path: "/my-currency", icon: Car },
     { name: "Currency Tracker", path: "/currency-tracker", icon: Car },
     { name: "Mess Booking", path: "/mess-booking", icon: Utensils },
+    { name: "IPPT", path: "/ippt", icon: CalendarIcon }, // new
+    { name: "IPPT Tracker", path: "/ippt-tracker", icon: LayoutDashboard }, // new
+
   ];
 
   const adminNavItems = [
@@ -61,6 +65,8 @@ export function Navbar({ user, pageTitle }: NavbarProps) {
     { name: "Currency Tracker", path: "/currency-tracker", icon: Car },
     { name: "Mess Booking", path: "/mess-booking", icon: Utensils },
     { name: "Users", path: "/users", icon: Users },
+    // { name: "IPPT", path: "/ippt", icon: CalendarIcon }, // 
+    { name: "IPPT Tracker", path: "/ippt-tracker", icon: LayoutDashboard }, // new
   ];
 
   const navItems = user.role === "admin" ? adminNavItems : (user.role === "commander" ? commanderNavItems : soldierNavItems);
