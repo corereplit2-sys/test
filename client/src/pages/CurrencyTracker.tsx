@@ -370,18 +370,18 @@ export default function CurrencyTracker() {
               </Button>
             </div>
           ) : (
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
               <div>
-                <h1 className="text-3xl font-bold">Currency Tracker</h1>
-                <p className="text-muted-foreground mt-1">Company-wide driver currency management</p>
+                <h1 className="text-2xl md:text-3xl font-bold">Currency Tracker</h1>
+                <p className="text-muted-foreground mt-1 text-sm">Company-wide driver currency management</p>
               </div>
               {user?.role === "admin" && (
-                <div className="flex gap-2">
-                  <Button variant="outline" onClick={() => setShowBatchImport(true)} data-testid="button-batch-import">
+                <div className="flex gap-2 flex-wrap">
+                  <Button variant="outline" onClick={() => setShowBatchImport(true)} data-testid="button-batch-import" size="sm" className="md:size-auto">
                     <Upload className="w-4 h-4 mr-2" />
                     Batch Import
                   </Button>
-                  <Button onClick={() => setIsAddingQual(true)} data-testid="button-add-qualification">
+                  <Button onClick={() => setIsAddingQual(true)} data-testid="button-add-qualification" size="sm" className="md:size-auto">
                     <Plus className="w-4 h-4 mr-2" />
                     Add Qualification
                   </Button>
@@ -392,27 +392,27 @@ export default function CurrencyTracker() {
 
           {!selectedQual && (
             <>
-              <div className="grid gap-4 md:grid-cols-4 mb-6">
+              <div className="grid gap-2 grid-cols-2 md:grid-cols-4 mb-6">
                 <Card data-testid="card-analytics-total">
                   <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Total Qualifications</CardTitle>
-                    <Award className="w-4 h-4 text-muted-foreground" />
+                    <CardTitle className="text-xs md:text-sm font-medium">Total Qualifications</CardTitle>
+                    <Award className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">{qualifications.length}</div>
-                    <p className="text-xs text-muted-foreground mt-1">Across all MSPs</p>
+                    <div className="text-xl md:text-2xl font-bold">{qualifications.length}</div>
+                    <p className="text-xs text-muted-foreground mt-1 hidden sm:block">Across all MSPs</p>
                   </CardContent>
                 </Card>
                 <Card data-testid="card-analytics-current">
                   <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Current</CardTitle>
-                    <Award className="w-4 h-4 text-green-600 dark:text-green-400" />
+                    <CardTitle className="text-xs md:text-sm font-medium">Current</CardTitle>
+                    <Award className="w-4 h-4 text-green-600 dark:text-green-400 flex-shrink-0" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">
+                    <div className="text-xl md:text-2xl font-bold">
                       {qualifications.filter(q => q.status === "CURRENT").length}
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1">
+                    <p className="text-xs text-muted-foreground mt-1 hidden sm:block">
                       {qualifications.length > 0 
                         ? `${((qualifications.filter(q => q.status === "CURRENT").length / qualifications.length) * 100).toFixed(0)}% of total`
                         : "0%"
@@ -422,14 +422,14 @@ export default function CurrencyTracker() {
                 </Card>
                 <Card data-testid="card-analytics-expiring">
                   <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Expiring Soon</CardTitle>
-                    <AlertTriangle className="w-4 h-4 text-yellow-600 dark:text-yellow-400" />
+                    <CardTitle className="text-xs md:text-sm font-medium">Expiring Soon</CardTitle>
+                    <AlertTriangle className="w-4 h-4 text-yellow-600 dark:text-yellow-400 flex-shrink-0" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">
+                    <div className="text-xl md:text-2xl font-bold">
                       {qualifications.filter(q => q.status === "EXPIRING_SOON").length}
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1">
+                    <p className="text-xs text-muted-foreground mt-1 hidden sm:block">
                       {qualifications.length > 0
                         ? `${((qualifications.filter(q => q.status === "EXPIRING_SOON").length / qualifications.length) * 100).toFixed(0)}% of total`
                         : "0%"
@@ -439,14 +439,14 @@ export default function CurrencyTracker() {
                 </Card>
                 <Card data-testid="card-analytics-expired">
                   <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Expired</CardTitle>
-                    <AlertTriangle className="w-4 h-4 text-red-600 dark:text-red-400" />
+                    <CardTitle className="text-xs md:text-sm font-medium">Expired</CardTitle>
+                    <AlertTriangle className="w-4 h-4 text-red-600 dark:text-red-400 flex-shrink-0" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">
+                    <div className="text-xl md:text-2xl font-bold">
                       {qualifications.filter(q => q.status === "EXPIRED").length}
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1">
+                    <p className="text-xs text-muted-foreground mt-1 hidden sm:block">
                       {qualifications.length > 0
                         ? `${((qualifications.filter(q => q.status === "EXPIRED").length / qualifications.length) * 100).toFixed(0)}% of total`
                         : "0%"
@@ -456,51 +456,34 @@ export default function CurrencyTracker() {
                 </Card>
               </div>
 
-              <div className="grid gap-6 md:grid-cols-2 mb-6">
+              <div className="grid gap-6 mb-6">
                 <Card data-testid="card-msp-breakdown">
                   <CardHeader>
                     <CardTitle>MSP Breakdown</CardTitle>
                     <CardDescription>Currency status by MSP</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="border rounded-md">
-                      <div className="overflow-x-auto">
-                        <table className="w-full">
-                          <thead className="bg-muted/50">
-                            <tr>
-                              <th className="text-left text-xs font-semibold uppercase tracking-wide py-2 px-3">MSP</th>
-                              <th className="text-center text-xs font-semibold uppercase tracking-wide py-2 px-3">Total</th>
-                              <th className="text-center text-xs font-semibold uppercase tracking-wide py-2 px-3">Current</th>
-                              <th className="text-center text-xs font-semibold uppercase tracking-wide py-2 px-3">Expiring</th>
-                              <th className="text-center text-xs font-semibold uppercase tracking-wide py-2 px-3">Expired</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {msps.map(msp => {
-                              const mspQuals = qualifications.filter(q => q.user?.mspId === msp.id);
-                              const current = mspQuals.filter(q => q.status === "CURRENT").length;
-                              const expiring = mspQuals.filter(q => q.status === "EXPIRING_SOON").length;
-                              const expired = mspQuals.filter(q => q.status === "EXPIRED").length;
-                              
-                              return (
-                                <tr key={msp.id} className="border-t hover-elevate">
-                                  <td className="py-2 px-3 font-medium">{msp.name}</td>
-                                  <td className="py-2 px-3 text-center">{mspQuals.length}</td>
-                                  <td className="py-2 px-3 text-center">
-                                    <span className="text-green-600 dark:text-green-400 font-medium">{current}</span>
-                                  </td>
-                                  <td className="py-2 px-3 text-center">
-                                    <span className="text-yellow-600 dark:text-yellow-400 font-medium">{expiring}</span>
-                                  </td>
-                                  <td className="py-2 px-3 text-center">
-                                    <span className="text-red-600 dark:text-red-400 font-medium">{expired}</span>
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
+                    <div className="space-y-3">
+                      {msps.map(msp => {
+                        const mspQuals = qualifications.filter(q => q.user?.mspId === msp.id);
+                        const current = mspQuals.filter(q => q.status === "CURRENT").length;
+                        const expiring = mspQuals.filter(q => q.status === "EXPIRING_SOON").length;
+                        const expired = mspQuals.filter(q => q.status === "EXPIRED").length;
+                        
+                        return (
+                          <div key={msp.id} className="flex items-center justify-between border rounded-md p-3">
+                            <div className="flex-1">
+                              <p className="font-medium text-sm">{msp.name}</p>
+                              <p className="text-xs text-muted-foreground">Total: {mspQuals.length}</p>
+                            </div>
+                            <div className="flex gap-2 text-xs font-medium">
+                              <span className="text-green-600 dark:text-green-400 bg-green-500/10 px-2 py-1 rounded">{current}</span>
+                              <span className="text-yellow-600 dark:text-yellow-400 bg-yellow-500/10 px-2 py-1 rounded">{expiring}</span>
+                              <span className="text-red-600 dark:text-red-400 bg-red-500/10 px-2 py-1 rounded">{expired}</span>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   </CardContent>
                 </Card>
@@ -511,47 +494,30 @@ export default function CurrencyTracker() {
                     <CardDescription>Currency status by vehicle</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="border rounded-md">
-                      <div className="overflow-x-auto">
-                        <table className="w-full">
-                          <thead className="bg-muted/50">
-                            <tr>
-                              <th className="text-left text-xs font-semibold uppercase tracking-wide py-2 px-3">Vehicle</th>
-                              <th className="text-center text-xs font-semibold uppercase tracking-wide py-2 px-3">Total</th>
-                              <th className="text-center text-xs font-semibold uppercase tracking-wide py-2 px-3">Current</th>
-                              <th className="text-center text-xs font-semibold uppercase tracking-wide py-2 px-3">Expiring</th>
-                              <th className="text-center text-xs font-semibold uppercase tracking-wide py-2 px-3">Expired</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {vehicleTypes.map(vehicle => {
-                              const vehicleQuals = qualifications.filter(q => q.vehicleType === vehicle);
-                              const current = vehicleQuals.filter(q => q.status === "CURRENT").length;
-                              const expiring = vehicleQuals.filter(q => q.status === "EXPIRING_SOON").length;
-                              const expired = vehicleQuals.filter(q => q.status === "EXPIRED").length;
-                              
-                              return (
-                                <tr key={vehicle} className="border-t hover-elevate">
-                                  <td className="py-2 px-3 font-medium flex items-center gap-2">
-                                    <Car className="w-3 h-3" />
-                                    {vehicle}
-                                  </td>
-                                  <td className="py-2 px-3 text-center">{vehicleQuals.length}</td>
-                                  <td className="py-2 px-3 text-center">
-                                    <span className="text-green-600 dark:text-green-400 font-medium">{current}</span>
-                                  </td>
-                                  <td className="py-2 px-3 text-center">
-                                    <span className="text-yellow-600 dark:text-yellow-400 font-medium">{expiring}</span>
-                                  </td>
-                                  <td className="py-2 px-3 text-center">
-                                    <span className="text-red-600 dark:text-red-400 font-medium">{expired}</span>
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
+                    <div className="space-y-3">
+                      {vehicleTypes.map(vehicle => {
+                        const vehicleQuals = qualifications.filter(q => q.vehicleType === vehicle);
+                        const current = vehicleQuals.filter(q => q.status === "CURRENT").length;
+                        const expiring = vehicleQuals.filter(q => q.status === "EXPIRING_SOON").length;
+                        const expired = vehicleQuals.filter(q => q.status === "EXPIRED").length;
+                        
+                        return (
+                          <div key={vehicle} className="flex items-center justify-between border rounded-md p-3">
+                            <div className="flex-1 flex items-center gap-2">
+                              <Car className="w-4 h-4 text-muted-foreground" />
+                              <div>
+                                <p className="font-medium text-sm">{vehicle}</p>
+                                <p className="text-xs text-muted-foreground">Total: {vehicleQuals.length}</p>
+                              </div>
+                            </div>
+                            <div className="flex gap-2 text-xs font-medium">
+                              <span className="text-green-600 dark:text-green-400 bg-green-500/10 px-2 py-1 rounded">{current}</span>
+                              <span className="text-yellow-600 dark:text-yellow-400 bg-yellow-500/10 px-2 py-1 rounded">{expiring}</span>
+                              <span className="text-red-600 dark:text-red-400 bg-red-500/10 px-2 py-1 rounded">{expired}</span>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   </CardContent>
                 </Card>
