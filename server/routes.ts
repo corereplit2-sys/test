@@ -55,6 +55,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     next();
   };
 
+  // Middleware to check admin or commander role
+  const requireAdminOrCommander = async (req: any, res: any, next: any) => {
+    if (!req.user || (req.user.role !== "admin" && req.user.role !== "commander")) {
+      return res.status(403).json({ message: "Admin or commander access required" });
+    }
+    next();
+  };
+
   // Seed initial data
   const seedData = async () => {
     // Helper to determine role based on rank
@@ -533,7 +541,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/admin/users", requireAuth, requireAdmin, async (req, res) => {
+  app.get("/api/admin/users", requireAuth, requireAdminOrCommander, async (req, res) => {
     try {
       const users = await storage.getAllUsers();
       res.json(users.map(sanitizeUser));
@@ -568,12 +576,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/admin/users/:id", requireAuth, requireAdmin, async (req, res) => {
     try {
-      const userData = updateUserSchema.parse(req.body);
       const user = await storage.getUser(req.params.id);
       
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
+
+      // If only updating credits, handle separately
+      if (Object.keys(req.body).length === 1 && "credits" in req.body) {
+        const credits = req.body.credits;
+        if (typeof credits !== "number" || credits < 0) {
+          return res.status(400).json({ message: "Invalid credits value" });
+        }
+        const updatedUser = await storage.updateUser(req.params.id, { credits });
+        return res.json(sanitizeUser(updatedUser!));
+      }
+
+      // For other updates, validate against schema
+      const userData = updateUserSchema.parse(req.body);
 
       // Check if username is being changed and if it's already taken
       if (userData.username && userData.username !== user.username) {
