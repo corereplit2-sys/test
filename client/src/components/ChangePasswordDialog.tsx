@@ -80,10 +80,10 @@ export function ChangePasswordDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="ghost" className="gap-2 w-full justify-start">
+        <div className="flex items-center gap-2 cursor-pointer px-2 py-1.5 rounded-sm hover:bg-accent">
           <Key className="w-4 h-4" />
-          Change Password
-        </Button>
+          <span>Change Password</span>
+        </div>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
