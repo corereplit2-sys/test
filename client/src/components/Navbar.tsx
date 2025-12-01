@@ -219,7 +219,6 @@ export function Navbar({ user, pageTitle }: NavbarProps) {
                 })}
                 <DropdownMenuSeparator />
               </div>
-              <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
                 <ChangePasswordDialog />
               </DropdownMenuItem>
