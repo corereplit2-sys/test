@@ -403,7 +403,11 @@ export default function CurrencyTracker() {
                     <p className="text-xs text-muted-foreground mt-1 hidden sm:block">Across all MSPs</p>
                   </CardContent>
                 </Card>
-                <Card data-testid="card-analytics-current">
+                <Card 
+                  data-testid="card-analytics-current"
+                  className="cursor-pointer hover:bg-accent transition-colors"
+                  onClick={() => addFilterTag("status", "CURRENT", "Current")}
+                >
                   <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
                     <CardTitle className="text-xs md:text-sm font-medium">Current</CardTitle>
                     <Award className="w-4 h-4 text-green-600 dark:text-green-400 flex-shrink-0" />
@@ -420,7 +424,11 @@ export default function CurrencyTracker() {
                     </p>
                   </CardContent>
                 </Card>
-                <Card data-testid="card-analytics-expiring">
+                <Card 
+                  data-testid="card-analytics-expiring"
+                  className="cursor-pointer hover:bg-accent transition-colors"
+                  onClick={() => addFilterTag("status", "EXPIRING_SOON", "Expiring Soon")}
+                >
                   <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
                     <CardTitle className="text-xs md:text-sm font-medium">Expiring Soon</CardTitle>
                     <AlertTriangle className="w-4 h-4 text-yellow-600 dark:text-yellow-400 flex-shrink-0" />
@@ -437,7 +445,11 @@ export default function CurrencyTracker() {
                     </p>
                   </CardContent>
                 </Card>
-                <Card data-testid="card-analytics-expired">
+                <Card 
+                  data-testid="card-analytics-expired"
+                  className="cursor-pointer hover:bg-accent transition-colors"
+                  onClick={() => addFilterTag("status", "EXPIRED", "Expired")}
+                >
                   <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
                     <CardTitle className="text-xs md:text-sm font-medium">Expired</CardTitle>
                     <AlertTriangle className="w-4 h-4 text-red-600 dark:text-red-400 flex-shrink-0" />
@@ -471,7 +483,11 @@ export default function CurrencyTracker() {
                         const expired = mspQuals.filter(q => q.status === "EXPIRED").length;
                         
                         return (
-                          <div key={msp.id} className="flex items-center justify-between border rounded-md p-3">
+                          <div 
+                            key={msp.id} 
+                            className="flex items-center justify-between border rounded-md p-3 cursor-pointer hover:bg-accent transition-colors"
+                            onClick={() => addFilterTag("msp", msp.id, msp.name)}
+                          >
                             <div className="flex-1">
                               <p className="font-medium text-sm">{msp.name}</p>
                               <p className="text-xs text-muted-foreground">Total: {mspQuals.length}</p>
