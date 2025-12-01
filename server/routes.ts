@@ -574,7 +574,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/admin/users/:id", requireAuth, requireAdmin, async (req, res) => {
+  app.put("/api/admin/users/:id", requireAuth, requireAdminOrCommander, async (req, res) => {
     try {
       const user = await storage.getUser(req.params.id);
       
