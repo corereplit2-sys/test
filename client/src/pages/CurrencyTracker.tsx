@@ -698,7 +698,7 @@ export default function CurrencyTracker() {
             </div>
 
             {selectedQual && (
-              <div className="hidden lg:block lg:col-span-1">
+              <div className="hidden lg:block lg:col-span-1" style={{display: 'none'}}>
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
                     <div>
@@ -800,7 +800,7 @@ export default function CurrencyTracker() {
 
       {selectedQual && (
         <Dialog open={!!selectedQual} onOpenChange={() => setSelectedQual(null)}>
-          <DialogContent className="lg:hidden max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-h-[90vh] overflow-y-auto">
             <DialogHeader className="sticky top-0 bg-background pb-4">
               <DialogTitle>Drive History</DialogTitle>
               <DialogDescription>
