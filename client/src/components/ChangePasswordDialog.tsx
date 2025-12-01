@@ -92,7 +92,7 @@ export function ChangePasswordDialog() {
             Enter your current password and choose a new one.
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-4">
+        <div className="space-y-4 pt-4">
           <div>
             <Label htmlFor="old-password">Current Password</Label>
             <Input
