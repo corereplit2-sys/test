@@ -108,14 +108,16 @@ export default function SoldierDashboard() {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <Button
-                  className="h-12"
-                  onClick={() => setLocation("/mess-booking")}
-                  data-testid="button-open-calendar"
-                >
-                  <Calendar className="w-5 h-5 mr-2" />
-                  Book Mess Room
-                </Button>
+                {user.role === "soldier" && (
+                  <Button
+                    className="h-12"
+                    onClick={() => setLocation("/mess-booking")}
+                    data-testid="button-open-calendar"
+                  >
+                    <Calendar className="w-5 h-5 mr-2" />
+                    Book Mess Room
+                  </Button>
+                )}
 
                 <Button
                   className="h-12"
@@ -127,7 +129,7 @@ export default function SoldierDashboard() {
                 </Button>
               </div>
 
-              {user.credits < 1 && (
+              {user.role === "soldier" && user.credits < 1 && (
                 <div className="border border-destructive/50 rounded-md p-4 bg-destructive/5 mt-4">
                   <div className="flex gap-2">
                     <AlertCircle className="w-5 h-5 text-destructive flex-shrink-0" />
@@ -145,78 +147,81 @@ export default function SoldierDashboard() {
             </CardContent>
           </Card>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex flex-col items-center justify-center">
-                  <p className="text-sm font-medium uppercase tracking-wide text-muted-foreground mb-2">
-                    Mess Credits
-                  </p>
-                  <p className="text-4xl font-mono font-semibold" data-testid="text-available-credits">
-                    {user.credits.toFixed(1)}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-2">
-                    1 credit = 1 hour of booking
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg font-semibold flex items-center gap-2">
-                  <Car className="w-5 h-5" />
-                  Driver Currency
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {qualificationsLoading ? (
-                  <Skeleton className="h-16" />
-                ) : qualifications.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-4">
-                    <Award className="w-8 h-8 text-muted-foreground mb-2" />
-                    <p className="text-sm text-muted-foreground">No qualifications</p>
+          {user.role === "soldier" && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex flex-col items-center justify-center">
+                    <p className="text-sm font-medium uppercase tracking-wide text-muted-foreground mb-2">
+                      Mess Credits
+                    </p>
+                    <p className="text-4xl font-mono font-semibold" data-testid="text-available-credits">
+                      {user.credits.toFixed(1)}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      1 credit = 1 hour of booking
+                    </p>
                   </div>
-                ) : (
-                  <div className="space-y-2">
-                    {qualifications.map((qual) => (
-                      <div key={qual.id} className="flex items-center justify-between p-2 border rounded-md">
-                        <div>
-                          <p className="font-medium text-sm">{qual.vehicleType}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {qual.daysRemaining > 0 ? `${qual.daysRemaining} days left` : "Expired"}
-                          </p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                    <Car className="w-5 h-5" />
+                    Driver Currency
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {qualificationsLoading ? (
+                    <Skeleton className="h-16" />
+                  ) : qualifications.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-4">
+                      <Award className="w-8 h-8 text-muted-foreground mb-2" />
+                      <p className="text-sm text-muted-foreground">No qualifications</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {qualifications.map((qual) => (
+                        <div key={qual.id} className="flex items-center justify-between p-2 border rounded-md">
+                          <div>
+                            <p className="font-medium text-sm">{qual.vehicleType}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {qual.daysRemaining > 0 ? `${qual.daysRemaining} days left` : "Expired"}
+                            </p>
+                          </div>
+                          <Badge
+                            variant={qual.status === "CURRENT" ? "outline" : qual.status === "EXPIRING_SOON" ? "secondary" : "destructive"}
+                            className={
+                              qual.status === "CURRENT"
+                                ? "bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/30"
+                                : qual.status === "EXPIRING_SOON"
+                                ? "bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 border-yellow-500/30"
+                                : ""
+                            }
+                          >
+                            {qual.status === "CURRENT" ? "Current" : qual.status === "EXPIRING_SOON" ? "Expiring" : "Expired"}
+                          </Badge>
                         </div>
-                        <Badge
-                          variant={qual.status === "CURRENT" ? "outline" : qual.status === "EXPIRING_SOON" ? "secondary" : "destructive"}
-                          className={
-                            qual.status === "CURRENT"
-                              ? "bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/30"
-                              : qual.status === "EXPIRING_SOON"
-                              ? "bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 border-yellow-500/30"
-                              : ""
-                          }
-                        >
-                          {qual.status === "CURRENT" ? "Current" : qual.status === "EXPIRING_SOON" ? "Expiring" : "Expired"}
-                        </Badge>
-                      </div>
-                    ))}
-                    <Button
-                      variant="outline"
-                      className="w-full mt-2"
-                      size="sm"
-                      onClick={() => setLocation("/my-currency")}
-                      data-testid="button-view-currency"
-                    >
-                      View Full Currency
-                    </Button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
+                      ))}
+                      <Button
+                        variant="outline"
+                        className="w-full mt-2"
+                        size="sm"
+                        onClick={() => setLocation("/my-currency")}
+                        data-testid="button-view-currency"
+                      >
+                        View Full Currency
+                      </Button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          )}
 
-          <Card>
+          {user.role === "soldier" && (
+            <Card>
               <CardHeader>
                 <CardTitle className="text-xl font-semibold">Upcoming Bookings</CardTitle>
                 <CardDescription>Your active reservations</CardDescription>
@@ -286,6 +291,7 @@ export default function SoldierDashboard() {
                 )}
               </CardContent>
             </Card>
+          )}
         </div>
       </div>
 
