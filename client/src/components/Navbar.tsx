@@ -200,21 +200,19 @@ export function Navbar({ user, pageTitle }: NavbarProps) {
                   
                   if (hasSubmenu) {
                     return (
-                      <DropdownMenuSub key={`${item.name}-${idx}`}>
-                        <DropdownMenuSubTrigger className="gap-2">
+                      <div key={`${item.name}-${idx}`}>
+                        <div className="flex items-center gap-2 px-2 py-1.5 text-sm font-medium text-muted-foreground">
                           <Icon className="w-4 h-4" />
                           <span>{item.name}</span>
-                        </DropdownMenuSubTrigger>
-                        <DropdownMenuSubContent>
-                          {hasSubmenu && item.submenu!.map((subitem, subidx) => (
-                            <DropdownMenuItem key={`${subitem.path}-${subidx}`} asChild>
-                              <Link href={subitem.path}>
-                                <span>{subitem.name}</span>
-                              </Link>
-                            </DropdownMenuItem>
-                          ))}
-                        </DropdownMenuSubContent>
-                      </DropdownMenuSub>
+                        </div>
+                        {hasSubmenu && item.submenu!.map((subitem, subidx) => (
+                          <DropdownMenuItem key={`${subitem.path}-${subidx}`} asChild className="pl-8">
+                            <Link href={subitem.path}>
+                              <span>{subitem.name}</span>
+                            </Link>
+                          </DropdownMenuItem>
+                        ))}
+                      </div>
                     );
                   }
                   const itemPath = "path" in item ? item.path : "";
