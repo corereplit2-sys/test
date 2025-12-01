@@ -184,6 +184,13 @@ export default function MessBooking() {
   }, [allBookings, bookableWeek, generateCapacityBackgrounds]);
 
   useEffect(() => {
+    // Reset rules agreement when page loads for soldiers
+    if (user?.role === "soldier") {
+      setRulesAgreed(false);
+    }
+  }, [user?.role]);
+
+  useEffect(() => {
     if (bookingModal) {
       const fetchCapacity = async () => {
         setLoadingCapacity(true);
