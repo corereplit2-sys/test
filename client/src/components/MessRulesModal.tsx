@@ -8,6 +8,12 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 
+const hideCloseButtonStyle = `
+  #mess-rules-modal > button {
+    display: none !important;
+  }
+`;
+
 interface MessRulesModalProps {
   open: boolean;
   onAgree: () => void;
@@ -68,34 +74,37 @@ export function MessRulesModal({ open, onAgree }: MessRulesModalProps) {
   }, []);
 
   return (
-    <Dialog open={open} onOpenChange={() => {}}>
-      <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col [&>button]:hidden" onOpenAutoFocus={(e) => e.preventDefault()}>
-        <div className="flex items-center justify-between mb-2">
-          <div>
-            <DialogTitle>MSC Mess & Interview Room Rules</DialogTitle>
-            <DialogDescription>
-              Please read all rules before proceeding
-            </DialogDescription>
-          </div>
-        </div>
-        
-        <div ref={scrollRef} className="flex-1 overflow-y-auto pr-4 space-y-3">
-          {MESS_RULES.map((rule, index) => (
-            <div key={index} className="text-sm text-foreground leading-relaxed">
-              <span className="font-semibold">{index + 1}. </span>
-              {rule}
+    <>
+      <style>{hideCloseButtonStyle}</style>
+      <Dialog open={open} onOpenChange={() => {}}>
+        <DialogContent id="mess-rules-modal" className="max-w-2xl max-h-[80vh] flex flex-col" onOpenAutoFocus={(e) => e.preventDefault()}>
+          <div className="flex items-center justify-between mb-2">
+            <div>
+              <DialogTitle>MSC Mess & Interview Room Rules</DialogTitle>
+              <DialogDescription>
+                Please read all rules before proceeding
+              </DialogDescription>
             </div>
-          ))}
-        </div>
+          </div>
+          
+          <div ref={scrollRef} className="flex-1 overflow-y-auto pr-4 space-y-3">
+            {MESS_RULES.map((rule, index) => (
+              <div key={index} className="text-sm text-foreground leading-relaxed">
+                <span className="font-semibold">{index + 1}. </span>
+                {rule}
+              </div>
+            ))}
+          </div>
 
-        <Button
-          onClick={onAgree}
-          disabled={!fullyScrolled}
-          className="w-full mt-4"
-        >
-          {fullyScrolled ? "Agree & Continue" : "Scroll to bottom to continue"}
-        </Button>
-      </DialogContent>
-    </Dialog>
+          <Button
+            onClick={onAgree}
+            disabled={!fullyScrolled}
+            className="w-full mt-4"
+          >
+            {fullyScrolled ? "Agree & Continue" : "Scroll to bottom to continue"}
+          </Button>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
