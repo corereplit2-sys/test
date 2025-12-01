@@ -49,20 +49,8 @@ export function Navbar({ user, pageTitle }: NavbarProps) {
 
   const soldierNavItems = [
     { name: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
-    { 
-      name: "Currency", 
-      icon: Car,
-      submenu: [
-        { name: "My Currency", path: "/my-currency" },
-      ]
-    },
-    {
-      name: "IPPT",
-      icon: CalendarIcon,
-      submenu: [
-        { name: "My IPPT", path: "/ippt" },
-      ]
-    },
+    { name: "My Currency", path: "/my-currency", icon: Car },
+    { name: "My IPPT", path: "/ippt", icon: CalendarIcon },
     { name: "Mess Booking", path: "/mess-booking", icon: Gamepad2 },
   ];
 
