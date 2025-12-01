@@ -110,7 +110,7 @@ export default function SoldierDashboard() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <Button
                   className="h-12"
-                  onClick={() => setLocation("/calendar")}
+                  onClick={() => setLocation("/mess-booking")}
                   data-testid="button-open-calendar"
                 >
                   <Calendar className="w-5 h-5 mr-2" />
