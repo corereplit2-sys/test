@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -6,9 +7,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Checkbox } from "@/components/ui/checkbox";
-import { useState } from "react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 interface MessRulesModalProps {
   open: boolean;
@@ -81,25 +81,27 @@ export function MessRulesModal({ open, onAgree }: MessRulesModalProps) {
           </DialogDescription>
         </DialogHeader>
         
-        <ScrollArea className="flex-1 pr-4">
+        <div className="flex-1 overflow-y-auto pr-4 mb-4">
           <div className="whitespace-pre-wrap text-sm text-foreground leading-relaxed">
             {MESS_RULES}
           </div>
-        </ScrollArea>
+        </div>
 
         <div className="space-y-4 border-t pt-4">
           <div className="flex items-center space-x-2">
-            <Checkbox
+            <Input
               id="agree"
+              type="checkbox"
               checked={agreed}
-              onCheckedChange={(checked) => setAgreed(checked as boolean)}
+              onChange={(e) => setAgreed(e.target.checked)}
+              className="w-4 h-4"
             />
-            <label
+            <Label
               htmlFor="agree"
-              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+              className="text-sm font-medium cursor-pointer"
             >
               I have read and agree to comply with all the above rules and regulations
-            </label>
+            </Label>
           </div>
 
           <Button
