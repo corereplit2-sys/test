@@ -4,7 +4,7 @@ import { Navbar } from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, Clock, AlertCircle, Car, Award, Plus } from "lucide-react";
+import { Calendar, Clock, AlertCircle, Car, Award, Plus, Users, BookOpen, CreditCard } from "lucide-react";
 import { useLocation } from "wouter";
 import { format, differenceInHours, isPast } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -127,6 +127,28 @@ export default function SoldierDashboard() {
                   <Plus className="w-5 h-5 mr-2" />
                   Log Drive
                 </Button>
+
+                {user.role === "commander" && (
+                  <>
+                    <Button
+                      className="h-12"
+                      onClick={() => setLocation("/users")}
+                      data-testid="button-edit-credits"
+                    >
+                      <CreditCard className="w-5 h-5 mr-2" />
+                      Edit User Credits
+                    </Button>
+
+                    <Button
+                      className="h-12"
+                      onClick={() => setLocation("/mess-booking")}
+                      data-testid="button-view-bookings"
+                    >
+                      <BookOpen className="w-5 h-5 mr-2" />
+                      View Mess Bookings
+                    </Button>
+                  </>
+                )}
               </div>
 
               {user.role === "soldier" && user.credits < 1 && (
