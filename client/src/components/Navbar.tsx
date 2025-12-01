@@ -60,7 +60,7 @@ export function Navbar({ user, pageTitle }: NavbarProps) {
       name: "IPPT",
       icon: CalendarIcon,
       submenu: [
-        { name: "IPPT", path: "/ippt" },
+        { name: "My IPPT", path: "/ippt" },
       ]
     },
     { name: "Mess Booking", path: "/mess-booking", icon: Gamepad2 },
@@ -80,7 +80,7 @@ export function Navbar({ user, pageTitle }: NavbarProps) {
       name: "IPPT",
       icon: CalendarIcon,
       submenu: [
-        { name: "IPPT", path: "/ippt" },
+        { name: "My IPPT", path: "/ippt" },
         { name: "IPPT Tracker", path: "/ippt-tracker" },
       ]
     },
