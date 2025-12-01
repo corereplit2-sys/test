@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { AdminBookings } from "@/components/admin/AdminBookings";
 import { AdminUserCredits } from "@/components/admin/AdminUserCredits";
 import { AdminSettings } from "@/components/admin/AdminSettings";
+import { MessRulesModal } from "@/components/MessRulesModal";
 import FullCalendar from "@fullcalendar/react";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
@@ -24,6 +25,8 @@ export default function MessBooking() {
   const { toast } = useToast();
   const calendarRef = useRef<FullCalendar>(null);
   const [showInstructions, setShowInstructions] = useState(true);
+  const [showRulesModal, setShowRulesModal] = useState(true);
+  const [rulesAgreed, setRulesAgreed] = useState(false);
   const [bookingModal, setBookingModal] = useState<{
     start: Date;
     end: Date;
@@ -348,9 +351,16 @@ export default function MessBooking() {
     }
   };
 
+  const handleRulesAgree = () => {
+    setRulesAgreed(true);
+    setShowRulesModal(false);
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar user={user} pageTitle="Mess Booking" />
+      
+      {user.role !== "admin" && <MessRulesModal open={showRulesModal && !rulesAgreed} onAgree={handleRulesAgree} />}
       
       <div className="pt-16">
         <div className="max-w-7xl mx-auto px-4 md:px-6 py-6 md:py-8">
