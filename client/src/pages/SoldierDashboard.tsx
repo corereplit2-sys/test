@@ -232,7 +232,7 @@ export default function SoldierDashboard() {
                     <p className="text-muted-foreground">No upcoming bookings</p>
                     <Button
                       className="mt-4"
-                      onClick={() => setLocation("/calendar")}
+                      onClick={() => setLocation("/mess-booking")}
                       data-testid="button-create-first-booking"
                     >
                       Book Time Slot
