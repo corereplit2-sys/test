@@ -14,6 +14,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation, Link } from "wouter";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { ChangePasswordDialog } from "@/components/ChangePasswordDialog";
 import { cn } from "@/lib/utils";
 
 interface NavbarProps {
@@ -151,6 +152,11 @@ export function Navbar({ user, pageTitle }: NavbarProps) {
                 })}
                 <DropdownMenuSeparator />
               </div>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                <ChangePasswordDialog />
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleLogout} data-testid="button-logout">
                 <LogOut className="w-4 h-4 mr-2" />
                 Logout
