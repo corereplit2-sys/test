@@ -65,7 +65,7 @@ export function MessRulesModal({ open, onAgree }: MessRulesModalProps) {
 
     const handleScroll = () => {
       const distanceToBottom = element.scrollHeight - (element.scrollTop + element.clientHeight);
-      const isAtBottom = distanceToBottom < 20;
+      const isAtBottom = distanceToBottom < 50;
       setFullyScrolled(isAtBottom);
     };
 
@@ -77,8 +77,8 @@ export function MessRulesModal({ open, onAgree }: MessRulesModalProps) {
     <>
       <style>{hideCloseButtonStyle}</style>
       <Dialog open={open} onOpenChange={() => {}}>
-        <DialogContent id="mess-rules-modal" className="max-w-2xl max-h-[80vh] flex flex-col" onOpenAutoFocus={(e) => e.preventDefault()}>
-          <div className="flex items-center justify-between mb-2">
+        <DialogContent id="mess-rules-modal" className="max-w-2xl max-h-[80vh] flex flex-col overflow-hidden" onOpenAutoFocus={(e) => e.preventDefault()}>
+          <div className="flex items-center justify-between mb-2 flex-shrink-0">
             <div>
               <DialogTitle>MSC Mess & Interview Room Rules</DialogTitle>
               <DialogDescription>
@@ -87,7 +87,7 @@ export function MessRulesModal({ open, onAgree }: MessRulesModalProps) {
             </div>
           </div>
           
-          <div ref={scrollRef} className="flex-1 overflow-y-auto pr-4 space-y-3">
+          <div ref={scrollRef} className="flex-1 overflow-y-auto pr-4 space-y-3 min-h-0">
             {MESS_RULES.map((rule, index) => (
               <div key={index} className="text-sm text-foreground leading-relaxed">
                 <span className="font-semibold">{index + 1}. </span>
@@ -99,7 +99,7 @@ export function MessRulesModal({ open, onAgree }: MessRulesModalProps) {
           <Button
             onClick={onAgree}
             disabled={!fullyScrolled}
-            className="w-full mt-4"
+            className="w-full mt-4 flex-shrink-0"
           >
             {fullyScrolled ? "Agree & Continue" : "Scroll to bottom to continue"}
           </Button>
