@@ -370,7 +370,7 @@ export default function MessBooking() {
             </h1>
             <p className="text-muted-foreground mt-1">
               {user.role === "soldier" 
-                ? "Book your time slots at the Mess (PS5/Gaming Facility)" 
+                ? "Book your time slots at the Mess" 
                 : "Manage bookings, credits, and schedule configuration"}
             </p>
           </div>
