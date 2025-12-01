@@ -8,8 +8,11 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
 } from "@/components/ui/dropdown-menu";
-import { LogOut, User as UserIcon, LayoutDashboard, Calendar as CalendarIcon, Car, Gamepad2, Users } from "lucide-react";
+import { LogOut, User as UserIcon, LayoutDashboard, Calendar as CalendarIcon, Car, Gamepad2, Users, ChevronDown } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation, Link } from "wouter";
@@ -46,18 +49,42 @@ export function Navbar({ user, pageTitle }: NavbarProps) {
 
   const soldierNavItems = [
     { name: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
-    { name: "My Currency", path: "/my-currency", icon: Car },
+    { 
+      name: "Currency", 
+      icon: Car,
+      submenu: [
+        { name: "My Currency", path: "/my-currency" },
+      ]
+    },
     { name: "Mess Booking", path: "/mess-booking", icon: Gamepad2 },
-    { name: "IPPT", path: "/ippt", icon: CalendarIcon }, // new
+    {
+      name: "IPPT",
+      icon: CalendarIcon,
+      submenu: [
+        { name: "IPPT", path: "/ippt" },
+      ]
+    },
   ];
 
   const commanderNavItems = [
     { name: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
-    { name: "My Currency", path: "/my-currency", icon: Car },
-    { name: "Currency Tracker", path: "/currency-tracker", icon: Car },
+    { 
+      name: "Currency", 
+      icon: Car,
+      submenu: [
+        { name: "My Currency", path: "/my-currency" },
+        { name: "Currency Tracker", path: "/currency-tracker" },
+      ]
+    },
     { name: "Mess Booking", path: "/mess-booking", icon: Gamepad2 },
-    { name: "IPPT", path: "/ippt", icon: CalendarIcon }, // new
-    { name: "IPPT Tracker", path: "/ippt-tracker", icon: LayoutDashboard }, // new
+    {
+      name: "IPPT",
+      icon: CalendarIcon,
+      submenu: [
+        { name: "IPPT", path: "/ippt" },
+        { name: "IPPT Tracker", path: "/ippt-tracker" },
+      ]
+    },
   ];
 
   const adminNavItems = [
@@ -65,8 +92,7 @@ export function Navbar({ user, pageTitle }: NavbarProps) {
     { name: "Currency Tracker", path: "/currency-tracker", icon: Car },
     { name: "Mess Booking", path: "/mess-booking", icon: Gamepad2 },
     { name: "Users", path: "/users", icon: Users },
-    // { name: "IPPT", path: "/ippt", icon: CalendarIcon }, // 
-    { name: "IPPT Tracker", path: "/ippt-tracker", icon: LayoutDashboard }, // new
+    { name: "IPPT Tracker", path: "/ippt-tracker", icon: LayoutDashboard },
   ];
 
   const navItems = user.role === "admin" ? adminNavItems : (user.role === "commander" ? commanderNavItems : soldierNavItems);
@@ -77,21 +103,52 @@ export function Navbar({ user, pageTitle }: NavbarProps) {
         <div className="flex items-center gap-6">
           <h1 className="text-lg font-bold" data-testid="text-app-title">MSC DRIVr v2</h1>
           <div className="hidden md:flex items-center gap-1">
-            {navItems.map((item) => {
+            {navItems.map((item, idx) => {
               const Icon = item.icon;
+              const hasSubmenu = "submenu" in item && item.submenu;
+              
+              if (hasSubmenu) {
+                return (
+                  <DropdownMenu key={`${item.name}-${idx}`}>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        className="gap-2"
+                        data-testid={`nav-link-${item.name.toLowerCase().replace(/ /g, '-')}`}
+                      >
+                        <Icon className="w-4 h-4" />
+                        <span>{item.name}</span>
+                        <ChevronDown className="w-3 h-3 opacity-50" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start">
+                      {hasSubmenu && item.submenu!.map((subitem, subidx) => (
+                        <DropdownMenuItem key={`${subitem.path}-${subidx}`} asChild>
+                          <Link href={subitem.path}>
+                            <span>{subitem.name}</span>
+                          </Link>
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                );
+              }
               const isActive = location === item.path;
+              const itemPath = "path" in item ? item.path : "";
+              const itemName = item.name;
+              
               return (
-                <Link key={item.path} href={item.path}>
+                <Link key={`${itemPath}-${idx}`} href={itemPath}>
                   <Button
                     variant={isActive ? "secondary" : "ghost"}
                     className={cn(
                       "gap-2",
                       isActive && "bg-muted"
                     )}
-                    data-testid={`nav-link-${item.name.toLowerCase().replace(/ /g, '-')}`}
+                    data-testid={`nav-link-${itemName.toLowerCase().replace(/ /g, '-')}`}
                   >
                     <Icon className="w-4 h-4" />
-                    <span>{item.name}</span>
+                    <span>{itemName}</span>
                   </Button>
                 </Link>
               );
@@ -137,14 +194,38 @@ export function Navbar({ user, pageTitle }: NavbarProps) {
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <div className="md:hidden">
-                {navItems.map((item) => {
+                {navItems.map((item, idx) => {
                   const Icon = item.icon;
-                  return (
-                    <DropdownMenuItem key={item.path} asChild>
-                      <Link href={item.path}>
-                        <div className="flex items-center gap-2 w-full">
+                  const hasSubmenu = "submenu" in item && item.submenu;
+                  
+                  if (hasSubmenu) {
+                    return (
+                      <DropdownMenuSub key={`${item.name}-${idx}`}>
+                        <DropdownMenuSubTrigger className="gap-2">
                           <Icon className="w-4 h-4" />
                           <span>{item.name}</span>
+                        </DropdownMenuSubTrigger>
+                        <DropdownMenuSubContent>
+                          {hasSubmenu && item.submenu!.map((subitem, subidx) => (
+                            <DropdownMenuItem key={`${subitem.path}-${subidx}`} asChild>
+                              <Link href={subitem.path}>
+                                <span>{subitem.name}</span>
+                              </Link>
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuSubContent>
+                      </DropdownMenuSub>
+                    );
+                  }
+                  const itemPath = "path" in item ? item.path : "";
+                  const itemName = item.name;
+                  
+                  return (
+                    <DropdownMenuItem key={`${itemPath}-${idx}`} asChild>
+                      <Link href={itemPath}>
+                        <div className="flex items-center gap-2 w-full">
+                          <Icon className="w-4 h-4" />
+                          <span>{itemName}</span>
                         </div>
                       </Link>
                     </DropdownMenuItem>
