@@ -93,9 +93,8 @@ export default function CurrencyTracker() {
 
   const addFilterTag = (type: "msp" | "vehicle" | "status", value: string, label: string) => {
     const id = `${type}-${value}`;
-    if (!filterTags.find(tag => tag.id === id)) {
-      setFilterTags([...filterTags, { id, type, label, value }]);
-    }
+    // Clear all filters and add only the new one (single-select behavior)
+    setFilterTags([{ id, type, label, value }]);
     setShowFilterPopover(false);
     
     // Auto-scroll to qualifications card
