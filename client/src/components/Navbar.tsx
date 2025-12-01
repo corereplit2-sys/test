@@ -56,7 +56,6 @@ export function Navbar({ user, pageTitle }: NavbarProps) {
         { name: "My Currency", path: "/my-currency" },
       ]
     },
-    { name: "Mess Booking", path: "/mess-booking", icon: Gamepad2 },
     {
       name: "IPPT",
       icon: CalendarIcon,
@@ -64,6 +63,7 @@ export function Navbar({ user, pageTitle }: NavbarProps) {
         { name: "IPPT", path: "/ippt" },
       ]
     },
+    { name: "Mess Booking", path: "/mess-booking", icon: Gamepad2 },
   ];
 
   const commanderNavItems = [
@@ -76,7 +76,6 @@ export function Navbar({ user, pageTitle }: NavbarProps) {
         { name: "Currency Tracker", path: "/currency-tracker" },
       ]
     },
-    { name: "Mess Booking", path: "/mess-booking", icon: Gamepad2 },
     {
       name: "IPPT",
       icon: CalendarIcon,
@@ -85,14 +84,15 @@ export function Navbar({ user, pageTitle }: NavbarProps) {
         { name: "IPPT Tracker", path: "/ippt-tracker" },
       ]
     },
+    { name: "Mess Booking", path: "/mess-booking", icon: Gamepad2 },
   ];
 
   const adminNavItems = [
     { name: "Dashboard", path: "/admin", icon: LayoutDashboard },
     { name: "Currency Tracker", path: "/currency-tracker", icon: Car },
+    { name: "IPPT Tracker", path: "/ippt-tracker", icon: LayoutDashboard },
     { name: "Mess Booking", path: "/mess-booking", icon: Gamepad2 },
     { name: "Users", path: "/users", icon: Users },
-    { name: "IPPT Tracker", path: "/ippt-tracker", icon: LayoutDashboard },
   ];
 
   const navItems = user.role === "admin" ? adminNavItems : (user.role === "commander" ? commanderNavItems : soldierNavItems);
