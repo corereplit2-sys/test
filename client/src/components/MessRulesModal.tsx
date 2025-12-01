@@ -50,33 +50,36 @@ export function MessRulesModal({ open, onAgree }: MessRulesModalProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!scrollRef.current) return;
-    
+    setFullyScrolled(false);
+  }, [open]);
+
+  useEffect(() => {
+    const element = scrollRef.current;
+    if (!element) return;
+
     const handleScroll = () => {
-      const element = scrollRef.current;
-      if (!element) return;
-      
-      const isAtBottom = element.scrollHeight - element.scrollTop <= element.clientHeight + 10;
+      const distanceToBottom = element.scrollHeight - (element.scrollTop + element.clientHeight);
+      const isAtBottom = distanceToBottom < 20;
       setFullyScrolled(isAtBottom);
     };
 
-    const element = scrollRef.current;
-    element?.addEventListener("scroll", handleScroll);
-    
-    return () => element?.removeEventListener("scroll", handleScroll);
+    element.addEventListener("scroll", handleScroll, { passive: true });
+    return () => element.removeEventListener("scroll", handleScroll);
   }, []);
 
   return (
     <Dialog open={open} onOpenChange={() => {}}>
-      <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
-        <DialogHeader>
-          <DialogTitle>MSC Mess & Interview Room Rules</DialogTitle>
-          <DialogDescription>
-            Please read all rules before proceeding
-          </DialogDescription>
-        </DialogHeader>
+      <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col" onOpenAutoFocus={(e) => e.preventDefault()}>
+        <div className="flex items-center justify-between mb-2">
+          <div>
+            <DialogTitle>MSC Mess & Interview Room Rules</DialogTitle>
+            <DialogDescription>
+              Please read all rules before proceeding
+            </DialogDescription>
+          </div>
+        </div>
         
-        <div ref={scrollRef} className="flex-1 overflow-y-auto pr-4 mb-4 space-y-3">
+        <div ref={scrollRef} className="flex-1 overflow-y-auto pr-4 space-y-3">
           {MESS_RULES.map((rule, index) => (
             <div key={index} className="text-sm text-foreground leading-relaxed">
               <span className="font-semibold">{index + 1}. </span>
@@ -88,7 +91,7 @@ export function MessRulesModal({ open, onAgree }: MessRulesModalProps) {
         <Button
           onClick={onAgree}
           disabled={!fullyScrolled}
-          className="w-full"
+          className="w-full mt-4"
         >
           {fullyScrolled ? "Agree & Continue" : "Scroll to bottom to continue"}
         </Button>
