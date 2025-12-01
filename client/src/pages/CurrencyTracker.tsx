@@ -16,7 +16,7 @@ import { insertDriverQualificationSchema, insertDriveLogSchema, type Qualificati
 import { z } from "zod";
 import { Car, Plus, Search, AlertTriangle, Award, Trash2, Gauge, X, ArrowLeft, Upload } from "lucide-react";
 import { format } from "date-fns";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useLocation } from "wouter";
 import {
   AlertDialog,
@@ -46,6 +46,7 @@ export default function CurrencyTracker() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const qualificationsCardRef = useRef<HTMLDivElement>(null);
+  const scrollPositionRef = useRef<number>(0);
   
   // Read status filter from URL on mount
   const params = new URLSearchParams(window.location.search);
@@ -83,6 +84,23 @@ export default function CurrencyTracker() {
   const { data: msps = [] } = useQuery<Msp[]>({
     queryKey: ["/api/msps"],
   });
+
+  // Handle scroll position when opening/closing modal
+  useEffect(() => {
+    if (selectedQual) {
+      // Save scroll position when modal opens
+      scrollPositionRef.current = window.scrollY;
+      // Prevent scroll while modal is open
+      document.body.style.overflow = 'hidden';
+    } else {
+      // Restore scroll position when modal closes
+      document.body.style.overflow = 'unset';
+      window.scrollTo(0, scrollPositionRef.current);
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [selectedQual]);
 
   const vehicleTypes = ["TERREX", "BELREX"];
   const statusTypes = [
