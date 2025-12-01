@@ -113,6 +113,11 @@ export const loginSchema = z.object({
   password: z.string().min(1, "Password is required"),
 });
 
+export const changePasswordSchema = z.object({
+  oldPassword: z.string().min(1, "Current password is required"),
+  newPassword: z.string().min(3, "New password must be at least 3 characters"),
+});
+
 // Types
 export type InsertMsp = z.infer<typeof insertMspSchema>;
 export type Msp = typeof msps.$inferSelect;

@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import session from "express-session";
 import bcrypt from "bcryptjs";
 import { 
-  loginSchema, insertUserSchema, updateUserSchema, insertBookingSchema,
+  loginSchema, changePasswordSchema, insertUserSchema, updateUserSchema, insertBookingSchema,
   insertDriverQualificationSchema, insertDriveLogSchema,
   type User, type SafeUser, type Booking, type BookingWithUser, type DashboardStats, type BookableWeekRange,
   type Msp, type DriverQualification, type DriveLog, type QualificationWithStatus
@@ -210,6 +210,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/auth/me", requireAuth, (req: any, res) => {
     res.json(sanitizeUser(req.user));
+  });
+
+  app.post("/api/auth/change-password", requireAuth, async (req: any, res) => {
+    try {
+      const { oldPassword, newPassword } = changePasswordSchema.parse(req.body);
+      
+      const user = req.user;
+      const isValidPassword = await bcrypt.compare(oldPassword, user.passwordHash);
+      if (!isValidPassword) {
+        return res.status(401).json({ message: "Current password is incorrect" });
+      }
+
+      const newPasswordHash = await bcrypt.hash(newPassword, 10);
+      const updatedUser = await storage.updatePassword(user.id, newPasswordHash);
+      
+      if (!updatedUser) {
+        return res.status(500).json({ message: "Failed to update password" });
+      }
+
+      res.json({ message: "Password changed successfully" });
+    } catch (error: any) {
+      res.status(400).json({ message: error.message || "Password change failed" });
+    }
   });
 
   // Booking routes

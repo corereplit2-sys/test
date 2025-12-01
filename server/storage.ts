@@ -94,6 +94,15 @@ export class DatabaseStorage implements IStorage {
     return (result.rowCount ?? 0) > 0;
   }
 
+  async updatePassword(id: string, passwordHash: string): Promise<User | undefined> {
+    const [user] = await db
+      .update(users)
+      .set({ passwordHash })
+      .where(eq(users.id, id))
+      .returning();
+    return user || undefined;
+  }
+
   // Booking operations
   async getBooking(id: string): Promise<Booking | undefined> {
     const [booking] = await db.select().from(bookings).where(eq(bookings.id, id));
