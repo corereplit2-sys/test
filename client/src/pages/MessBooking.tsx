@@ -184,12 +184,14 @@ export default function MessBooking() {
   }, [allBookings, bookableWeek, generateCapacityBackgrounds]);
 
   useEffect(() => {
-    // Reset rules agreement when user data loads for soldiers
+    // Show rules modal for soldiers on page load
     if (user?.role === "soldier") {
-      setRulesAgreed(false);
+      console.log("Setting rules modal to show for soldier");
       setShowRulesModal(true);
+      setRulesAgreed(false);
     }
-  }, [user?.id]);
+  }, [user?.id, user?.role]);
+
 
   useEffect(() => {
     if (bookingModal) {
