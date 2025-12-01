@@ -365,8 +365,14 @@ export default function MessBooking() {
       <div className="pt-16">
         <div className="max-w-7xl mx-auto px-4 md:px-6 py-6 md:py-8">
           <div className="mb-6">
-            <h1 className="text-3xl font-bold">Mess Booking Management</h1>
-            <p className="text-muted-foreground mt-1">Manage bookings, credits, and schedule configuration</p>
+            <h1 className="text-3xl font-bold">
+              {user.role === "soldier" ? "Mess Booking" : "Mess Booking Management"}
+            </h1>
+            <p className="text-muted-foreground mt-1">
+              {user.role === "soldier" 
+                ? "Book your time slots at the Mess (PS5/Gaming Facility)" 
+                : "Manage bookings, credits, and schedule configuration"}
+            </p>
           </div>
 
           <Tabs defaultValue="calendar" className="space-y-6">
