@@ -9,7 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 
 const hideCloseButtonStyle = `
-  #mess-rules-modal > button {
+  #mess-rules-modal > button.absolute {
     display: none !important;
   }
 `;
