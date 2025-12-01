@@ -670,47 +670,88 @@ export default function CurrencyTracker() {
                       {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-16 w-full" />)}
                     </div>
                   ) : filteredQualifications.length > 0 ? (
-                    <div className="border rounded-md">
-                      <div className="overflow-x-auto">
-                        <table className="w-full">
-                          <thead className="bg-muted/50">
-                            <tr>
-                              <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4 sticky left-0 bg-muted/50 z-10">User</th>
-                              <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">Rank</th>
-                              <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">MSP</th>
-                              <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">Vehicle</th>
-                              <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">Last Drive</th>
-                              <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4 sticky right-0 bg-muted/50 z-10">Status</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {filteredQualifications.map((qual) => (
-                              <tr
-                                key={qual.id}
-                                className="border-t hover-elevate cursor-pointer"
-                                onClick={() => setSelectedQual(qual)}
-                                data-testid={`row-qualification-${qual.id}`}
-                              >
-                                <td className="py-3 px-4 font-medium sticky left-0 bg-white dark:bg-slate-950 z-10">{qual.user?.fullName || "Unknown"}</td>
-                                <td className="py-3 px-4 text-muted-foreground">{qual.user?.rank || "-"}</td>
-                                <td className="py-3 px-4 text-muted-foreground">
-                                  {msps.find(m => m.id === qual.user?.mspId)?.name || "-"}
-                                </td>
-                                <td className="py-3 px-4">
-                                  <Badge variant="outline">{qual.vehicleType}</Badge>
-                                </td>
-                                <td className="py-3 px-4 text-sm text-muted-foreground">
+                    <>
+                      {/* Mobile Card View */}
+                      <div className="space-y-3 md:hidden">
+                        {filteredQualifications.map((qual) => (
+                          <div
+                            key={qual.id}
+                            className="border rounded-md p-4 cursor-pointer hover:bg-accent transition-colors"
+                            onClick={() => setSelectedQual(qual)}
+                            data-testid={`card-qualification-${qual.id}`}
+                          >
+                            <div className="flex items-start justify-between gap-3 mb-3">
+                              <div className="flex-1">
+                                <p className="font-semibold text-base">{qual.user?.fullName || "Unknown"}</p>
+                                <p className="text-xs text-muted-foreground">{qual.user?.rank || "-"}</p>
+                              </div>
+                              <div>
+                                {getStatusBadge(qual.status, qual.daysRemaining)}
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3 text-sm">
+                              <div>
+                                <p className="text-xs text-muted-foreground">MSP</p>
+                                <p className="font-medium text-xs">{msps.find(m => m.id === qual.user?.mspId)?.name || "-"}</p>
+                              </div>
+                              <div>
+                                <p className="text-xs text-muted-foreground">Vehicle</p>
+                                <p className="font-medium text-xs">{qual.vehicleType}</p>
+                              </div>
+                              <div className="col-span-2">
+                                <p className="text-xs text-muted-foreground">Last Drive</p>
+                                <p className="font-medium text-xs">
                                   {qual.lastDriveDate ? format(new Date(qual.lastDriveDate), "dd MMM yyyy") : "Never"}
-                                </td>
-                                <td className="py-3 px-4 sticky right-0 bg-white dark:bg-slate-950 z-10">
-                                  {getStatusBadge(qual.status, qual.daysRemaining)}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                    </div>
+
+                      {/* Desktop Table View */}
+                      <div className="hidden md:block border rounded-md">
+                        <div className="overflow-x-auto">
+                          <table className="w-full">
+                            <thead className="bg-muted/50">
+                              <tr>
+                                <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">User</th>
+                                <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">Rank</th>
+                                <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">MSP</th>
+                                <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">Vehicle</th>
+                                <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">Last Drive</th>
+                                <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">Status</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {filteredQualifications.map((qual) => (
+                                <tr
+                                  key={qual.id}
+                                  className="border-t hover-elevate cursor-pointer"
+                                  onClick={() => setSelectedQual(qual)}
+                                  data-testid={`row-qualification-${qual.id}`}
+                                >
+                                  <td className="py-3 px-4 font-medium">{qual.user?.fullName || "Unknown"}</td>
+                                  <td className="py-3 px-4 text-muted-foreground">{qual.user?.rank || "-"}</td>
+                                  <td className="py-3 px-4 text-muted-foreground">
+                                    {msps.find(m => m.id === qual.user?.mspId)?.name || "-"}
+                                  </td>
+                                  <td className="py-3 px-4">
+                                    <Badge variant="outline">{qual.vehicleType}</Badge>
+                                  </td>
+                                  <td className="py-3 px-4 text-sm text-muted-foreground">
+                                    {qual.lastDriveDate ? format(new Date(qual.lastDriveDate), "dd MMM yyyy") : "Never"}
+                                  </td>
+                                  <td className="py-3 px-4">
+                                    {getStatusBadge(qual.status, qual.daysRemaining)}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </>
                   ) : (
                     <div className="flex flex-col items-center justify-center py-12">
                       <Car className="w-12 h-12 text-muted-foreground mb-4" />
