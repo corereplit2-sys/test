@@ -69,7 +69,7 @@ export function MessRulesModal({ open, onAgree }: MessRulesModalProps) {
 
   return (
     <Dialog open={open} onOpenChange={() => {}}>
-      <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col" onOpenAutoFocus={(e) => e.preventDefault()}>
+      <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col [&>button]:hidden" onOpenAutoFocus={(e) => e.preventDefault()}>
         <div className="flex items-center justify-between mb-2">
           <div>
             <DialogTitle>MSC Mess & Interview Room Rules</DialogTitle>
