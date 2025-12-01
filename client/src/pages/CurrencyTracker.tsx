@@ -16,7 +16,7 @@ import { insertDriverQualificationSchema, insertDriveLogSchema, type Qualificati
 import { z } from "zod";
 import { Car, Plus, Search, AlertTriangle, Award, Trash2, Gauge, X, ArrowLeft, Upload } from "lucide-react";
 import { format } from "date-fns";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useLocation } from "wouter";
 import {
   AlertDialog,
@@ -45,6 +45,7 @@ type FilterTag = {
 export default function CurrencyTracker() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
+  const qualificationsCardRef = useRef<HTMLDivElement>(null);
   
   // Read status filter from URL on mount
   const params = new URLSearchParams(window.location.search);
@@ -96,6 +97,11 @@ export default function CurrencyTracker() {
       setFilterTags([...filterTags, { id, type, label, value }]);
     }
     setShowFilterPopover(false);
+    
+    // Auto-scroll to qualifications card
+    setTimeout(() => {
+      qualificationsCardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 100);
   };
 
   const removeFilterTag = (id: string) => {
@@ -518,7 +524,11 @@ export default function CurrencyTracker() {
                         const expired = vehicleQuals.filter(q => q.status === "EXPIRED").length;
                         
                         return (
-                          <div key={vehicle} className="flex items-center justify-between border rounded-md p-3">
+                          <div 
+                            key={vehicle} 
+                            className="flex items-center justify-between border rounded-md p-3 cursor-pointer hover:bg-accent transition-colors"
+                            onClick={() => addFilterTag("vehicle", vehicle, vehicle)}
+                          >
                             <div className="flex-1 flex items-center gap-2">
                               <Car className="w-4 h-4 text-muted-foreground" />
                               <div>
@@ -647,7 +657,7 @@ export default function CurrencyTracker() {
           </Card>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-3">
+            <div className="lg:col-span-3" ref={qualificationsCardRef}>
               <Card>
                 <CardHeader>
                   <CardTitle>All Qualifications</CardTitle>
