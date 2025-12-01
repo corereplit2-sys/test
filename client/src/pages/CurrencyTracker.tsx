@@ -28,6 +28,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Popover,
@@ -698,7 +705,7 @@ export default function CurrencyTracker() {
             </div>
 
             {selectedQual && (
-              <div className="lg:col-span-1">
+              <div className="hidden lg:block lg:col-span-1">
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
                     <div>
@@ -797,6 +804,94 @@ export default function CurrencyTracker() {
           </div>
         </div>
       </div>
+
+      {selectedQual && (
+        <Dialog open={!!selectedQual} onOpenChange={() => setSelectedQual(null)}>
+          <DialogContent className="lg:hidden max-h-[90vh] overflow-y-auto">
+            <DialogHeader className="sticky top-0 bg-background pb-4">
+              <DialogTitle>Drive History</DialogTitle>
+              <DialogDescription>
+                {selectedQual.user?.fullName} - {selectedQual.vehicleType}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3 p-4 bg-muted/50 rounded-md">
+                <div>
+                  <p className="text-xs text-muted-foreground">Qualified</p>
+                  <p className="text-sm font-medium">
+                    {format(new Date(selectedQual.qualifiedOnDate), "dd MMM yyyy")}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Expires</p>
+                  <p className="text-sm font-medium">
+                    {format(new Date(selectedQual.currencyExpiryDate), "dd MMM yyyy")}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex justify-between items-center">
+                <p className="text-sm font-semibold">Drive Logs</p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    driveLogForm.setValue("vehicleType", selectedQual.vehicleType);
+                    setIsAddingLog(true);
+                  }}
+                  data-testid="button-add-drive-log-detail-mobile"
+                >
+                  <Plus className="w-3 h-3 mr-1" />
+                  Add
+                </Button>
+              </div>
+
+              {logsLoading ? (
+                <div className="space-y-2">
+                  <Skeleton className="h-20" />
+                  <Skeleton className="h-20" />
+                </div>
+              ) : selectedQualLogs.length > 0 ? (
+                <div className="space-y-2">
+                  {selectedQualLogs.map((log) => (
+                    <div
+                      key={log.id}
+                      className="flex items-start justify-between p-3 border rounded-md"
+                      data-testid={`drive-log-detail-mobile-${log.id}`}
+                    >
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <Gauge className="w-4 h-4 text-primary" />
+                          <p className="text-sm font-medium">{log.vehicleNo}</p>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {format(new Date(log.date), "dd MMM yyyy")} • {log.distanceKm.toFixed(1)} km
+                        </p>
+                        {log.remarks && (
+                          <p className="text-xs text-muted-foreground mt-1">{log.remarks}</p>
+                        )}
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setDeletingLog(log)}
+                        data-testid={`button-delete-log-mobile-${log.id}`}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-8">
+                  <Gauge className="w-10 h-10 text-muted-foreground mb-3" />
+                  <p className="text-sm text-muted-foreground">No drive logs yet</p>
+                </div>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
 
       <Dialog open={isAddingQual} onOpenChange={setIsAddingQual}>
         <DialogContent data-testid="dialog-add-qualification">
