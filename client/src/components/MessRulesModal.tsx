@@ -52,27 +52,6 @@ const MESS_RULES = [
 ];
 
 export function MessRulesModal({ open, onAgree }: MessRulesModalProps) {
-  const [fullyScrolled, setFullyScrolled] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    setFullyScrolled(false);
-  }, [open]);
-
-  useEffect(() => {
-    const element = scrollRef.current;
-    if (!element) return;
-
-    const handleScroll = () => {
-      const distanceToBottom = element.scrollHeight - (element.scrollTop + element.clientHeight);
-      const isAtBottom = distanceToBottom < 50;
-      setFullyScrolled(isAtBottom);
-    };
-
-    element.addEventListener("scroll", handleScroll, { passive: true });
-    return () => element.removeEventListener("scroll", handleScroll);
-  }, []);
-
   return (
     <>
       <style>{hideCloseButtonStyle}</style>
@@ -87,7 +66,7 @@ export function MessRulesModal({ open, onAgree }: MessRulesModalProps) {
             </div>
           </div>
           
-          <div ref={scrollRef} className="flex-1 overflow-y-auto pr-4 space-y-3 min-h-0">
+          <div className="flex-1 overflow-y-auto pr-4 space-y-3 min-h-0">
             {MESS_RULES.map((rule, index) => (
               <div key={index} className="text-sm text-foreground leading-relaxed">
                 <span className="font-semibold">{index + 1}. </span>
@@ -98,10 +77,9 @@ export function MessRulesModal({ open, onAgree }: MessRulesModalProps) {
 
           <Button
             onClick={onAgree}
-            disabled={!fullyScrolled}
             className="w-full mt-4 flex-shrink-0"
           >
-            {fullyScrolled ? "Agree & Continue" : "Scroll to bottom to continue"}
+            Agree & Continue
           </Button>
         </DialogContent>
       </Dialog>
