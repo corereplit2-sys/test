@@ -25,13 +25,18 @@ export default function IPPTTracker() {
 
     
   return (
-    <div className="p-6">
-              <Navbar user={user} pageTitle="IPPT Tracker" />
-        
-      <h2 className="text-2xl font-semibold mb-4" data-testid="page-ippt-title">IPPT Tracker</h2>
-      <p className="text-sm text-muted-foreground">
-        Placeholder page for IPPT Tracker. Add your UI and data fetching here.
-      </p>
+    <div className="min-h-screen bg-background">
+      <Navbar user={user} pageTitle="IPPT Tracker" />
+      <div className="pt-16 flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <h2 className="text-3xl font-bold" data-testid="page-ippt-title">
+            Work in Progress
+          </h2>
+          <p className="text-muted-foreground max-w-md">
+            The IPPT Tracker feature is coming soon. We're currently working on bringing this feature to you.
+          </p>
+        </div>
+      </div>
     </div>
   );
 }
