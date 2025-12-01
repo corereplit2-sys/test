@@ -675,12 +675,12 @@ export default function CurrencyTracker() {
                         <table className="w-full">
                           <thead className="bg-muted/50">
                             <tr>
-                              <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">User</th>
+                              <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4 sticky left-0 bg-muted/50 z-10">User</th>
                               <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">Rank</th>
                               <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">MSP</th>
                               <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">Vehicle</th>
                               <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">Last Drive</th>
-                              <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">Status</th>
+                              <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4 sticky right-0 bg-muted/50 z-10">Status</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -691,7 +691,7 @@ export default function CurrencyTracker() {
                                 onClick={() => setSelectedQual(qual)}
                                 data-testid={`row-qualification-${qual.id}`}
                               >
-                                <td className="py-3 px-4 font-medium">{qual.user?.fullName || "Unknown"}</td>
+                                <td className="py-3 px-4 font-medium sticky left-0 bg-white dark:bg-slate-950 z-10">{qual.user?.fullName || "Unknown"}</td>
                                 <td className="py-3 px-4 text-muted-foreground">{qual.user?.rank || "-"}</td>
                                 <td className="py-3 px-4 text-muted-foreground">
                                   {msps.find(m => m.id === qual.user?.mspId)?.name || "-"}
@@ -702,7 +702,7 @@ export default function CurrencyTracker() {
                                 <td className="py-3 px-4 text-sm text-muted-foreground">
                                   {qual.lastDriveDate ? format(new Date(qual.lastDriveDate), "dd MMM yyyy") : "Never"}
                                 </td>
-                                <td className="py-3 px-4">
+                                <td className="py-3 px-4 sticky right-0 bg-white dark:bg-slate-950 z-10">
                                   {getStatusBadge(qual.status, qual.daysRemaining)}
                                 </td>
                               </tr>
