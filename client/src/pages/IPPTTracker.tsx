@@ -27,7 +27,7 @@ export default function IPPTTracker() {
   return (
     <div className="min-h-screen bg-background">
       <Navbar user={user} pageTitle="IPPT Tracker" />
-      <div className="pt-16 flex items-center justify-center">
+      <div className="pt-32 flex items-center justify-center">
         <div className="text-center space-y-4">
           <h2 className="text-3xl font-bold" data-testid="page-ippt-title">
             Work in Progress
