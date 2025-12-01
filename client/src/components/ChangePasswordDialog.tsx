@@ -102,6 +102,7 @@ export function ChangePasswordDialog() {
               value={oldPassword}
               onChange={(e) => setOldPassword(e.target.value)}
               disabled={loading}
+              className="mt-2"
             />
           </div>
           <div>
@@ -113,6 +114,7 @@ export function ChangePasswordDialog() {
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               disabled={loading}
+              className="mt-2"
             />
           </div>
           <div>
@@ -124,6 +126,7 @@ export function ChangePasswordDialog() {
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               disabled={loading}
+              className="mt-2"
             />
           </div>
           <Button
