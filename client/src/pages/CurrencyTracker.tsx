@@ -631,7 +631,7 @@ export default function CurrencyTracker() {
           </Card>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className={selectedQual ? "lg:col-span-2" : "lg:col-span-3"}>
+            <div className="lg:col-span-3">
               <Card>
                 <CardHeader>
                   <CardTitle>All Qualifications</CardTitle>
