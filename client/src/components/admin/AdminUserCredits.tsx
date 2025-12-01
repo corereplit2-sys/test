@@ -124,8 +124,102 @@ export function AdminUserCredits() {
             </Badge>
           </div>
 
-          {/* Users Table */}
-          <div className="border rounded-md">
+          {/* Mobile Card View */}
+          <div className="space-y-3 md:hidden">
+            {filteredSoldiers.length === 0 ? (
+              <div className="text-center text-muted-foreground py-8">
+                {searchTerm ? "No soldiers found matching your search" : "No soldiers found"}
+              </div>
+            ) : (
+              filteredSoldiers.map((user) => (
+                <div 
+                  key={user.id}
+                  className="border rounded-md p-4 hover:bg-accent transition-colors"
+                  data-testid={`card-user-mobile-${user.id}`}
+                >
+                  <div className="flex items-start justify-between gap-3 mb-3">
+                    <div className="flex-1">
+                      <p className="font-semibold text-base">{user.fullName}</p>
+                      <p className="text-xs text-muted-foreground">{user.rank || "-"}</p>
+                    </div>
+                  </div>
+                  <div className="space-y-2 text-sm mb-3">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Username</p>
+                      <p className="font-medium text-xs">{user.username}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">MSP</p>
+                      <p className="font-medium text-xs">{getMspName(user.mspId)}</p>
+                    </div>
+                    <div className="pt-1 border-t">
+                      <p className="text-xs text-muted-foreground">Mess Credits</p>
+                      {editingUserId === user.id ? (
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.5"
+                            value={editCredits}
+                            onChange={(e) => setEditCredits(parseFloat(e.target.value) || 0)}
+                            className="flex-1 text-right"
+                            data-testid={`input-edit-credits-${user.id}`}
+                            autoFocus
+                          />
+                        </div>
+                      ) : (
+                        <p className="font-mono font-medium text-base" data-testid={`text-credits-${user.id}`}>
+                          {user.credits.toFixed(1)}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    {editingUserId === user.id ? (
+                      <>
+                        <Button
+                          size="sm"
+                          variant="default"
+                          onClick={() => handleSaveEdit(user.id)}
+                          disabled={updateCreditsMutation.isPending}
+                          data-testid={`button-save-credits-${user.id}`}
+                          className="flex-1"
+                        >
+                          <Check className="w-4 h-4 mr-1" />
+                          Save
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={handleCancelEdit}
+                          disabled={updateCreditsMutation.isPending}
+                          data-testid={`button-cancel-credits-${user.id}`}
+                          className="flex-1"
+                        >
+                          <X className="w-4 h-4 mr-1" />
+                          Cancel
+                        </Button>
+                      </>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleStartEdit(user)}
+                        data-testid={`button-edit-credits-${user.id}`}
+                        className="w-full"
+                      >
+                        <Edit className="w-4 h-4 mr-1" />
+                        Edit Credits
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Desktop Table View */}
+          <div className="hidden md:block border rounded-md">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-muted/50">

@@ -92,76 +92,143 @@ export function AdminBookings() {
             <p className="text-muted-foreground">No bookings found</p>
           </div>
         ) : (
-          <div className="border rounded-md">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-muted/50">
-                  <tr>
-                    <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">Soldier</th>
-                    <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">Date</th>
-                    <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">Time</th>
-                    <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">Duration</th>
-                    <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">Credits</th>
-                    <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">Status</th>
-                    <th className="text-right text-sm font-semibold uppercase tracking-wide py-3 px-4">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredBookings.map((booking) => {
-                    const duration = differenceInHours(
-                      new Date(booking.endTime),
-                      new Date(booking.startTime)
-                    );
+          <>
+            {/* Mobile Card View */}
+            <div className="space-y-3 md:hidden">
+              {filteredBookings.map((booking) => {
+                const duration = differenceInHours(
+                  new Date(booking.endTime),
+                  new Date(booking.startTime)
+                );
 
-                    return (
-                      <tr key={booking.id} className="border-t hover-elevate" data-testid={`booking-row-${booking.id}`}>
-                        <td className="py-3 px-4 font-medium">
-                          {booking.user?.fullName || "Unknown"}
-                        </td>
-                        <td className="py-3 px-4 text-muted-foreground">
+                return (
+                  <div 
+                    key={booking.id}
+                    className="border rounded-md p-4 hover:bg-accent transition-colors"
+                    data-testid={`booking-card-mobile-${booking.id}`}
+                  >
+                    <div className="flex items-start justify-between gap-3 mb-3">
+                      <div className="flex-1">
+                        <p className="font-semibold text-base">{booking.user?.fullName || "Unknown"}</p>
+                        <p className="text-xs text-muted-foreground">
                           {format(new Date(booking.startTime), "MMM d, yyyy")}
-                        </td>
-                        <td className="py-3 px-4 text-muted-foreground">
-                          {format(new Date(booking.startTime), "HH:mm")} -{" "}
-                          {format(new Date(booking.endTime), "HH:mm")}
-                        </td>
-                        <td className="py-3 px-4">{duration}h</td>
-                        <td className="py-3 px-4 font-mono font-semibold">
-                          {booking.creditsCharged.toFixed(1)}
-                        </td>
-                        <td className="py-3 px-4">
-                          <Badge
-                            variant="secondary"
-                            className={
-                              booking.status === "active"
-                                ? "bg-green-500 text-green-950"
-                                : "bg-gray-500 text-gray-950"
-                            }
-                          >
-                            {booking.status}
-                          </Badge>
-                        </td>
-                        <td className="py-3 px-4">
-                          <div className="flex items-center justify-end gap-2">
-                            {booking.status === "active" && (
-                              <Button
-                                variant="destructive"
-                                size="sm"
-                                onClick={() => setCancellingBooking(booking)}
-                                data-testid={`button-cancel-booking-${booking.id}`}
-                              >
-                                Cancel
-                              </Button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                        </p>
+                      </div>
+                      <Badge
+                        variant="secondary"
+                        className={
+                          booking.status === "active"
+                            ? "bg-green-500 text-green-950"
+                            : "bg-gray-500 text-gray-950"
+                        }
+                      >
+                        {booking.status}
+                      </Badge>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 text-sm mb-3">
+                      <div>
+                        <p className="text-xs text-muted-foreground">Time</p>
+                        <p className="font-medium text-xs">
+                          {format(new Date(booking.startTime), "HH:mm")} - {format(new Date(booking.endTime), "HH:mm")}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Duration</p>
+                        <p className="font-medium text-xs">{duration}h</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Credits</p>
+                        <p className="font-mono font-medium text-xs">{booking.creditsCharged.toFixed(1)}</p>
+                      </div>
+                    </div>
+                    {booking.status === "active" && (
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        className="w-full"
+                        onClick={() => setCancellingBooking(booking)}
+                        data-testid={`button-cancel-booking-mobile-${booking.id}`}
+                      >
+                        Cancel
+                      </Button>
+                    )}
+                  </div>
+                );
+              })}
             </div>
-          </div>
+
+            {/* Desktop Table View */}
+            <div className="hidden md:block border rounded-md">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-muted/50">
+                    <tr>
+                      <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">Soldier</th>
+                      <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">Date</th>
+                      <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">Time</th>
+                      <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">Duration</th>
+                      <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">Credits</th>
+                      <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">Status</th>
+                      <th className="text-right text-sm font-semibold uppercase tracking-wide py-3 px-4">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredBookings.map((booking) => {
+                      const duration = differenceInHours(
+                        new Date(booking.endTime),
+                        new Date(booking.startTime)
+                      );
+
+                      return (
+                        <tr key={booking.id} className="border-t hover-elevate" data-testid={`booking-row-${booking.id}`}>
+                          <td className="py-3 px-4 font-medium">
+                            {booking.user?.fullName || "Unknown"}
+                          </td>
+                          <td className="py-3 px-4 text-muted-foreground">
+                            {format(new Date(booking.startTime), "MMM d, yyyy")}
+                          </td>
+                          <td className="py-3 px-4 text-muted-foreground">
+                            {format(new Date(booking.startTime), "HH:mm")} -{" "}
+                            {format(new Date(booking.endTime), "HH:mm")}
+                          </td>
+                          <td className="py-3 px-4">{duration}h</td>
+                          <td className="py-3 px-4 font-mono font-semibold">
+                            {booking.creditsCharged.toFixed(1)}
+                          </td>
+                          <td className="py-3 px-4">
+                            <Badge
+                              variant="secondary"
+                              className={
+                                booking.status === "active"
+                                  ? "bg-green-500 text-green-950"
+                                  : "bg-gray-500 text-gray-950"
+                              }
+                            >
+                              {booking.status}
+                            </Badge>
+                          </td>
+                          <td className="py-3 px-4">
+                            <div className="flex items-center justify-end gap-2">
+                              {booking.status === "active" && (
+                                <Button
+                                  variant="destructive"
+                                  size="sm"
+                                  onClick={() => setCancellingBooking(booking)}
+                                  data-testid={`button-cancel-booking-${booking.id}`}
+                                >
+                                  Cancel
+                                </Button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
         )}
       </CardContent>
 
