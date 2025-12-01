@@ -9,7 +9,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { LogOut, User as UserIcon, LayoutDashboard, Calendar as CalendarIcon, Car, Utensils, Users } from "lucide-react";
+import { LogOut, User as UserIcon, LayoutDashboard, Calendar as CalendarIcon, Car, Gamepad2, Users } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation, Link } from "wouter";
@@ -47,7 +47,7 @@ export function Navbar({ user, pageTitle }: NavbarProps) {
   const soldierNavItems = [
     { name: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
     { name: "My Currency", path: "/my-currency", icon: Car },
-    { name: "Mess Booking", path: "/mess-booking", icon: Utensils },
+    { name: "Gaming Zone", path: "/mess-booking", icon: Gamepad2 },
     { name: "IPPT", path: "/ippt", icon: CalendarIcon }, // new
   ];
 
@@ -55,7 +55,7 @@ export function Navbar({ user, pageTitle }: NavbarProps) {
     { name: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
     { name: "My Currency", path: "/my-currency", icon: Car },
     { name: "Currency Tracker", path: "/currency-tracker", icon: Car },
-    { name: "Mess Booking", path: "/mess-booking", icon: Utensils },
+    { name: "Gaming Zone", path: "/mess-booking", icon: Gamepad2 },
     { name: "IPPT", path: "/ippt", icon: CalendarIcon }, // new
     { name: "IPPT Tracker", path: "/ippt-tracker", icon: LayoutDashboard }, // new
   ];
@@ -63,7 +63,7 @@ export function Navbar({ user, pageTitle }: NavbarProps) {
   const adminNavItems = [
     { name: "Dashboard", path: "/admin", icon: LayoutDashboard },
     { name: "Currency Tracker", path: "/currency-tracker", icon: Car },
-    { name: "Mess Booking", path: "/mess-booking", icon: Utensils },
+    { name: "Gaming Zone", path: "/mess-booking", icon: Gamepad2 },
     { name: "Users", path: "/users", icon: Users },
     // { name: "IPPT", path: "/ippt", icon: CalendarIcon }, // 
     { name: "IPPT Tracker", path: "/ippt-tracker", icon: LayoutDashboard }, // new
