@@ -360,7 +360,7 @@ export default function MessBooking() {
     <div className="min-h-screen bg-background">
       <Navbar user={user} pageTitle="Mess Booking" />
       
-      {user.role !== "admin" && <MessRulesModal open={showRulesModal && !rulesAgreed} onAgree={handleRulesAgree} />}
+      {user.role === "soldier" && <MessRulesModal open={showRulesModal && !rulesAgreed} onAgree={handleRulesAgree} />}
       
       <div className="pt-16">
         <div className="max-w-7xl mx-auto px-4 md:px-6 py-6 md:py-8">
