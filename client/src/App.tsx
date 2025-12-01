@@ -13,6 +13,7 @@ import MyCurrency from "@/pages/MyCurrency";
 import CurrencyTracker from "@/pages/CurrencyTracker";
 import MessBooking from "@/pages/MessBooking";
 import Users from "@/pages/Users";
+import Credits from "@/pages/Credits";
 import { SafeUser } from "@shared/schema";
 import IPPT from "./pages/Ippt";
 import IPPTTracker from "./pages/IPPTTracker";
@@ -87,6 +88,9 @@ function Router() {
       </Route>
       <Route path="/users">
         {() => <ProtectedRoute component={Users} allowedRoles={["admin"]} />}
+      </Route>
+      <Route path="/credits">
+        {() => <ProtectedRoute component={Credits} allowedRoles={["admin", "commander"]} />}
       </Route>
       <Route path="/currency-tracker">
         {() => <ProtectedRoute component={CurrencyTracker} allowedRoles={["admin", "commander"]} />}

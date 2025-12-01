@@ -132,7 +132,7 @@ export default function SoldierDashboard() {
                   <>
                     <Button
                       className="h-12"
-                      onClick={() => setLocation("/users")}
+                      onClick={() => setLocation("/credits")}
                       data-testid="button-edit-credits"
                     >
                       <CreditCard className="w-5 h-5 mr-2" />
