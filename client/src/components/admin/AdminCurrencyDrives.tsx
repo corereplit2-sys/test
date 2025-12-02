@@ -88,17 +88,17 @@ export function AdminCurrencyDrives() {
         format: "a4"
       });
 
-      // Add title
+      // Add title with vehicle type
       pdf.setFontSize(18);
-      pdf.text("Currency Drive", 105, 30, { align: "center" });
+      pdf.text(`${drive.vehicleType} Currency Drive`, 105, 30, { align: "center" });
       
       // Add date
       pdf.setFontSize(14);
       pdf.text(format(new Date(drive.createdAt), "dd MMM yyyy"), 105, 45, { align: "center" });
 
-      // Add vehicle info
+      // Add MID (vehicle number)
       pdf.setFontSize(16);
-      pdf.text(`${drive.vehicleType} ${drive.vehicleNo}`, 105, 65, { align: "center" });
+      pdf.text(`MID ${drive.vehicleNo}`, 105, 60, { align: "center" });
 
       // Add QR code image
       const qrImage = canvas.toDataURL("image/png");
