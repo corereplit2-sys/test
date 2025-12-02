@@ -1,8 +1,8 @@
 import { 
   type User, type InsertUser, type Booking, type InsertBooking, type Config,
   type Msp, type InsertMsp, type DriverQualification, type InsertDriverQualification, 
-  type DriveLog, type InsertDriveLog,
-  users, bookings, config, msps, driverQualifications, driveLogs
+  type DriveLog, type InsertDriveLog, type CurrencyDrive, type InsertCurrencyDrive,
+  users, bookings, config, msps, driverQualifications, driveLogs, currencyDrives
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, lte, gte, lt, gt, ne, desc } from "drizzle-orm";
@@ -51,6 +51,13 @@ export interface IStorage {
   // Config operations
   getConfig(key: string): Promise<Config | undefined>;
   setConfig(key: string, value: string): Promise<Config>;
+  
+  // Currency Drive operations
+  getCurrencyDrive(id: string): Promise<CurrencyDrive | undefined>;
+  getCurrencyDriveByCode(code: string): Promise<CurrencyDrive | undefined>;
+  getAllCurrencyDrives(): Promise<CurrencyDrive[]>;
+  createCurrencyDrive(drive: InsertCurrencyDrive): Promise<CurrencyDrive>;
+  updateCurrencyDrive(id: string, updates: Partial<CurrencyDrive>): Promise<CurrencyDrive | undefined>;
 }
 
 // DatabaseStorage uses PostgreSQL via Drizzle ORM - blueprint:javascript_database
@@ -298,6 +305,39 @@ export class DatabaseStorage implements IStorage {
         .returning();
       return cfg;
     }
+  }
+
+  // Currency Drive operations
+  async getCurrencyDrive(id: string): Promise<CurrencyDrive | undefined> {
+    const [drive] = await db.select().from(currencyDrives).where(eq(currencyDrives.id, id));
+    return drive || undefined;
+  }
+
+  async getCurrencyDriveByCode(code: string): Promise<CurrencyDrive | undefined> {
+    const [drive] = await db.select().from(currencyDrives).where(eq(currencyDrives.code, code));
+    return drive || undefined;
+  }
+
+  async getAllCurrencyDrives(): Promise<CurrencyDrive[]> {
+    return await db.select().from(currencyDrives).orderBy(desc(currencyDrives.createdAt));
+  }
+
+  async createCurrencyDrive(insertDrive: InsertCurrencyDrive): Promise<CurrencyDrive> {
+    const code = Math.random().toString(36).substring(2, 10).toUpperCase();
+    const [drive] = await db
+      .insert(currencyDrives)
+      .values({ ...insertDrive, code } as any)
+      .returning();
+    return drive;
+  }
+
+  async updateCurrencyDrive(id: string, updates: Partial<CurrencyDrive>): Promise<CurrencyDrive | undefined> {
+    const [drive] = await db
+      .update(currencyDrives)
+      .set(updates)
+      .where(eq(currencyDrives.id, id))
+      .returning();
+    return drive || undefined;
   }
 }
 

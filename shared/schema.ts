@@ -58,6 +58,17 @@ export const driveLogs = pgTable("drive_logs", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+export const currencyDrives = pgTable("currency_drives", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  code: text("code").notNull().unique(),
+  vehicleType: text("vehicle_type").notNull().$type<"TERREX" | "BELREX">(),
+  vehicleNo: text("vehicle_no").notNull(),
+  createdBy: varchar("created_by").notNull().references(() => users.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  scans: integer("scans").notNull().default(0),
+});
+
 // Insert schemas
 export const insertMspSchema = createInsertSchema(msps).omit({
   id: true,
@@ -108,6 +119,16 @@ export const insertDriveLogSchema = createInsertSchema(driveLogs).omit({
   path: ["finalMileageKm"],
 });
 
+export const insertCurrencyDriveSchema = createInsertSchema(currencyDrives).omit({
+  id: true,
+  code: true,
+  createdAt: true,
+  scans: true,
+}).extend({
+  vehicleNo: z.string().regex(/^\d{5}$/, "Vehicle number must be exactly 5 digits"),
+  expiresAt: z.coerce.date(),
+});
+
 export const loginSchema = z.object({
   username: z.string().min(1, "Username is required"),
   password: z.string().min(1, "Password is required"),
@@ -135,6 +156,9 @@ export type DriverQualification = typeof driverQualifications.$inferSelect;
 export type InsertDriveLog = z.infer<typeof insertDriveLogSchema>;
 export type DriveLog = typeof driveLogs.$inferSelect;
 
+export type InsertCurrencyDrive = z.infer<typeof insertCurrencyDriveSchema>;
+export type CurrencyDrive = typeof currencyDrives.$inferSelect;
+
 export type Config = typeof config.$inferSelect;
 export type LoginCredentials = z.infer<typeof loginSchema>;
 
@@ -160,6 +184,10 @@ export type QualificationWithUser = DriverQualification & {
 
 export type DriveLogWithUser = DriveLog & {
   user?: SafeUser;
+};
+
+export type CurrencyDriveWithUser = CurrencyDrive & {
+  creator?: SafeUser;
 };
 
 export type DashboardStats = {
