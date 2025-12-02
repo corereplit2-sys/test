@@ -1,11 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { QrCode, CheckCircle, AlertCircle } from "lucide-react";
+import { QrCode, CheckCircle, Camera, X } from "lucide-react";
+import { Html5QrcodeScanner } from "html5-qrcode";
 
 interface QRScannerProps {
   onClose?: () => void;
@@ -16,17 +17,84 @@ export function QRScanner({ onClose }: QRScannerProps = {}) {
   const [qrCode, setQrCode] = useState("");
   const [isScanning, setIsScanning] = useState(false);
   const [successDialog, setSuccessDialog] = useState<{ vehicleNo: string; vehicleType: string } | null>(null);
+  const [useCameraMode, setUseCameraMode] = useState(false);
+  const [cameraStarted, setCameraStarted] = useState(false);
+  const scannerRef = useRef<Html5QrcodeScanner | null>(null);
 
-  const handleScanQR = async () => {
-    if (!qrCode.trim()) {
+  // Initialize camera scanner
+  useEffect(() => {
+    if (useCameraMode && !cameraStarted) {
+      startCameraScanner();
+    }
+
+    return () => {
+      if (useCameraMode && cameraStarted) {
+        stopCameraScanner();
+      }
+    };
+  }, [useCameraMode, cameraStarted]);
+
+  const startCameraScanner = async () => {
+    try {
+      const scanner = new Html5QrcodeScanner(
+        "qr-reader",
+        { fps: 10, qrbox: { width: 250, height: 250 } },
+        false
+      );
+
+      scanner.render(
+        async (decodedText: string) => {
+          // Stop scanning and process the code
+          await scanner.pause();
+          await processQRCode(decodedText);
+        },
+        (error: any) => {
+          // Silently ignore scanning errors
+        }
+      );
+
+      scannerRef.current = scanner;
+      setCameraStarted(true);
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Camera Error",
+        description: error.message || "Could not access camera. Try manual entry instead.",
+      });
+      setUseCameraMode(false);
+    }
+  };
+
+  const stopCameraScanner = async () => {
+    if (scannerRef.current) {
+      try {
+        await scannerRef.current.clear();
+      } catch (error) {
+        console.error("Error stopping scanner:", error);
+      }
+      scannerRef.current = null;
+      setCameraStarted(false);
+    }
+  };
+
+  const processQRCode = async (code: string) => {
+    setQrCode(code);
+    await handleScanQR(code);
+    setUseCameraMode(false);
+  };
+
+  const handleScanQR = async (code?: string) => {
+    const codeToScan = code || qrCode.trim();
+
+    if (!codeToScan) {
       toast({ variant: "destructive", title: "Error", description: "Please enter a QR code" });
       return;
     }
 
     setIsScanning(true);
     try {
-      const response = await apiRequest("POST", "/api/currency-drives/scan", { code: qrCode.trim() });
-      
+      const response = await apiRequest("POST", "/api/currency-drives/scan", { code: codeToScan });
+
       setQrCode("");
       setSuccessDialog({
         vehicleNo: response.vehicleNo,
@@ -63,27 +131,63 @@ export function QRScanner({ onClose }: QRScannerProps = {}) {
           <CardDescription>Scan QR code to auto-log 2km verified drive</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium">QR Code</label>
-            <div className="flex gap-2">
-              <Input
-                placeholder="Scan or enter QR code..."
-                value={qrCode}
-                onChange={(e) => setQrCode(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleScanQR()}
-                disabled={isScanning}
-                autoFocus
-              />
-              <Button onClick={handleScanQR} disabled={isScanning || !qrCode.trim()}>
-                {isScanning ? "Scanning..." : "Scan"}
-              </Button>
-            </div>
-          </div>
-          <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded p-3">
-            <p className="text-xs text-blue-800 dark:text-blue-200">
-              💡 <strong>Tip:</strong> Use your phone camera to scan the QR code displayed by admin, or enter the code manually.
-            </p>
-          </div>
+          {useCameraMode ? (
+            <>
+              <div className="relative bg-black rounded-lg overflow-hidden">
+                <div id="qr-reader" className="w-full" style={{ minHeight: "300px" }}></div>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => setUseCameraMode(false)}
+                  className="absolute top-2 right-2"
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+              <p className="text-sm text-muted-foreground text-center">
+                Point your camera at the QR code
+              </p>
+            </>
+          ) : (
+            <>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">QR Code</label>
+                <div className="flex gap-2 flex-col sm:flex-row">
+                  <Input
+                    placeholder="Paste QR code or use camera..."
+                    value={qrCode}
+                    onChange={(e) => setQrCode(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleScanQR()}
+                    disabled={isScanning}
+                    autoFocus
+                  />
+                  <div className="flex gap-2">
+                    <Button 
+                      onClick={() => setUseCameraMode(true)} 
+                      variant="outline"
+                      className="flex-1 sm:flex-none"
+                      title="Use camera to scan"
+                    >
+                      <Camera className="w-4 h-4 mr-2" />
+                      Camera
+                    </Button>
+                    <Button 
+                      onClick={() => handleScanQR()} 
+                      disabled={isScanning || !qrCode.trim()}
+                      className="flex-1 sm:flex-none"
+                    >
+                      {isScanning ? "Scanning..." : "Scan"}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded p-3">
+                <p className="text-xs text-blue-800 dark:text-blue-200">
+                  💡 <strong>Tip:</strong> Click "Camera" to use your device camera, or manually paste the code.
+                </p>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
 
