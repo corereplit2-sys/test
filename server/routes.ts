@@ -1124,7 +1124,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Currency Drive QR endpoints
   app.post("/api/currency-drives", requireAuth, requireAdmin, async (req: any, res) => {
     try {
-      const { vehicleType, vehicleNo, expiresAt } = insertCurrencyDriveSchema.parse(req.body);
+      const parsed = insertCurrencyDriveSchema.safeParse(req.body);
+      if (!parsed.success) {
+        const errors = parsed.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ');
+        return res.status(400).json({ message: `Validation error: ${errors}` });
+      }
+      
+      const { vehicleType, vehicleNo, expiresAt } = parsed.data;
       const drive = await storage.createCurrencyDrive({
         vehicleType,
         vehicleNo,
@@ -1133,7 +1139,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       res.status(201).json(drive);
     } catch (error: any) {
-      res.status(400).json({ message: error.message });
+      res.status(500).json({ message: error.message || "Failed to create QR code" });
     }
   });
 

@@ -23,8 +23,16 @@ export function AdminCurrencyDrives() {
   });
 
   const handleCreateQR = async () => {
+    if (!vehicleNo) {
+      toast({ variant: "destructive", title: "Error", description: "Please enter a vehicle number" });
+      return;
+    }
     if (!vehicleNo.match(/^\d{5}$/)) {
-      toast({ variant: "destructive", title: "Error", description: "Vehicle number must be 5 digits" });
+      toast({ variant: "destructive", title: "Error", description: "Vehicle number must be exactly 5 digits (e.g., 12345)" });
+      return;
+    }
+    if (!expiresAt) {
+      toast({ variant: "destructive", title: "Error", description: "Please select an expiration date" });
       return;
     }
 
@@ -36,12 +44,12 @@ export function AdminCurrencyDrives() {
         expiresAt: new Date(expiresAt),
       });
 
-      toast({ title: "QR Code Generated", description: `New currency drive QR created` });
+      toast({ title: "✓ QR Code Generated", description: `${vehicleType} - ${vehicleNo}` });
       setVehicleNo("");
       setExpiresAt(format(addDays(new Date(), 1), "yyyy-MM-dd"));
       refetch();
     } catch (error: any) {
-      toast({ variant: "destructive", title: "Error", description: error.message });
+      toast({ variant: "destructive", title: "Error", description: error.message || "Failed to generate QR code" });
     } finally {
       setIsCreating(false);
     }

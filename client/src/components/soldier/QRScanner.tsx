@@ -21,7 +21,9 @@ export function QRScanner({ onClose }: QRScannerProps = {}) {
   // Auto-start camera when component mounts
   useEffect(() => {
     startCameraScanner();
-    return () => stopCameraScanner();
+    return () => {
+      stopCameraScanner();
+    };
   }, []);
 
   const startCameraScanner = async () => {
@@ -53,10 +55,10 @@ export function QRScanner({ onClose }: QRScannerProps = {}) {
     }
   };
 
-  const stopCameraScanner = async () => {
+  const stopCameraScanner = () => {
     if (scannerRef.current) {
       try {
-        await scannerRef.current.destroy();
+        scannerRef.current.destroy();
       } catch (error) {
         console.error("Error stopping scanner:", error);
       }
