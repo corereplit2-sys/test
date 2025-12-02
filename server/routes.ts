@@ -1173,13 +1173,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Auto-log 2km drive for the soldier
       const today = startOfDay(new Date());
+      const initialMileage = 0;
+      const finalMileage = 2;
       const driveLog = await storage.createDriveLog({
         userId: user.id,
         vehicleType: drive.vehicleType,
         vehicleNo: drive.vehicleNo,
         date: today,
-        initialMileageKm: 0,
-        finalMileageKm: 2,
+        initialMileageKm: initialMileage,
+        finalMileageKm: finalMileage,
+        distanceKm: finalMileage - initialMileage,
         remarks: `Currency drive via QR code scan`,
       } as any);
 
