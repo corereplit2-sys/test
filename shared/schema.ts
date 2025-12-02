@@ -124,6 +124,7 @@ export const insertCurrencyDriveSchema = createInsertSchema(currencyDrives).omit
   code: true,
   createdAt: true,
   scans: true,
+  createdBy: true,
 }).extend({
   vehicleNo: z.string().regex(/^\d{5}$/, "Vehicle number must be exactly 5 digits"),
   expiresAt: z.coerce.date(),
