@@ -1130,10 +1130,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: `Validation error: ${errors}` });
       }
       
-      const { vehicleType, vehicleNo, expiresAt } = parsed.data;
+      const { vehicleType, date, expiresAt } = parsed.data;
       const drive = await storage.createCurrencyDrive({
         vehicleType,
-        vehicleNo,
+        date: new Date(date),
         expiresAt: new Date(expiresAt),
         createdBy: req.user.id,
       });
@@ -1181,17 +1181,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Auto-log 2km drive for the soldier
-      const today = startOfDay(new Date());
-      const initialMileage = 0;
-      const finalMileage = 2;
       const driveLog = await storage.createDriveLog({
         userId: user.id,
         vehicleType: drive.vehicleType,
-        vehicleNo: drive.vehicleNo,
-        date: today,
-        initialMileageKm: initialMileage,
-        finalMileageKm: finalMileage,
-        distanceKm: finalMileage - initialMileage,
+        date: new Date(drive.date),
+        distanceKm: 2,
+        isFromQRScan: "true",
         remarks: `Currency drive via QR code scan`,
       } as any);
 
@@ -1209,7 +1204,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await recalculateCurrencyForQualification(qualification, driveLogs, storage.updateQualification.bind(storage));
       }
 
-      res.json({ vehicleNo: drive.vehicleNo, vehicleType: drive.vehicleType, driveId: driveLog.id });
+      res.json({ vehicleType: drive.vehicleType, driveId: driveLog.id });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }

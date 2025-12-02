@@ -12,7 +12,6 @@ interface QRScannerProps {
 
 interface ScanResult {
   vehicleType: string;
-  vehicleNo: string;
   driveId: string;
 }
 
@@ -110,12 +109,11 @@ export function QRScanner({ onClose }: QRScannerProps = {}) {
       <div className="space-y-4 text-center">
         <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-6">
           <h3 className="text-lg font-semibold text-green-600 dark:text-green-400 mb-2">✓ Drive Logged Successfully</h3>
-          <div className="space-y-1">
+          <div className="space-y-2">
             <p className="text-sm text-muted-foreground">Vehicle Type</p>
             <p className="text-2xl font-bold">{scanResult.vehicleType}</p>
-            <p className="text-sm text-muted-foreground mt-3">MID</p>
-            <p className="text-2xl font-bold">{scanResult.vehicleNo}</p>
-            <p className="text-xs text-muted-foreground mt-3 pt-3 border-t">2km drive logged - Currency extended</p>
+            <p className="text-xs text-muted-foreground mt-3 pt-2 border-t">2km verified drive logged via QR code</p>
+            <p className="text-xs text-muted-foreground">Currency extended by 88 days</p>
           </div>
         </div>
         <p className="text-xs text-muted-foreground">Show this screen to your commander</p>

@@ -49,11 +49,9 @@ export const driveLogs = pgTable("drive_logs", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   vehicleType: text("vehicle_type").notNull().$type<"TERREX" | "BELREX">(),
-  vehicleNo: text("vehicle_no").notNull(),
   date: date("date").notNull(),
-  initialMileageKm: doublePrecision("initial_mileage_km").notNull(),
-  finalMileageKm: doublePrecision("final_mileage_km").notNull(),
   distanceKm: doublePrecision("distance_km").notNull(),
+  isFromQRScan: text("is_from_qr_scan").notNull().default("false"),
   remarks: text("remarks"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
@@ -62,7 +60,7 @@ export const currencyDrives = pgTable("currency_drives", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   code: text("code").notNull().unique(),
   vehicleType: text("vehicle_type").notNull().$type<"TERREX" | "BELREX">(),
-  vehicleNo: text("vehicle_no").notNull(),
+  date: date("date").notNull(),
   createdBy: varchar("created_by").notNull().references(() => users.id, { onDelete: "cascade" }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
@@ -118,14 +116,9 @@ export const insertDriveLogSchema = createInsertSchema(driveLogs).omit({
   id: true,
   createdAt: true,
   distanceKm: true,
+  isFromQRScan: true,
 }).extend({
   date: z.coerce.date(),
-  vehicleNo: z.string().regex(/^\d{5}$/, "Vehicle number must be exactly 5 digits"),
-  initialMileageKm: z.number().min(0, "Initial mileage must be positive"),
-  finalMileageKm: z.number().min(0, "Final mileage must be positive"),
-}).refine((data) => data.finalMileageKm > data.initialMileageKm, {
-  message: "Final mileage must be greater than initial mileage",
-  path: ["finalMileageKm"],
 });
 
 export const insertCurrencyDriveSchema = createInsertSchema(currencyDrives).omit({
@@ -135,7 +128,7 @@ export const insertCurrencyDriveSchema = createInsertSchema(currencyDrives).omit
   scans: true,
   createdBy: true,
 }).extend({
-  vehicleNo: z.string().regex(/^\d{5}$/, "Vehicle number must be exactly 5 digits"),
+  date: z.coerce.date(),
   expiresAt: z.coerce.date(),
 });
 

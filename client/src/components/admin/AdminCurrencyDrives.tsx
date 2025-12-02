@@ -17,7 +17,7 @@ import jsPDF from "jspdf";
 export function AdminCurrencyDrives() {
   const { toast } = useToast();
   const [vehicleType, setVehicleType] = useState<"TERREX" | "BELREX">("TERREX");
-  const [vehicleNo, setVehicleNo] = useState("");
+  const [driveDate, setDriveDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [expiresAt, setExpiresAt] = useState(format(addDays(new Date(), 1), "yyyy-MM-dd"));
   const [isCreating, setIsCreating] = useState(false);
   const [selectedDriveId, setSelectedDriveId] = useState<string | null>(null);
@@ -32,12 +32,8 @@ export function AdminCurrencyDrives() {
   });
 
   const handleCreateQR = async () => {
-    if (!vehicleNo) {
-      toast({ variant: "destructive", title: "Error", description: "Please enter a vehicle number" });
-      return;
-    }
-    if (!vehicleNo.match(/^\d{5}$/)) {
-      toast({ variant: "destructive", title: "Error", description: "Vehicle number must be exactly 5 digits (e.g., 12345)" });
+    if (!driveDate) {
+      toast({ variant: "destructive", title: "Error", description: "Please select a drive date" });
       return;
     }
     if (!expiresAt) {
@@ -49,12 +45,12 @@ export function AdminCurrencyDrives() {
     try {
       await apiRequest("POST", "/api/currency-drives", {
         vehicleType,
-        vehicleNo,
+        date: new Date(driveDate),
         expiresAt: new Date(expiresAt),
       });
 
-      toast({ title: "✓ QR Code Generated", description: `${vehicleType} - ${vehicleNo}` });
-      setVehicleNo("");
+      toast({ title: "✓ QR Code Generated", description: `${vehicleType} - ${format(new Date(driveDate), "dd MMM yyyy")}` });
+      setDriveDate(format(new Date(), "yyyy-MM-dd"));
       setExpiresAt(format(addDays(new Date(), 1), "yyyy-MM-dd"));
       refetch();
     } catch (error: any) {
@@ -99,25 +95,21 @@ export function AdminCurrencyDrives() {
       pdf.setFontSize(18);
       pdf.text(`${drive.vehicleType} Currency Drive`, 105, 30, { align: "center" });
       
-      // Add date
+      // Add drive date
       pdf.setFontSize(14);
-      pdf.text(format(new Date(drive.createdAt), "dd MMM yyyy"), 105, 45, { align: "center" });
-
-      // Add MID (vehicle number)
-      pdf.setFontSize(16);
-      pdf.text(`MID ${drive.vehicleNo}`, 105, 60, { align: "center" });
+      pdf.text(format(new Date(drive.date), "dd MMM yyyy"), 105, 45, { align: "center" });
 
       // Add QR code image
       const qrImage = canvas.toDataURL("image/png");
-      pdf.addImage(qrImage, "PNG", 40, 80, 130, 130);
+      pdf.addImage(qrImage, "PNG", 40, 70, 130, 130);
 
       // Add code at bottom for reference
       pdf.setFontSize(10);
       pdf.text(`Code: ${drive.code}`, 105, 200, { align: "center" });
 
       // Save PDF
-      pdf.save(`Currency-Drive-${drive.vehicleType}-${drive.vehicleNo}.pdf`);
-      toast({ title: "✓ PDF Downloaded", description: `${drive.vehicleType} - ${drive.vehicleNo}` });
+      pdf.save(`Currency-Drive-${drive.vehicleType}-${format(new Date(drive.date), "dd-MMM-yyyy")}.pdf`);
+      toast({ title: "✓ PDF Downloaded", description: `${drive.vehicleType} - ${format(new Date(drive.date), "dd MMM yyyy")}` });
     } catch (error: any) {
       toast({ variant: "destructive", title: "Error", description: "Failed to generate PDF" });
     }
@@ -134,7 +126,7 @@ export function AdminCurrencyDrives() {
           <CardDescription>Create QR codes for soldiers to scan and auto-log 2km drives</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="text-sm font-medium">Vehicle Type</label>
               <Select value={vehicleType} onValueChange={(v: any) => setVehicleType(v)}>
@@ -148,20 +140,15 @@ export function AdminCurrencyDrives() {
               </Select>
             </div>
             <div>
-              <label className="text-sm font-medium">Vehicle Number</label>
-              <Input
-                placeholder="e.g., 12345"
-                value={vehicleNo}
-                onChange={(e) => setVehicleNo(e.target.value)}
-                maxLength={5}
-              />
+              <label className="text-sm font-medium">Drive Date</label>
+              <Input type="date" value={driveDate} onChange={(e) => setDriveDate(e.target.value)} />
             </div>
             <div>
               <label className="text-sm font-medium">Expires At</label>
               <Input type="date" value={expiresAt} onChange={(e) => setExpiresAt(e.target.value)} />
             </div>
           </div>
-          <Button onClick={handleCreateQR} disabled={isCreating || !vehicleNo} className="w-full md:w-auto">
+          <Button onClick={handleCreateQR} disabled={isCreating} className="w-full md:w-auto">
             {isCreating ? "Generating..." : "Generate QR Code"}
           </Button>
         </CardContent>
@@ -183,8 +170,9 @@ export function AdminCurrencyDrives() {
                   <div key={drive.id} className="border rounded-md p-4 hover:bg-accent">
                     <div className="flex items-start justify-between gap-2 mb-3">
                       <div>
-                        <p className="font-semibold">{drive.vehicleType} - {drive.vehicleNo}</p>
-                        <p className="text-xs text-muted-foreground">Unique scans: {drive.scans}</p>
+                        <p className="font-semibold">{drive.vehicleType}</p>
+                        <p className="text-xs text-muted-foreground">Date: {format(new Date(drive.date), "dd MMM yyyy")}</p>
+                        <p className="text-xs text-muted-foreground">Scans: {drive.scans}</p>
                       </div>
                       <Badge variant="outline" className="font-mono text-xs">{drive.code}</Badge>
                     </div>
@@ -219,6 +207,7 @@ export function AdminCurrencyDrives() {
                   <thead className="bg-muted/50">
                     <tr>
                       <th className="text-left text-xs font-semibold px-4 py-2">Vehicle</th>
+                      <th className="text-left text-xs font-semibold px-4 py-2">Date</th>
                       <th className="text-left text-xs font-semibold px-4 py-2">QR Code</th>
                       <th className="text-left text-xs font-semibold px-4 py-2">Scans</th>
                       <th className="text-left text-xs font-semibold px-4 py-2">Expires</th>
@@ -228,7 +217,8 @@ export function AdminCurrencyDrives() {
                   <tbody>
                     {drives.map((drive) => (
                       <tr key={drive.id} className="border-t hover:bg-muted/50">
-                        <td className="px-4 py-2 font-medium">{drive.vehicleType} - {drive.vehicleNo}</td>
+                        <td className="px-4 py-2 font-medium">{drive.vehicleType}</td>
+                        <td className="px-4 py-2 text-sm">{format(new Date(drive.date), "dd MMM yyyy")}</td>
                         <td className="px-4 py-2 font-mono text-sm">{drive.code}</td>
                         <td className="px-4 py-2">{drive.scans}</td>
                         <td className="px-4 py-2 text-sm">{format(new Date(drive.expiresAt), "MMM d, yyyy")}</td>
