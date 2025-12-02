@@ -62,8 +62,19 @@ The system now includes comprehensive driver qualification management:
   - EXPIRED (Red): <15 days or past expiry date
 - Currency automatically recalculates on drive log changes (add/delete)
 
-## Recent Changes (November 2025)
-- **Commander Bookings Access** (Latest):
+## Recent Changes (December 2025)
+- **QR Code Currency Drive System** (Latest):
+  - Created `currencyDrives` database table for QR code management
+  - Admins can generate QR codes with vehicle type, number, and expiration dates
+  - QR codes display in admin Currency Tracker page with scan counts
+  - Soldiers access QR scanner via icon button on "My Currency" page (opens in modal)
+  - Scanning auto-logs 2km verified drive with immediate currency recalculation
+  - API endpoints: POST /api/currency-drives (create), GET /api/currency-drives (list), POST /api/currency-drives/scan (verify)
+  - QRScanner component accepts onClose prop for modal integration
+  - Cleaner UI: QR scanner button in header next to "Log Drive" button
+
+## Previous Changes (November 2025)
+- **Commander Bookings Access**:
   - Commanders can now access the "Bookings" tab in Mess Booking page (view-only)
   - Removed "How to book" instructions and booking rules for admin/commander roles
   - Removed capacity legend for admin/commander roles (only visible for soldiers)

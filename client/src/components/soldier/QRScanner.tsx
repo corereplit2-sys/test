@@ -7,7 +7,11 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { QrCode, CheckCircle, AlertCircle } from "lucide-react";
 
-export function QRScanner() {
+interface QRScannerProps {
+  onClose?: () => void;
+}
+
+export function QRScanner({ onClose }: QRScannerProps = {}) {
   const { toast } = useToast();
   const [qrCode, setQrCode] = useState("");
   const [isScanning, setIsScanning] = useState(false);
@@ -30,9 +34,13 @@ export function QRScanner() {
       });
 
       await queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
-      await queryClient.invalidateQueries({ queryKey: ["/api/drive-logs"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/drive-logs/my"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/qualifications/my"] });
 
-      setTimeout(() => setSuccessDialog(null), 3000);
+      setTimeout(() => {
+        setSuccessDialog(null);
+        onClose?.();
+      }, 2500);
     } catch (error: any) {
       toast({
         variant: "destructive",

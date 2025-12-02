@@ -14,7 +14,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertDriveLogSchema, type QualificationWithStatus, type DriveLog, type SafeUser } from "@shared/schema";
 import { z } from "zod";
-import { CalendarDays, Car, Plus, Gauge, Award, AlertTriangle } from "lucide-react";
+import { CalendarDays, Car, Plus, Gauge, Award, AlertTriangle, QrCode } from "lucide-react";
 import { format } from "date-fns";
 import { useState, useEffect } from "react";
 import { Navbar } from "@/components/Navbar";
@@ -37,6 +37,7 @@ export default function MyCurrency() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [isAddingLog, setIsAddingLog] = useState(false);
+  const [isScanningQR, setIsScanningQR] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -169,14 +170,21 @@ export default function MyCurrency() {
               <h1 className="text-3xl font-bold">My Currency</h1>
               <p className="text-muted-foreground mt-1">View your driver qualifications and log drives</p>
             </div>
-            <Button onClick={() => setIsAddingLog(true)} data-testid="button-add-drive-log">
-              <Plus className="w-4 h-4 mr-2" />
-              Log Drive
-            </Button>
+            <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                size="icon" 
+                onClick={() => setIsScanningQR(true)}
+                title="Scan QR Code"
+              >
+                <QrCode className="w-4 h-4" />
+              </Button>
+              <Button onClick={() => setIsAddingLog(true)} data-testid="button-add-drive-log">
+                <Plus className="w-4 h-4 mr-2" />
+                Log Drive
+              </Button>
+            </div>
           </div>
-
-          {/* QR Code Scanner */}
-          <QRScanner />
 
           {/* {user.role === "commander" && allQualifications.length > 0 && (
             <div className="grid gap-4 md:grid-cols-4">
@@ -504,6 +512,19 @@ export default function MyCurrency() {
                 </DialogFooter>
               </form>
             </Form>
+          </DialogContent>
+        </Dialog>
+
+        {/* QR Scanner Modal */}
+        <Dialog open={isScanningQR} onOpenChange={setIsScanningQR}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Scan Currency Drive QR Code</DialogTitle>
+              <DialogDescription>Scan or paste the QR code to auto-log a 2km verified drive</DialogDescription>
+            </DialogHeader>
+            <div className="py-4">
+              <QRScanner onClose={() => setIsScanningQR(false)} />
+            </div>
           </DialogContent>
         </Dialog>
         </div>
