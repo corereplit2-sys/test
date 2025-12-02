@@ -10,7 +10,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { QrCode, Trash2, Copy, Download } from "lucide-react";
 import { format, addDays } from "date-fns";
 import type { CurrencyDrive } from "@shared/schema";
-import * as QRCodeLib from "qrcode.react";
+import QRCode from "qrcode";
 import jsPDF from "jspdf";
 
 export function AdminCurrencyDrives() {
@@ -72,24 +72,21 @@ export function AdminCurrencyDrives() {
     }
   };
 
-  const handleDownloadPDF = (drive: CurrencyDrive) => {
-    const qrRef = document.createElement("canvas");
-    
-    const pdf = new jsPDF({
-      orientation: "portrait",
-      unit: "mm",
-      format: "a4"
-    });
+  const handleDownloadPDF = async (drive: CurrencyDrive) => {
+    try {
+      const canvas = document.createElement("canvas");
+      
+      // Generate QR code to canvas
+      await QRCode.toCanvas(canvas, drive.code, {
+        width: 200,
+        errorCorrectionLevel: "H"
+      });
 
-    // Get QR code canvas
-    (QRCodeLib as any).toCanvas(qrRef, drive.code, {
-      width: 200,
-      errorCorrectionLevel: "H"
-    }, (error: any) => {
-      if (error) {
-        toast({ variant: "destructive", title: "Error", description: "Failed to generate PDF" });
-        return;
-      }
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: "a4"
+      });
 
       // Add title
       pdf.setFontSize(18);
@@ -104,7 +101,7 @@ export function AdminCurrencyDrives() {
       pdf.text(`${drive.vehicleType} ${drive.vehicleNo}`, 105, 65, { align: "center" });
 
       // Add QR code image
-      const qrImage = qrRef.toDataURL("image/png");
+      const qrImage = canvas.toDataURL("image/png");
       pdf.addImage(qrImage, "PNG", 52, 85, 100, 100);
 
       // Add code at bottom for reference
@@ -114,7 +111,9 @@ export function AdminCurrencyDrives() {
       // Save PDF
       pdf.save(`Currency-Drive-${drive.vehicleType}-${drive.vehicleNo}.pdf`);
       toast({ title: "✓ PDF Downloaded", description: `${drive.vehicleType} - ${drive.vehicleNo}` });
-    });
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Error", description: "Failed to generate PDF" });
+    }
   };
 
   return (
