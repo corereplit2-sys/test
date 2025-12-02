@@ -375,6 +375,14 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(currencyDriveScans.scannedAt));
     return scans;
   }
+
+  async getScanCountByDrive(driveId: string): Promise<number> {
+    const [result] = await db
+      .select({ count: sql<number>`COUNT(*)` })
+      .from(currencyDriveScans)
+      .where(eq(currencyDriveScans.driveId, driveId));
+    return result?.count || 0;
+  }
 }
 
 export const storage = new DatabaseStorage();

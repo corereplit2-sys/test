@@ -1198,8 +1198,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Record the scan
       await storage.recordDriveScan(user.id, drive.id);
 
-      // Update scan count
-      await storage.updateCurrencyDrive(drive.id, { scans: drive.scans + 1 });
+      // Update scan count to match actual count in database
+      const actualScanCount = await storage.getScanCountByDrive(drive.id);
+      await storage.updateCurrencyDrive(drive.id, { scans: actualScanCount });
 
       // Recalculate currency for qualification
       const qualification = await storage.getUserQualificationForVehicle(user.id, drive.vehicleType);
