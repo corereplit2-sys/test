@@ -1071,15 +1071,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid drive log data", errors: parsed.error.errors });
       }
 
+      // Check if qualification is expired
+      const userId = (user.role === "admin" || user.role === "commander") ? parsed.data.userId : user.id;
+      const qualification = await storage.getUserQualificationForVehicle(userId, parsed.data.vehicleType);
+      if (qualification && !isAfter(new Date(qualification.currencyExpiryDate), new Date())) {
+        return res.status(410).json({ message: `Currency for ${parsed.data.vehicleType} has expired. Cannot log drives.` });
+      }
+
       const distanceKm = parsed.data.finalMileageKm - parsed.data.initialMileageKm;
       
       const driveLog = await storage.createDriveLog({
         ...parsed.data,
-        userId: (user.role === "admin" || user.role === "commander") ? parsed.data.userId : user.id,
+        userId,
         distanceKm,
       } as any);
 
-      const qualification = await storage.getUserQualificationForVehicle(driveLog.userId, driveLog.vehicleType);
+      // Recalculate currency for qualification
       if (qualification) {
         const driveLogs = await storage.getDriveLogsByUserAndVehicle(driveLog.userId, driveLog.vehicleType);
         await recalculateCurrencyForQualification(qualification, driveLogs, storage.updateQualification.bind(storage));
@@ -1180,6 +1187,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(409).json({ message: "You have already scanned this QR code" });
       }
 
+      // Check if qualification is expired
+      const qualification = await storage.getUserQualificationForVehicle(user.id, drive.vehicleType);
+      if (qualification && !isAfter(new Date(qualification.currencyExpiryDate), new Date())) {
+        return res.status(410).json({ message: `Currency for ${drive.vehicleType} has expired. Cannot scan for this vehicle.` });
+      }
+
       // Auto-log 2km drive for the soldier
       const driveLog = await storage.createDriveLog({
         userId: user.id,
@@ -1198,7 +1211,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.updateCurrencyDrive(drive.id, { scans: actualScanCount });
 
       // Recalculate currency for qualification
-      const qualification = await storage.getUserQualificationForVehicle(user.id, drive.vehicleType);
       if (qualification) {
         const driveLogs = await storage.getDriveLogsByUserAndVehicle(user.id, drive.vehicleType);
         await recalculateCurrencyForQualification(qualification, driveLogs, storage.updateQualification.bind(storage));
