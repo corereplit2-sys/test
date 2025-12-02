@@ -63,11 +63,22 @@ The system now includes comprehensive driver qualification management:
 - Currency automatically recalculates on drive log changes (add/delete)
 
 ## Recent Changes (December 2025)
-- **QR Code Currency Drive System - Enhanced** (Latest):
+- **Currency Tracker UI Reorganization** (Latest):
+  - **Tabbed Interface**: Split Currency Tracker page into two main tabs:
+    - **Tab 1: Driver Qualifications** - All qualifications, filters, search, and MSP/Vehicle breakdowns
+    - **Tab 2: QR Code Generator** (admins only) - Dedicated space for QR code management
+  - **Cleaner Layout**: QR code manager moved to separate tab for less visual clutter
+  - **Better UX**: Users can focus on either qualifications OR QR codes without distraction
+  - Tabs use Shadcn UI Tabs component with smooth transitions
+  - QR Code tab only visible to admin users
+- **QR Code Currency Drive System - Enhanced**:
   - **Double-scan Prevention**: Created `currencyDriveScans` table to track which soldier scanned which QR code
     - Unique constraint prevents same user from scanning same QR twice
     - Returns error "You have already scanned this QR code" on duplicate attempts
     - Persists across sessions/devices (stored in database, not browser)
+  - **Scan Count Sync**: Database query ensures card count always matches popup list
+    - Queries actual currencyDriveScans table records instead of incremented counter
+    - Updated on every scan to reflect real state
   - **Confirmation Page**: Beautiful green success screen displays after scanning showing:
     - ✓ Drive Logged Successfully message
     - Vehicle Type (TERREX/BELREX)
