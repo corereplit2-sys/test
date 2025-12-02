@@ -361,6 +361,20 @@ export class DatabaseStorage implements IStorage {
       .where(lt(currencyDrives.expiresAt, now));
     return result.rowCount ?? 0;
   }
+
+  async getScanDetailsByDrive(driveId: string): Promise<Array<{ userId: string; fullName: string; scannedAt: Date }>> {
+    const scans = await db
+      .select({
+        userId: currencyDriveScans.userId,
+        fullName: users.fullName,
+        scannedAt: currencyDriveScans.scannedAt,
+      })
+      .from(currencyDriveScans)
+      .innerJoin(users, eq(currencyDriveScans.userId, users.id))
+      .where(eq(currencyDriveScans.driveId, driveId))
+      .orderBy(desc(currencyDriveScans.scannedAt));
+    return scans;
+  }
 }
 
 export const storage = new DatabaseStorage();

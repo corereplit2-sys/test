@@ -5,9 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { QrCode, Trash2, Copy, Download } from "lucide-react";
+import { QrCode, Trash2, Copy, Download, Eye } from "lucide-react";
 import { format, addDays } from "date-fns";
 import type { CurrencyDrive } from "@shared/schema";
 import QRCode from "qrcode";
@@ -19,9 +20,15 @@ export function AdminCurrencyDrives() {
   const [vehicleNo, setVehicleNo] = useState("");
   const [expiresAt, setExpiresAt] = useState(format(addDays(new Date(), 1), "yyyy-MM-dd"));
   const [isCreating, setIsCreating] = useState(false);
+  const [selectedDriveId, setSelectedDriveId] = useState<string | null>(null);
 
   const { data: drives = [], refetch } = useQuery<CurrencyDrive[]>({
     queryKey: ["/api/currency-drives"],
+  });
+
+  const { data: scanDetails = [] } = useQuery({
+    queryKey: [`/api/currency-drives/${selectedDriveId}/scans`],
+    enabled: !!selectedDriveId,
   });
 
   const handleCreateQR = async () => {
@@ -185,6 +192,10 @@ export function AdminCurrencyDrives() {
                       Expires: {format(new Date(drive.expiresAt), "MMM d")}
                     </p>
                     <div className="flex gap-2">
+                      <Button size="sm" variant="outline" onClick={() => setSelectedDriveId(drive.id)} className="flex-1">
+                        <Eye className="w-4 h-4 mr-1" />
+                        Scans
+                      </Button>
                       <Button size="sm" variant="outline" onClick={() => handleDownloadPDF(drive)} className="flex-1">
                         <Download className="w-4 h-4 mr-1" />
                         PDF
@@ -223,6 +234,9 @@ export function AdminCurrencyDrives() {
                         <td className="px-4 py-2 text-sm">{format(new Date(drive.expiresAt), "MMM d, yyyy")}</td>
                         <td className="px-4 py-2 text-right">
                           <div className="flex gap-2 justify-end">
+                            <Button size="sm" variant="ghost" onClick={() => setSelectedDriveId(drive.id)} title="View scans">
+                              <Eye className="w-4 h-4" />
+                            </Button>
                             <Button size="sm" variant="ghost" onClick={() => handleDownloadPDF(drive)} title="Download PDF">
                               <Download className="w-4 h-4" />
                             </Button>
@@ -243,6 +257,32 @@ export function AdminCurrencyDrives() {
           )}
         </CardContent>
       </Card>
+
+      {/* Scans Detail Modal */}
+      <Dialog open={!!selectedDriveId} onOpenChange={(open) => !open && setSelectedDriveId(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Scan Details</DialogTitle>
+            <DialogDescription>
+              Total scans: {scanDetails.length}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 max-h-96 overflow-y-auto">
+            {scanDetails.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-4 text-center">No scans yet</p>
+            ) : (
+              scanDetails.map((scan: any, idx) => (
+                <div key={idx} className="border rounded-md p-3 bg-muted/30">
+                  <p className="font-medium text-sm">{scan.fullName}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {format(new Date(scan.scannedAt), "MMM d, yyyy HH:mm")}
+                  </p>
+                </div>
+              ))
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

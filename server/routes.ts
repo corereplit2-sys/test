@@ -1214,6 +1214,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/currency-drives/:id/scans", requireAuth, requireAdmin, async (req: any, res) => {
+    try {
+      const scans = await storage.getScanDetailsByDrive(req.params.id);
+      res.json(scans);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   app.delete("/api/currency-drives/:id", requireAuth, requireAdmin, async (req: any, res) => {
     try {
       const drive = await storage.getCurrencyDrive(req.params.id);
