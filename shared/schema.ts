@@ -49,7 +49,10 @@ export const driveLogs = pgTable("drive_logs", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   vehicleType: text("vehicle_type").notNull().$type<"TERREX" | "BELREX">(),
+  vehicleNo: text("vehicle_no"),
   date: date("date").notNull(),
+  initialMileageKm: doublePrecision("initial_mileage_km"),
+  finalMileageKm: doublePrecision("final_mileage_km"),
   distanceKm: doublePrecision("distance_km").notNull(),
   isFromQRScan: text("is_from_qr_scan").notNull().default("false"),
   remarks: text("remarks"),
@@ -119,6 +122,18 @@ export const insertDriveLogSchema = createInsertSchema(driveLogs).omit({
   isFromQRScan: true,
 }).extend({
   date: z.coerce.date(),
+  vehicleNo: z.string().regex(/^\d{5}$/, "Vehicle number must be exactly 5 digits").optional(),
+  initialMileageKm: z.number().min(0, "Initial mileage must be positive").optional(),
+  finalMileageKm: z.number().min(0, "Final mileage must be positive").optional(),
+}).refine((data) => {
+  // If either mileage is provided, both must be provided and finalMileageKm > initialMileageKm
+  if (data.initialMileageKm !== undefined || data.finalMileageKm !== undefined) {
+    return data.initialMileageKm !== undefined && data.finalMileageKm !== undefined && data.finalMileageKm > data.initialMileageKm;
+  }
+  return true;
+}, {
+  message: "Both initial and final mileage required, final must be greater than initial",
+  path: ["finalMileageKm"],
 });
 
 export const insertCurrencyDriveSchema = createInsertSchema(currencyDrives).omit({

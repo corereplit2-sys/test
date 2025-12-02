@@ -23,9 +23,14 @@ import { QRScanner } from "@/components/soldier/QRScanner";
 
 const driveLogFormSchema = z.object({
   vehicleType: z.string().min(1, "Vehicle type is required"),
+  vehicleNo: z.string().regex(/^\d{5}$/, "Vehicle number must be exactly 5 digits"),
   date: z.string().min(1, "Date is required"),
-  distanceKm: z.number().min(0.1, "Distance must be at least 0.1 km"),
+  initialMileageKm: z.number().min(0, "Initial mileage must be positive"),
+  finalMileageKm: z.number().min(0, "Final mileage must be positive"),
   remarks: z.string().optional(),
+}).refine((data) => data.finalMileageKm > data.initialMileageKm, {
+  message: "Final mileage must be greater than initial mileage",
+  path: ["finalMileageKm"],
 });
 
 export default function MyCurrency() {
@@ -64,8 +69,10 @@ export default function MyCurrency() {
     resolver: zodResolver(driveLogFormSchema),
     defaultValues: {
       vehicleType: "",
+      vehicleNo: "",
       date: new Date().toISOString().split('T')[0],
-      distanceKm: "" as any,
+      initialMileageKm: "" as any,
+      finalMileageKm: "" as any,
       remarks: "",
     },
   });
@@ -314,6 +321,7 @@ export default function MyCurrency() {
                       <div>
                         <div className="flex items-center gap-2">
                           <p className="font-medium">{log.vehicleType}</p>
+                          {log.vehicleNo && <Badge variant="outline" className="text-xs">{log.vehicleNo}</Badge>}
                           {log.isFromQRScan === "true" && (
                             <Badge variant="secondary" className="text-xs">QR Scan</Badge>
                           )}
@@ -321,6 +329,9 @@ export default function MyCurrency() {
                         <p className="text-sm text-muted-foreground">
                           {format(new Date(log.date), "dd MMM yyyy")} • {log.distanceKm.toFixed(1)} km
                         </p>
+                        {log.initialMileageKm !== null && log.finalMileageKm !== null && (
+                          <p className="text-xs text-muted-foreground">{log.initialMileageKm.toFixed(1)} → {log.finalMileageKm.toFixed(1)} km</p>
+                        )}
                         {log.remarks && (
                           <p className="text-xs text-muted-foreground mt-1">{log.remarks}</p>
                         )}
@@ -380,6 +391,26 @@ export default function MyCurrency() {
 
                 <FormField
                   control={form.control}
+                  name="vehicleNo"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Vehicle No. (MID)</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          placeholder="12345 (5 digits)"
+                          disabled={createLogMutation.isPending}
+                          maxLength={5}
+                          data-testid="input-vehicle-no"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
                   name="date"
                   render={({ field }) => (
                     <FormItem>
@@ -397,30 +428,57 @@ export default function MyCurrency() {
                   )}
                 />
 
-                <FormField
-                  control={form.control}
-                  name="distanceKm"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Distance (KM)</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          step="0.1"
-                          placeholder="e.g., 50.5"
-                          disabled={createLogMutation.isPending}
-                          value={field.value === 0 || field.value === "" ? "" : field.value}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            field.onChange(val === "" ? "" : parseFloat(val) || "");
-                          }}
-                          data-testid="input-distance"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="initialMileageKm"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Initial Mileage (KM)</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            step="0.1"
+                            placeholder="0.0"
+                            disabled={createLogMutation.isPending}
+                            value={field.value === 0 || field.value === "" ? "" : field.value}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              field.onChange(val === "" ? "" : parseFloat(val) || "");
+                            }}
+                            data-testid="input-initial-mileage"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="finalMileageKm"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Final Mileage (KM)</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            step="0.1"
+                            placeholder="0.0"
+                            disabled={createLogMutation.isPending}
+                            value={field.value === 0 || field.value === "" ? "" : field.value}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              field.onChange(val === "" ? "" : parseFloat(val) || "");
+                            }}
+                            data-testid="input-final-mileage"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
 
                 <FormField
                   control={form.control}

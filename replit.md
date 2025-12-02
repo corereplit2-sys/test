@@ -39,8 +39,10 @@ The system now includes comprehensive driver qualification management:
 ### Soldier Features (My Currency Page)
 - View all vehicle qualifications with status badges
 - See days remaining until currency expiry
-- Submit drive logs with vehicle details (type, vehicle no., date, initial/final mileage, remarks)
-- View complete drive history sorted by date
+- Two ways to log drives:
+  - **QR Scan**: Quick verified 2km drive (no vehicle number or mileage needed) - shows "QR Scan" badge
+  - **Manual Log**: Record drive with vehicle number, date, initial/final mileage, and remarks (distance auto-calculated)
+- View complete drive history sorted by date with drive type indicators
 
 ### Admin Features (Currency Tracker Page)
 - Company-wide qualification table with filters:
@@ -61,6 +63,8 @@ The system now includes comprehensive driver qualification management:
   - EXPIRING_SOON (Amber): 15-30 days remaining
   - EXPIRED (Red): <15 days or past expiry date
 - Currency automatically recalculates on drive log changes (add/delete)
+- **QR Scans**: Officially verified as 2km - no manual tracking needed
+- **Manual Logs**: Full audit trail with vehicle number and mileage tracking
 
 ## Recent Changes (December 2025)
 - **Currency Tracker UI Reorganization** (Latest):
@@ -71,31 +75,40 @@ The system now includes comprehensive driver qualification management:
   - **Better UX**: Users can focus on either qualifications OR QR codes without distraction
   - Tabs use Shadcn UI Tabs component with smooth transitions
   - QR Code tab only visible to admin users
-- **QR Code Currency Drive System - Enhanced**:
-  - **Double-scan Prevention**: Created `currencyDriveScans` table to track which soldier scanned which QR code
-    - Unique constraint prevents same user from scanning same QR twice
+- **QR Code Currency Drive System - Simplified** (Latest):
+  - **QR Code Generation**: Admins create QR codes with just **vehicle type** and **drive date**
+    - No vehicle number required (all QR drives are officially verified as 2km)
+    - Soldiers scan to auto-log verified 2km drive
+  - **Double-scan Prevention**: `currencyDriveScans` table prevents same soldier from scanning same QR twice
+    - Unique constraint enforced
     - Returns error "You have already scanned this QR code" on duplicate attempts
-    - Persists across sessions/devices (stored in database, not browser)
+    - Persists across sessions/devices
   - **Scan Count Sync**: Database query ensures card count always matches popup list
     - Queries actual currencyDriveScans table records instead of incremented counter
     - Updated on every scan to reflect real state
   - **Confirmation Page**: Beautiful green success screen displays after scanning showing:
     - ✓ Drive Logged Successfully message
     - Vehicle Type (TERREX/BELREX)
-    - MID (vehicle number)
+    - "2km verified drive logged via QR code - Currency extended by 88 days"
     - "Show this screen to your commander" instruction
   - **Auto-Deletion**: Expired QR codes and their scan logs automatically delete when next accessed
     - Cascade delete removes all related scan records
     - Saves database space without manual intervention
   - **PDF Download**: Generate printable QR codes with title format:
     - Line 1: TERREX/BELREX Currency Drive
-    - Line 2: Date (dd MMM yyyy)
-    - Line 3: MID [vehicle number]
+    - Line 2: Date (dd MMM yyyy) of the drive
     - Large QR code (130x130mm) for easy scanning
+    - (No vehicle number - all official QR drives are 2km verified)
   - **Scan Count Tracking**: Admin view shows total scans per QR code
-  - Admin can generate QR codes with vehicle type, number, and expiration dates
-  - Soldiers access QR scanner via icon button on "My Currency" page (opens in modal)
-  - Scanning auto-logs 2km verified drive with immediate currency recalculation
+  - **Admin Features**: 
+    - Generate QR codes with just vehicle type and drive date (no MID needed)
+    - View scan details (who scanned what and when)
+    - Download QR codes as PDF for printing
+  - **Soldier Features**:
+    - Scan QR via modal on "My Currency" page
+    - See confirmation screen after successful scan
+  - **Auto-Logging**: Scanning auto-logs 2km verified drive with immediate currency recalculation
+  - **Drive History**: QR-logged drives show "QR Scan" badge to distinguish from manual logs
   - API endpoints: POST /api/currency-drives (create), GET /api/currency-drives (list), POST /api/currency-drives/scan (verify), DELETE /api/currency-drives/:id
   - QRScanner component accepts onClose prop for modal integration
   - Cleaner UI: QR scanner button in header next to "Log Drive" button
