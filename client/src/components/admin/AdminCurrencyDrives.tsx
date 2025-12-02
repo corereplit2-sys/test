@@ -102,7 +102,7 @@ export function AdminCurrencyDrives() {
 
       // Add QR code image
       const qrImage = canvas.toDataURL("image/png");
-      pdf.addImage(qrImage, "PNG", 52, 85, 100, 100);
+      pdf.addImage(qrImage, "PNG", 40, 80, 130, 130);
 
       // Add code at bottom for reference
       pdf.setFontSize(10);
