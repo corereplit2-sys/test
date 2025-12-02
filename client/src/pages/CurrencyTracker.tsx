@@ -475,13 +475,6 @@ export default function CurrencyTracker() {
                 </Card>
               </div>
 
-              {/* QR Scanner for Soldiers */}
-              {user?.role === "soldier" && (
-                <div className="mb-6">
-                  <QRScanner />
-                </div>
-              )}
-
               {/* Admin QR Code Manager */}
               {user?.role === "admin" && (
                 <div className="mb-6">

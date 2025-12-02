@@ -19,6 +19,7 @@ import { format } from "date-fns";
 import { useState, useEffect } from "react";
 import { Navbar } from "@/components/Navbar";
 import { useLocation } from "wouter";
+import { QRScanner } from "@/components/soldier/QRScanner";
 
 const driveLogFormSchema = z.object({
   vehicleType: z.string().min(1, "Vehicle type is required"),
@@ -173,6 +174,9 @@ export default function MyCurrency() {
               Log Drive
             </Button>
           </div>
+
+          {/* QR Code Scanner */}
+          <QRScanner />
 
           {/* {user.role === "commander" && allQualifications.length > 0 && (
             <div className="grid gap-4 md:grid-cols-4">
