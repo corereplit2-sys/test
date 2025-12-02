@@ -8,6 +8,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Navbar } from "@/components/Navbar";
 import { useToast } from "@/hooks/use-toast";
 import { useForm } from "react-hook-form";
@@ -65,6 +66,7 @@ export default function CurrencyTracker() {
   const [showBatchImport, setShowBatchImport] = useState(false);
   const [batchImportData, setBatchImportData] = useState("");
   const [importResults, setImportResults] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState("qualifications");
 
   const { data: user, isLoading: userLoading } = useQuery<SafeUser>({
     queryKey: ["/api/auth/me"],
@@ -475,14 +477,21 @@ export default function CurrencyTracker() {
                 </Card>
               </div>
 
-              {/* Admin QR Code Manager */}
-              {user?.role === "admin" && (
-                <div className="mb-6">
-                  <AdminCurrencyDrives />
-                </div>
-              )}
+              {/* Tabbed Interface */}
+              <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="qualifications">Driver Qualifications</TabsTrigger>
+                  {user?.role === "admin" && (
+                    <TabsTrigger value="qr-codes" className="gap-2">
+                      <QrCode className="w-4 h-4" />
+                      QR Code Generator
+                    </TabsTrigger>
+                  )}
+                </TabsList>
 
-              <div className="grid gap-6 mb-6">
+                {/* Qualifications Tab */}
+                <TabsContent value="qualifications" className="space-y-6 mt-6">
+                  <div className="grid gap-6">
                 <Card data-testid="card-msp-breakdown">
                   <CardHeader>
                     <CardTitle>MSP Breakdown</CardTitle>
@@ -555,11 +564,10 @@ export default function CurrencyTracker() {
                     </div>
                   </CardContent>
                 </Card>
-              </div>
-            </>
-          )}
+                  </div>
 
-          <Card className="mb-6">
+                  {/* Search & Filter Section */}
+                  <Card className="mb-6">
             <CardContent className="pt-6">
               <div className="space-y-3">
                 <div className="flex gap-2">
