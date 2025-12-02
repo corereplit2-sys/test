@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,9 +7,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { QrCode, Trash2, Copy } from "lucide-react";
+import { QrCode, Trash2, Copy, Download } from "lucide-react";
 import { format, addDays } from "date-fns";
 import type { CurrencyDrive } from "@shared/schema";
+import * as QRCodeLib from "qrcode.react";
+import jsPDF from "jspdf";
 
 export function AdminCurrencyDrives() {
   const { toast } = useToast();
@@ -68,6 +70,51 @@ export function AdminCurrencyDrives() {
     } catch (error: any) {
       toast({ variant: "destructive", title: "Error", description: error.message });
     }
+  };
+
+  const handleDownloadPDF = (drive: CurrencyDrive) => {
+    const qrRef = document.createElement("canvas");
+    
+    const pdf = new jsPDF({
+      orientation: "portrait",
+      unit: "mm",
+      format: "a4"
+    });
+
+    // Get QR code canvas
+    (QRCodeLib as any).toCanvas(qrRef, drive.code, {
+      width: 200,
+      errorCorrectionLevel: "H"
+    }, (error: any) => {
+      if (error) {
+        toast({ variant: "destructive", title: "Error", description: "Failed to generate PDF" });
+        return;
+      }
+
+      // Add title
+      pdf.setFontSize(18);
+      pdf.text("Currency Drive", 105, 30, { align: "center" });
+      
+      // Add date
+      pdf.setFontSize(14);
+      pdf.text(format(new Date(drive.createdAt), "dd MMM yyyy"), 105, 45, { align: "center" });
+
+      // Add vehicle info
+      pdf.setFontSize(16);
+      pdf.text(`${drive.vehicleType} ${drive.vehicleNo}`, 105, 65, { align: "center" });
+
+      // Add QR code image
+      const qrImage = qrRef.toDataURL("image/png");
+      pdf.addImage(qrImage, "PNG", 52, 85, 100, 100);
+
+      // Add code at bottom for reference
+      pdf.setFontSize(10);
+      pdf.text(`Code: ${drive.code}`, 105, 200, { align: "center" });
+
+      // Save PDF
+      pdf.save(`Currency-Drive-${drive.vehicleType}-${drive.vehicleNo}.pdf`);
+      toast({ title: "✓ PDF Downloaded", description: `${drive.vehicleType} - ${drive.vehicleNo}` });
+    });
   };
 
   return (
@@ -139,6 +186,10 @@ export function AdminCurrencyDrives() {
                       Expires: {format(new Date(drive.expiresAt), "MMM d")}
                     </p>
                     <div className="flex gap-2">
+                      <Button size="sm" variant="outline" onClick={() => handleDownloadPDF(drive)} className="flex-1">
+                        <Download className="w-4 h-4 mr-1" />
+                        PDF
+                      </Button>
                       <Button size="sm" variant="outline" onClick={() => handleCopyCode(drive.code)} className="flex-1">
                         <Copy className="w-4 h-4 mr-1" />
                         Copy
@@ -173,6 +224,9 @@ export function AdminCurrencyDrives() {
                         <td className="px-4 py-2 text-sm">{format(new Date(drive.expiresAt), "MMM d, yyyy")}</td>
                         <td className="px-4 py-2 text-right">
                           <div className="flex gap-2 justify-end">
+                            <Button size="sm" variant="ghost" onClick={() => handleDownloadPDF(drive)} title="Download PDF">
+                              <Download className="w-4 h-4" />
+                            </Button>
                             <Button size="sm" variant="ghost" onClick={() => handleCopyCode(drive.code)}>
                               <Copy className="w-4 h-4" />
                             </Button>
