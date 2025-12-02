@@ -184,7 +184,7 @@ export function AdminCurrencyDrives() {
                     <div className="flex items-start justify-between gap-2 mb-3">
                       <div>
                         <p className="font-semibold">{drive.vehicleType} - {drive.vehicleNo}</p>
-                        <p className="text-xs text-muted-foreground">Scans: {drive.scans}</p>
+                        <p className="text-xs text-muted-foreground">Unique scans: {drive.scans}</p>
                       </div>
                       <Badge variant="outline" className="font-mono text-xs">{drive.code}</Badge>
                     </div>
@@ -264,14 +264,14 @@ export function AdminCurrencyDrives() {
           <DialogHeader>
             <DialogTitle>Scan Details</DialogTitle>
             <DialogDescription>
-              Total scans: {scanDetails.length}
+              Users who scanned: {(scanDetails as any[]).length}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2 max-h-96 overflow-y-auto">
-            {scanDetails.length === 0 ? (
+            {(scanDetails as any[]).length === 0 ? (
               <p className="text-sm text-muted-foreground py-4 text-center">No scans yet</p>
             ) : (
-              scanDetails.map((scan: any, idx) => (
+              (scanDetails as any[]).map((scan: any, idx: number) => (
                 <div key={idx} className="border rounded-md p-3 bg-muted/30">
                   <p className="font-medium text-sm">{scan.fullName}</p>
                   <p className="text-xs text-muted-foreground">
