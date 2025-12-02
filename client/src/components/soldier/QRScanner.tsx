@@ -10,11 +10,18 @@ interface QRScannerProps {
   onClose?: () => void;
 }
 
+interface ScanResult {
+  vehicleType: string;
+  vehicleNo: string;
+  driveId: string;
+}
+
 export function QRScanner({ onClose }: QRScannerProps = {}) {
   const { toast } = useToast();
   const [isScanning, setIsScanning] = useState(false);
   const [manualCode, setManualCode] = useState("");
   const [showManualInput, setShowManualInput] = useState(false);
+  const [scanResult, setScanResult] = useState<ScanResult | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const scannerRef = useRef<QrScanner | null>(null);
 
@@ -77,17 +84,12 @@ export function QRScanner({ onClose }: QRScannerProps = {}) {
     try {
       const response = await apiRequest("POST", "/api/currency-drives/scan", { code });
 
-      toast({
-        title: "✓ Drive Logged",
-        description: `${response.vehicleType} - ${response.vehicleNo}`,
-      });
-
+      setScanResult(response);
       await queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
       await queryClient.invalidateQueries({ queryKey: ["/api/drive-logs/my"] });
       await queryClient.invalidateQueries({ queryKey: ["/api/qualifications/my"] });
 
       setManualCode("");
-      setTimeout(() => onClose?.(), 1500);
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -102,6 +104,30 @@ export function QRScanner({ onClose }: QRScannerProps = {}) {
       setIsScanning(false);
     }
   };
+
+  if (scanResult) {
+    return (
+      <div className="space-y-4 text-center">
+        <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-6">
+          <h3 className="text-lg font-semibold text-green-600 dark:text-green-400 mb-2">✓ Drive Logged Successfully</h3>
+          <div className="space-y-1">
+            <p className="text-sm text-muted-foreground">Vehicle Type</p>
+            <p className="text-2xl font-bold">{scanResult.vehicleType}</p>
+            <p className="text-sm text-muted-foreground mt-3">MID</p>
+            <p className="text-2xl font-bold">{scanResult.vehicleNo}</p>
+            <p className="text-xs text-muted-foreground mt-3 pt-3 border-t">2km drive logged - Currency extended</p>
+          </div>
+        </div>
+        <p className="text-xs text-muted-foreground">Show this screen to your commander</p>
+        <button 
+          onClick={() => onClose?.()}
+          className="w-full px-4 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 text-sm font-medium"
+        >
+          Close
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-3">

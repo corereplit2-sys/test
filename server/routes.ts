@@ -1171,6 +1171,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(410).json({ message: "QR code has expired" });
       }
 
+      // Check if user already scanned this QR code
+      const alreadyScanned = await storage.hasUserScannedDrive(user.id, drive.id);
+      if (alreadyScanned) {
+        return res.status(409).json({ message: "You have already scanned this QR code" });
+      }
+
       // Auto-log 2km drive for the soldier
       const today = startOfDay(new Date());
       const initialMileage = 0;
@@ -1186,6 +1192,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         remarks: `Currency drive via QR code scan`,
       } as any);
 
+      // Record the scan
+      await storage.recordDriveScan(user.id, drive.id);
+
       // Update scan count
       await storage.updateCurrencyDrive(drive.id, { scans: drive.scans + 1 });
 
@@ -1196,7 +1205,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await recalculateCurrencyForQualification(qualification, driveLogs, storage.updateQualification.bind(storage));
       }
 
-      res.json({ vehicleNo: drive.vehicleNo, vehicleType: drive.vehicleType });
+      res.json({ vehicleNo: drive.vehicleNo, vehicleType: drive.vehicleType, driveId: driveLog.id });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }

@@ -1,8 +1,8 @@
 import { 
   type User, type InsertUser, type Booking, type InsertBooking, type Config,
   type Msp, type InsertMsp, type DriverQualification, type InsertDriverQualification, 
-  type DriveLog, type InsertDriveLog, type CurrencyDrive, type InsertCurrencyDrive,
-  users, bookings, config, msps, driverQualifications, driveLogs, currencyDrives
+  type DriveLog, type InsertDriveLog, type CurrencyDrive, type InsertCurrencyDrive, type CurrencyDriveScan,
+  users, bookings, config, msps, driverQualifications, driveLogs, currencyDrives, currencyDriveScans
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, lte, gte, lt, gt, ne, desc } from "drizzle-orm";
