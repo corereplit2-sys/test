@@ -69,6 +69,15 @@ export const currencyDrives = pgTable("currency_drives", {
   scans: integer("scans").notNull().default(0),
 });
 
+export const currencyDriveScans = pgTable("currency_drive_scans", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  driveId: varchar("drive_id").notNull().references(() => currencyDrives.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  scannedAt: timestamp("scanned_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  unq: unique().on(table.driveId, table.userId),
+}));
+
 // Insert schemas
 export const insertMspSchema = createInsertSchema(msps).omit({
   id: true,
@@ -161,6 +170,7 @@ export type InsertCurrencyDrive = z.infer<typeof insertCurrencyDriveSchema>;
 export type CurrencyDrive = typeof currencyDrives.$inferSelect;
 
 export type Config = typeof config.$inferSelect;
+export type CurrencyDriveScan = typeof currencyDriveScans.$inferSelect;
 export type LoginCredentials = z.infer<typeof loginSchema>;
 
 // Safe user type without password hash (for API responses)

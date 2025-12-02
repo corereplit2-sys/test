@@ -339,6 +339,20 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return drive || undefined;
   }
+
+  // Currency Drive Scan tracking
+  async hasUserScannedDrive(userId: string, driveId: string): Promise<boolean> {
+    const scan = await db
+      .select()
+      .from(currencyDriveScans)
+      .where(and(eq(currencyDriveScans.userId, userId), eq(currencyDriveScans.driveId, driveId)))
+      .limit(1);
+    return scan.length > 0;
+  }
+
+  async recordDriveScan(userId: string, driveId: string): Promise<void> {
+    await db.insert(currencyDriveScans).values({ userId, driveId } as any);
+  }
 }
 
 export const storage = new DatabaseStorage();
