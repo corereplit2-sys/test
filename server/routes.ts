@@ -1145,6 +1145,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/currency-drives", requireAuth, async (req: any, res) => {
     try {
+      // Clean up expired QR codes and their scan logs automatically
+      await storage.deleteExpiredCurrencyDrives();
+      
       const drives = await storage.getAllCurrencyDrives();
       const active = drives.filter(d => isAfter(new Date(d.expiresAt), new Date()));
       res.json(active);

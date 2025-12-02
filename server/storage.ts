@@ -353,6 +353,14 @@ export class DatabaseStorage implements IStorage {
   async recordDriveScan(userId: string, driveId: string): Promise<void> {
     await db.insert(currencyDriveScans).values({ userId, driveId } as any);
   }
+
+  async deleteExpiredCurrencyDrives(): Promise<number> {
+    const now = new Date();
+    const result = await db
+      .delete(currencyDrives)
+      .where(lt(currencyDrives.expiresAt, now));
+    return result.rowCount ?? 0;
+  }
 }
 
 export const storage = new DatabaseStorage();

@@ -63,13 +63,29 @@ The system now includes comprehensive driver qualification management:
 - Currency automatically recalculates on drive log changes (add/delete)
 
 ## Recent Changes (December 2025)
-- **QR Code Currency Drive System** (Latest):
-  - Created `currencyDrives` database table for QR code management
-  - Admins can generate QR codes with vehicle type, number, and expiration dates
-  - QR codes display in admin Currency Tracker page with scan counts
+- **QR Code Currency Drive System - Enhanced** (Latest):
+  - **Double-scan Prevention**: Created `currencyDriveScans` table to track which soldier scanned which QR code
+    - Unique constraint prevents same user from scanning same QR twice
+    - Returns error "You have already scanned this QR code" on duplicate attempts
+    - Persists across sessions/devices (stored in database, not browser)
+  - **Confirmation Page**: Beautiful green success screen displays after scanning showing:
+    - ✓ Drive Logged Successfully message
+    - Vehicle Type (TERREX/BELREX)
+    - MID (vehicle number)
+    - "Show this screen to your commander" instruction
+  - **Auto-Deletion**: Expired QR codes and their scan logs automatically delete when next accessed
+    - Cascade delete removes all related scan records
+    - Saves database space without manual intervention
+  - **PDF Download**: Generate printable QR codes with title format:
+    - Line 1: TERREX/BELREX Currency Drive
+    - Line 2: Date (dd MMM yyyy)
+    - Line 3: MID [vehicle number]
+    - Large QR code (130x130mm) for easy scanning
+  - **Scan Count Tracking**: Admin view shows total scans per QR code
+  - Admin can generate QR codes with vehicle type, number, and expiration dates
   - Soldiers access QR scanner via icon button on "My Currency" page (opens in modal)
   - Scanning auto-logs 2km verified drive with immediate currency recalculation
-  - API endpoints: POST /api/currency-drives (create), GET /api/currency-drives (list), POST /api/currency-drives/scan (verify)
+  - API endpoints: POST /api/currency-drives (create), GET /api/currency-drives (list), POST /api/currency-drives/scan (verify), DELETE /api/currency-drives/:id
   - QRScanner component accepts onClose prop for modal integration
   - Cleaner UI: QR scanner button in header next to "Log Drive" button
 
