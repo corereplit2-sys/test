@@ -14,7 +14,9 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertDriverQualificationSchema, insertDriveLogSchema, type QualificationWithStatus, type DriveLog, type SafeUser, type Msp } from "@shared/schema";
 import { z } from "zod";
-import { Car, Plus, Search, AlertTriangle, Award, Trash2, Gauge, X, ArrowLeft, Upload } from "lucide-react";
+import { Car, Plus, Search, AlertTriangle, Award, Trash2, Gauge, X, ArrowLeft, Upload, QrCode } from "lucide-react";
+import { QRScanner } from "@/components/soldier/QRScanner";
+import { AdminCurrencyDrives } from "@/components/admin/AdminCurrencyDrives";
 import { format } from "date-fns";
 import { useState, useRef, useEffect } from "react";
 import { useLocation } from "wouter";
@@ -472,6 +474,20 @@ export default function CurrencyTracker() {
                   </CardContent>
                 </Card>
               </div>
+
+              {/* QR Scanner for Soldiers */}
+              {user?.role === "soldier" && (
+                <div className="mb-6">
+                  <QRScanner />
+                </div>
+              )}
+
+              {/* Admin QR Code Manager */}
+              {user?.role === "admin" && (
+                <div className="mb-6">
+                  <AdminCurrencyDrives />
+                </div>
+              )}
 
               <div className="grid gap-6 mb-6">
                 <Card data-testid="card-msp-breakdown">
