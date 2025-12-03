@@ -185,9 +185,8 @@ export default function CalendarPage() {
             startTime: bookingModal.start.toISOString(),
             endTime: bookingModal.end.toISOString(),
           });
-          const response = await fetch(`/api/bookings/capacity?${params}`);
-          const data = await response.json();
-          setCapacityInfo(data);
+          const response = await apiRequest("GET", `/api/bookings/capacity?${params}`);
+          setCapacityInfo(response);
         } catch (error) {
           console.error("Failed to fetch capacity:", error);
           setCapacityInfo(null);

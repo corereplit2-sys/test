@@ -215,10 +215,9 @@ export default function MessBooking() {
             endTime: bookingModal.end.toISOString(),
           });
           console.log("Fetching capacity with params:", params.toString());
-          const response = await fetch(`/api/bookings/capacity?${params}`);
-          const data = await response.json();
-          console.log("Capacity response:", data);
-          setCapacityInfo(data);
+          const response = await apiRequest("GET", `/api/bookings/capacity?${params}`);
+          console.log("Capacity response:", response);
+          setCapacityInfo(response);
         } catch (error) {
           console.error("Failed to fetch capacity:", error);
           setCapacityInfo(null);
