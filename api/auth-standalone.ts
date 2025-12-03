@@ -104,6 +104,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (pathname === '/api/auth/login' && req.method === 'POST') {
       const { username, password } = req.body;
       
+      console.log('Login attempt for username:', username);
+      
       if (!username || !password) {
         return res.status(400).json({ message: 'Username and password required' });
       }
@@ -113,7 +115,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const result = await client.query('SELECT * FROM users WHERE username = $1', [username]);
         const user = result.rows[0];
         
-        console.log('User from DB:', user); // Debug log
+        console.log('User found in database:', user ? user.username : 'null');
         
         if (!user) {
           return res.status(401).json({ message: 'Invalid username or password' });
@@ -142,6 +144,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           rank: user.rank,
           mspId: user.msp_id
         };
+        
+        console.log('Login successful, returning user:', safeUser);
         
         return res.json({
           user: safeUser,

@@ -56,9 +56,16 @@ export function JWTProvider({ children }: { children: React.ReactNode }) {
     try {
       setIsLoggingIn(true);
       console.log('JWT Login attempt for:', username);
-      // Clear any existing token first (skip API call)
-      logout(true);
-      console.log('Cleared existing token');
+      
+      // Complete cleanup of any existing session
+      setUser(null);
+      setToken(null);
+      localStorage.removeItem('jwt_token');
+      
+      // Force a small delay to ensure cleanup is complete
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      console.log('Cleared existing token and state');
       
       const response = await fetch('/api/auth/login', {
         method: 'POST',
@@ -71,11 +78,18 @@ export function JWTProvider({ children }: { children: React.ReactNode }) {
       if (response.ok) {
         const data = await response.json();
         console.log('Login response:', data);
-        setUser(data.user);
-        setToken(data.token);
-        localStorage.setItem('jwt_token', data.token);
-        console.log('JWT Login successful for:', data.user.username);
-        return { success: true };
+        
+        // Verify the response contains the correct user
+        if (data.user && data.user.username === username) {
+          setUser(data.user);
+          setToken(data.token);
+          localStorage.setItem('jwt_token', data.token);
+          console.log('JWT Login successful for:', data.user.username);
+          return { success: true };
+        } else {
+          console.error('Login response username mismatch:', { expected: username, received: data.user?.username });
+          return { success: false, error: 'Account mismatch error' };
+        }
       } else {
         const error = await response.json();
         console.log('Login error:', error);
