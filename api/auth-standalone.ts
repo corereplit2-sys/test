@@ -77,14 +77,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const client = await pool.connect();
       try {
-        const result = await client.query('SELECT id, username, "fullName", role, credits, rank, "mspId" FROM users WHERE id = $1', [payload.userId]);
+        const result = await client.query('SELECT id, username, "full_name", role, credits, rank, "msp_id" FROM users WHERE id = $1', [payload.userId]);
         const user = result.rows[0];
         
         if (!user) {
           return res.status(401).json({ message: 'User not found' });
         }
         
-        return res.json(user);
+        // Convert snake_case to camelCase for frontend
+        const safeUser = {
+          id: user.id,
+          username: user.username,
+          fullName: user.full_name,
+          role: user.role,
+          credits: user.credits,
+          rank: user.rank,
+          mspId: user.msp_id
+        };
+        
+        return res.json(safeUser);
       } finally {
         client.release();
       }
@@ -120,7 +131,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         const token = generateToken(user);
-        const { password_hash, passwordHash, password: pwd, ...safeUser } = user;
+        
+        // Convert snake_case to camelCase for frontend
+        const safeUser = {
+          id: user.id,
+          username: user.username,
+          fullName: user.full_name,
+          role: user.role,
+          credits: user.credits,
+          rank: user.rank,
+          mspId: user.msp_id
+        };
         
         return res.json({
           user: safeUser,
