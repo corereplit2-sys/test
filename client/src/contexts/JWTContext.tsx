@@ -14,17 +14,11 @@ const JWTContext = createContext<JWTContextType | undefined>(undefined);
 export function JWTProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<SafeUser | null>(null);
   const [token, setToken] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
-  const justLoggedIn = useRef(false);
 
+  // Only check for existing token on initial mount
   useEffect(() => {
-    // Don't run if we just logged in or if we already have a user
-    if (justLoggedIn.current || user) {
-      return;
-    }
-    
-    // Check for stored token on mount only
     const storedToken = localStorage.getItem('jwt_token');
     if (storedToken) {
       setToken(storedToken);
@@ -45,12 +39,9 @@ export function JWTProvider({ children }: { children: React.ReactNode }) {
         // Token invalid, remove it
         localStorage.removeItem('jwt_token');
         setToken(null);
-      })
-      .finally(() => setIsLoading(false));
-    } else {
-      setIsLoading(false);
+      });
     }
-  }, [user]); // Depend on user to prevent running when user is set
+  }, []); // Only run once on mount
 
   const login = async (username: string, password: string) => {
     // Prevent multiple simultaneous login attempts
@@ -91,32 +82,6 @@ export function JWTProvider({ children }: { children: React.ReactNode }) {
           setToken(data.token);
           localStorage.setItem('jwt_token', data.token);
           console.log('JWT Login successful for:', data.user.username);
-          
-          // Immediately verify the token to ensure it's correct
-          setTimeout(async () => {
-            try {
-              const verifyResponse = await fetch('/api/auth/me', {
-                headers: {
-                  'Authorization': `Bearer ${data.token}`
-                }
-              });
-              
-              if (verifyResponse.ok) {
-                const verifyData = await verifyResponse.json();
-                console.log('Token verification after login:', verifyData);
-                if (verifyData.username !== username) {
-                  console.error('Token verification mismatch!', { expected: username, received: verifyData.username });
-                  // Force logout if mismatch
-                  setUser(null);
-                  setToken(null);
-                  localStorage.removeItem('jwt_token');
-                }
-              }
-            } catch (error) {
-              console.error('Token verification error:', error);
-            }
-          }, 500);
-          
           return { success: true };
         } else {
           console.error('Login response username mismatch:', { expected: username, received: data.user?.username });
