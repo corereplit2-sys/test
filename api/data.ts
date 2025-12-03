@@ -650,7 +650,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       const { startTime, endTime } = req.query;
+      console.log('Capacity query params:', { startTime, endTime });
+      
       if (!startTime || !endTime) {
+        console.log('Missing start or end time');
         return res.status(400).json({ message: 'Start and end time required' });
       }
 
@@ -667,6 +670,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const concurrentBookings = parseInt(result.rows[0].count);
         const MAX_CAPACITY = 20;
         const availableSpots = MAX_CAPACITY - concurrentBookings;
+
+        console.log('Capacity calculation:', {
+          concurrentBookings,
+          maxCapacity: MAX_CAPACITY,
+          availableSpots,
+          isFull: concurrentBookings >= MAX_CAPACITY
+        });
 
         return res.json({
           availableSpots,
