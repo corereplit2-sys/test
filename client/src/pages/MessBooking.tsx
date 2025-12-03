@@ -107,6 +107,8 @@ export default function MessBooking() {
     start.setMinutes(0, 0, 0);
     const end = addHours(start, 1);
 
+    console.log("Date clicked:", { start, end, userRole: user.role });
+
     if (start < new Date()) {
       toast({
         variant: "destructive",
@@ -212,8 +214,10 @@ export default function MessBooking() {
             startTime: bookingModal.start.toISOString(),
             endTime: bookingModal.end.toISOString(),
           });
+          console.log("Fetching capacity with params:", params.toString());
           const response = await fetch(`/api/bookings/capacity?${params}`);
           const data = await response.json();
+          console.log("Capacity response:", data);
           setCapacityInfo(data);
         } catch (error) {
           console.error("Failed to fetch capacity:", error);
