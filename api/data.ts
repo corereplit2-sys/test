@@ -1,6 +1,7 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import 'dotenv/config';
 import * as pg from 'pg';
+import jwt from 'jsonwebtoken';
 
 const { Pool } = pg;
 
@@ -22,7 +23,6 @@ function extractTokenFromHeader(authHeader: string | undefined): string | null {
 
 function verifyToken(token: string): any {
   try {
-    const jwt = require('jsonwebtoken');
     return jwt.verify(token, process.env.SESSION_SECRET || 'fallback-secret');
   } catch (error) {
     return null;
@@ -43,12 +43,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     
     // Admin users endpoint
     if (pathname === '/api/admin/users' && req.method === 'GET') {
+      console.log('Data API: Admin users request');
       const token = extractTokenFromHeader(req.headers.authorization);
+      console.log('Data API: Token extracted:', token ? 'present' : 'missing');
+      
       if (!token) {
         return res.status(401).json({ message: 'No token provided' });
       }
 
       const payload = verifyToken(token);
+      console.log('Data API: Token verified:', payload ? 'valid' : 'invalid');
+      
       if (!payload) {
         return res.status(401).json({ message: 'Invalid token' });
       }
