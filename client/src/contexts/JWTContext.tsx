@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { SafeUser } from '@shared/schema';
 
 interface JWTContextType {
@@ -16,8 +16,14 @@ export function JWTProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const justLoggedIn = useRef(false);
 
   useEffect(() => {
+    // Don't run if we're in the middle of a login or just logged in
+    if (isLoggingIn || justLoggedIn.current) {
+      return;
+    }
+    
     // Check for stored token on mount
     const storedToken = localStorage.getItem('jwt_token');
     if (storedToken) {
@@ -44,7 +50,7 @@ export function JWTProvider({ children }: { children: React.ReactNode }) {
     } else {
       setIsLoading(false);
     }
-  }, []);
+  }, [isLoggingIn]);
 
   const login = async (username: string, password: string) => {
     // Prevent multiple simultaneous login attempts
@@ -85,6 +91,13 @@ export function JWTProvider({ children }: { children: React.ReactNode }) {
           setToken(data.token);
           localStorage.setItem('jwt_token', data.token);
           console.log('JWT Login successful for:', data.user.username);
+          
+          // Set flag to prevent useEffect from interfering
+          justLoggedIn.current = true;
+          setTimeout(() => {
+            justLoggedIn.current = false;
+          }, 1000);
+          
           return { success: true };
         } else {
           console.error('Login response username mismatch:', { expected: username, received: data.user?.username });
@@ -100,6 +113,8 @@ export function JWTProvider({ children }: { children: React.ReactNode }) {
       return { success: false, error: 'Login failed' };
     } finally {
       setIsLoggingIn(false);
+      // Add a small delay to prevent useEffect from interfering
+      setTimeout(() => {}, 100);
     }
   };
 
