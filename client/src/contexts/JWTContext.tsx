@@ -47,6 +47,9 @@ export function JWTProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (username: string, password: string) => {
     try {
+      // Clear any existing token first
+      logout();
+      
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {

@@ -11,12 +11,20 @@
     {
       "src": "api/auth-standalone.ts",
       "use": "@vercel/node"
+    },
+    {
+      "src": "api/data.ts",
+      "use": "@vercel/node"
     }
   ],
   "routes": [
     {
-      "src": "/api/(.*)",
+      "src": "/api/auth/(.*)",
       "dest": "/api/auth-standalone.ts"
+    },
+    {
+      "src": "/api/(users|qualifications)",
+      "dest": "/api/data.ts"
     },
     {
       "src": "/(.*)",
