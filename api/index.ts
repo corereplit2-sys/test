@@ -1,50 +1,75 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
-import express from 'express';
-import { registerRoutes } from '../server/routes';
+import { storage } from '../server/storage';
+import * as bcrypt from 'bcryptjs';
+import { loginSchema } from '@shared/schema';
+import { generateToken, verifyToken, extractTokenFromHeader } from '@shared/jwt';
 
-const app = express();
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  // Enable CORS
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
-// Setup Express middleware
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
-
-// CORS middleware
-app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
-  next();
-});
 
-// Register all routes
-let server: any;
-registerRoutes(app).then((s) => {
-  server = s;
-});
+  try {
+    const { pathname } = new URL(req.url || '', 'http://localhost');
+    
+    if (pathname === '/api/auth/me' && req.method === 'GET') {
+      // Get current user using JWT
+      const token = extractTokenFromHeader(req.headers.authorization);
+      if (!token) {
+        return res.status(401).json({ message: 'No token provided' });
+      }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // Mock Express request/response
-  const expressReq = req as any;
-  const expressRes = res as any;
+      const payload = verifyToken(token);
+      if (!payload) {
+        return res.status(401).json({ message: 'Invalid token' });
+      }
 
-  // Add Express methods to Vercel response
-  expressRes.status = (code: number) => {
-    res.statusCode = code;
-    return expressRes;
-  };
-  
-  expressRes.json = (data: any) => {
-    res.setHeader('Content-Type', 'application/json');
-    res.end(JSON.stringify(data));
-    return expressRes;
-  };
+      const user = await storage.getUser(payload.userId);
+      if (!user) {
+        return res.status(401).json({ message: 'User not found' });
+      }
 
-  expressRes.end = res.end.bind(res);
-  expressRes.setHeader = res.setHeader.bind(res);
+      const { passwordHash, ...safeUser } = user;
+      return res.json(safeUser);
+    }
 
-  // Handle the request with Express
-  app(expressReq, expressRes);
+    if (pathname === '/api/auth/login' && req.method === 'POST') {
+      // Login and return JWT token
+      const result = loginSchema.safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).json({ message: 'Invalid input' });
+      }
+
+      const { username, password } = result.data;
+      const user = await storage.getUserByUsername(username);
+      
+      if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
+        return res.status(401).json({ message: 'Invalid username or password' });
+      }
+
+      // Generate JWT token
+      const token = generateToken(user);
+      const { passwordHash, ...safeUser } = user;
+      
+      return res.json({
+        user: safeUser,
+        token: token
+      });
+    }
+
+    if (pathname === '/api/auth/logout' && req.method === 'POST') {
+      // Logout - JWT tokens are stateless, client just removes token
+      return res.json({ message: 'Logged out successfully' });
+    }
+
+    return res.status(404).json({ message: 'Endpoint not found' });
+  } catch (error) {
+    console.error('Auth API error:', error);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
 }
