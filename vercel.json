@@ -9,14 +9,14 @@
       }
     },
     {
-      "src": "api/auth-simple.ts",
+      "src": "api/auth-standalone.ts",
       "use": "@vercel/node"
     }
   ],
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "/api/auth-simple.ts"
+      "dest": "/api/auth-standalone.ts"
     },
     {
       "src": "/(.*)",
