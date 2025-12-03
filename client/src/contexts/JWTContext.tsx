@@ -19,12 +19,12 @@ export function JWTProvider({ children }: { children: React.ReactNode }) {
   const justLoggedIn = useRef(false);
 
   useEffect(() => {
-    // Don't run if we just logged in
-    if (justLoggedIn.current) {
+    // Don't run if we just logged in or if we already have a user
+    if (justLoggedIn.current || user) {
       return;
     }
     
-    // Check for stored token on mount
+    // Check for stored token on mount only
     const storedToken = localStorage.getItem('jwt_token');
     if (storedToken) {
       setToken(storedToken);
@@ -50,7 +50,7 @@ export function JWTProvider({ children }: { children: React.ReactNode }) {
     } else {
       setIsLoading(false);
     }
-  }, []); // Empty dependency array - only run on mount
+  }, [user]); // Depend on user to prevent running when user is set
 
   const login = async (username: string, password: string) => {
     // Prevent multiple simultaneous login attempts
