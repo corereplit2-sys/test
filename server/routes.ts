@@ -2,16 +2,38 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import session from "express-session";
-import bcrypt from "bcryptjs";
+import * as bcrypt from "bcryptjs";
 import { 
   loginSchema, changePasswordSchema, insertUserSchema, updateUserSchema, insertBookingSchema,
   insertDriverQualificationSchema, insertDriveLogSchema, insertCurrencyDriveSchema,
   type User, type SafeUser, type Booking, type BookingWithUser, type DashboardStats, type BookableWeekRange,
-  type Msp, type DriverQualification, type DriveLog, type QualificationWithStatus, type CurrencyDrive
+  type DriverQualification, type DriveLog, type QualificationWithStatus, type CurrencyDrive
 } from "@shared/schema";
-import { differenceInHours, differenceInMinutes, startOfDay, endOfDay, addDays, parseISO, isAfter } from "date-fns";
+import { differenceInHours, differenceInMinutes, startOfDay, endOfDay, addDays, parseISO, isAfter, format, differenceInDays } from "date-fns";
 import { getCurrentBookableWeek, DEFAULT_BOOKING_RELEASE_DAY } from "./utils/bookingSchedule";
 import { calculateCurrency, getCurrencyStatus, recalculateCurrencyForQualification } from "./utils/currencyCalculator";
+import { eq } from "drizzle-orm";
+import { 
+  users, bookings, driveLogs, driverQualifications, currencyDrives, currencyDriveScans, Msp, config
+} from "@shared/schema";
+import * as schema from "@shared/schema";
+import { InsertDriveLog, InsertDriverQualification, InsertCurrencyDrive, InsertBooking } from "@shared/schema";
+import { DatabaseStorage } from "./storage";
+import { WebSocketServer, WebSocket } from "ws";
+
+// Helper function to compute expiry date consistently
+const getComputedExpiry = (qualification: DriverQualification) => {
+  const baseDate = qualification.lastDriveDate || qualification.qualifiedOnDate;
+  const expiry = new Date(baseDate);
+  expiry.setDate(expiry.getDate() + 88);
+  return expiry;
+};
+
+// Helper function to check if qualification is expired using computed logic
+const isQualificationExpired = (qualification: DriverQualification) => {
+  const computedExpiry = getComputedExpiry(qualification);
+  return !isAfter(computedExpiry, new Date());
+};
 
 declare module "express-session" {
   interface SessionData {
@@ -926,6 +948,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.put("/api/qualifications/:id", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      const parsed = insertDriverQualificationSchema.partial().safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid qualification data", errors: parsed.error.errors });
+      }
+
+      // Normalise qualifiedOnDate so it always becomes a YYYY-MM-DD string for storage
+      const updateData = { ...(parsed.data as any) };
+      if (updateData.qualifiedOnDate instanceof Date) {
+        updateData.qualifiedOnDate = updateData.qualifiedOnDate.toISOString().split("T")[0];
+      }
+
+      // First, update the basic qualification fields (including qualifiedOnDate if present)
+      const updatedQualification = await storage.updateQualification(id, updateData);
+
+      if (!updatedQualification) {
+        return res.status(404).json({ message: "Qualification not found" });
+      }
+
+      // Now recalculate currency based on current drive logs
+      const driveLogsForQual = await storage.getDriveLogsByUserAndVehicle(
+        updatedQualification.userId,
+        updatedQualification.vehicleType,
+      );
+
+      let finalQualification = await recalculateCurrencyForQualification(
+        updatedQualification,
+        driveLogsForQual,
+        storage.updateQualification.bind(storage),
+      );
+
+      // If there are still no drive logs, force expiry to be qualifiedOnDate + 88 days
+      if (driveLogsForQual.length === 0) {
+        const base = finalQualification ?? updatedQualification;
+        const qualifiedDate = new Date(base.qualifiedOnDate);
+        const forcedExpiry = addDays(qualifiedDate, 88).toISOString().split("T")[0];
+        finalQualification = await storage.updateQualification(base.id, {
+          currencyExpiryDate: forcedExpiry,
+          lastDriveDate: null,
+        } as any);
+      }
+
+      res.json(finalQualification ?? updatedQualification);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || "Failed to update qualification" });
+    }
+  });
+
   app.delete("/api/qualifications/:id", requireAuth, requireAdmin, async (req, res) => {
     try {
       const success = await storage.deleteQualification(req.params.id);
@@ -1073,12 +1146,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Check if qualification is expired
       const userId = (user.role === "admin" || user.role === "commander") ? parsed.data.userId : user.id;
-      const qualification = await storage.getUserQualificationForVehicle(userId, parsed.data.vehicleType);
-      if (qualification && !isAfter(new Date(qualification.currencyExpiryDate), new Date())) {
+      const qualification = await storage.getUserQualificationForVehicle(userId, parsed.data.vehicleType as "TERREX" | "BELREX");
+      if (qualification && isQualificationExpired(qualification)) {
         return res.status(410).json({ message: `Currency for ${parsed.data.vehicleType} has expired. Cannot log drives.` });
       }
 
-      const distanceKm = parsed.data.finalMileageKm - parsed.data.initialMileageKm;
+      const distanceKm = (parsed.data.finalMileageKm || 0) - (parsed.data.initialMileageKm || 0);
       
       const driveLog = await storage.createDriveLog({
         ...parsed.data,
@@ -1137,13 +1210,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: `Validation error: ${errors}` });
       }
       
-      const { vehicleType, date, expiresAt } = parsed.data;
+      const { vehicleType, date } = parsed.data;
+      // Parse dates as local dates to avoid timezone issues
+      const driveDate = new Date(date);
+      const localDriveDate = new Date(driveDate.getFullYear(), driveDate.getMonth(), driveDate.getDate());
+      // Auto-set expiry to end of the drive date (midnight)
+      const localExpireDate = new Date(localDriveDate);
+      localExpireDate.setHours(23, 59, 59, 999);
+      
       const drive = await storage.createCurrencyDrive({
         vehicleType,
-        date: new Date(date),
-        expiresAt: new Date(expiresAt),
+        date: localDriveDate,
+        expiresAt: localExpireDate,
         createdBy: req.user.id,
-      });
+      } as any);
       res.status(201).json(drive);
     } catch (error: any) {
       res.status(500).json({ message: error.message || "Failed to create QR code" });
@@ -1165,11 +1245,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/currency-drives/scan", requireAuth, async (req: any, res) => {
     try {
-      const { code } = req.body;
+      const { code, vehicleNo } = req.body;
       const user = req.user as User;
       
       if (!code) {
         return res.status(400).json({ message: "QR code required" });
+      }
+
+      if (!vehicleNo || !/^\d{5}$/.test(vehicleNo)) {
+        return res.status(400).json({ message: "Vehicle number must be exactly 5 digits" });
       }
 
       const drive = await storage.getCurrencyDriveByCode(code);
@@ -1189,18 +1273,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Check if qualification is expired
       const qualification = await storage.getUserQualificationForVehicle(user.id, drive.vehicleType);
-      if (qualification && !isAfter(new Date(qualification.currencyExpiryDate), new Date())) {
+      let isExpired = false;
+      if (qualification) {
+        isExpired = isQualificationExpired(qualification);
+        
+        console.log('DEBUG - Qualification check:', {
+          userId: user.id,
+          vehicleType: drive.vehicleType,
+          baseDate: qualification.lastDriveDate || qualification.qualifiedOnDate,
+          computedExpiry: getComputedExpiry(qualification),
+          storedExpiry: qualification.currencyExpiryDate,
+          now: new Date(),
+          isExpired
+        });
+      }
+      if (qualification && isExpired) {
         return res.status(410).json({ message: `Currency for ${drive.vehicleType} has expired. Cannot scan for this vehicle.` });
       }
-
-      // Auto-log 2km drive for the soldier
+      // Parse the date as local date to avoid timezone issues
+      const driveDate = new Date(drive.date);
+      const localDate = new Date(driveDate.getFullYear(), driveDate.getMonth(), driveDate.getDate());
+      
       const driveLog = await storage.createDriveLog({
         userId: user.id,
         vehicleType: drive.vehicleType,
-        date: new Date(drive.date),
+        date: localDate, // Use local date (when drive was supposed to happen)
         distanceKm: 2,
         isFromQRScan: "true",
-        remarks: `Currency drive via QR code scan`,
+        vehicleNo: vehicleNo,
+        remarks: `Currency drive via QR code scan - Vehicle ${vehicleNo}`,
       } as any);
 
       // Record the scan

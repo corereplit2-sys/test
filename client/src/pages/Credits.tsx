@@ -3,20 +3,18 @@ import { SafeUser } from "@shared/schema";
 import { Navbar } from "@/components/Navbar";
 import { AdminUserCredits } from "@/components/admin/AdminUserCredits";
 import { useLocation } from "wouter";
+import { PageLoader } from "@/components/ui/PageLoader";
 
 export default function Credits() {
   const [, setLocation] = useLocation();
   
   const { data: user, isLoading } = useQuery<SafeUser>({
     queryKey: ["/api/auth/me"],
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
   if (isLoading || !user) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-muted-foreground">Loading...</div>
-      </div>
-    );
+    return <PageLoader />;
   }
 
   if (user.role !== "admin" && user.role !== "commander") {

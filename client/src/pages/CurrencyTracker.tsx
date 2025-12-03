@@ -8,7 +8,6 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Navbar } from "@/components/Navbar";
 import { useToast } from "@/hooks/use-toast";
 import { useForm } from "react-hook-form";
@@ -19,6 +18,7 @@ import { Car, Plus, Search, AlertTriangle, Award, Trash2, Gauge, X, ArrowLeft, U
 import { QRScanner } from "@/components/soldier/QRScanner";
 import { AdminCurrencyDrives } from "@/components/admin/AdminCurrencyDrives";
 import { format } from "date-fns";
+import { toZonedTime, format as formatTz } from "date-fns-tz";
 import { useState, useRef, useEffect } from "react";
 import { useLocation } from "wouter";
 import {
@@ -66,7 +66,6 @@ export default function CurrencyTracker() {
   const [showBatchImport, setShowBatchImport] = useState(false);
   const [batchImportData, setBatchImportData] = useState("");
   const [importResults, setImportResults] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState("qualifications");
 
   const { data: user, isLoading: userLoading } = useQuery<SafeUser>({
     queryKey: ["/api/auth/me"],
@@ -87,6 +86,15 @@ export default function CurrencyTracker() {
   const { data: msps = [] } = useQuery<Msp[]>({
     queryKey: ["/api/msps"],
   });
+
+  const getTimeInSingapore = (date: Date | string) => {
+    const utcDate = typeof date === 'string' ? new Date(date) : date;
+    return toZonedTime(utcDate, 'Asia/Singapore');
+  };
+
+  const formatSingapore = (date: Date | string, fmtStr: string) => {
+    return formatTz(getTimeInSingapore(date), fmtStr, { timeZone: 'Asia/Singapore' });
+  };
 
   const vehicleTypes = ["TERREX", "BELREX"];
   const statusTypes = [
@@ -401,6 +409,7 @@ export default function CurrencyTracker() {
 
           {!selectedQual && (
             <>
+              {/* Analytics cards */}
               <div className="grid gap-2 grid-cols-2 md:grid-cols-4 mb-6">
                 <Card data-testid="card-analytics-total">
                   <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
@@ -412,7 +421,8 @@ export default function CurrencyTracker() {
                     <p className="text-xs text-muted-foreground mt-1 hidden sm:block">Across all MSPs</p>
                   </CardContent>
                 </Card>
-                <Card 
+
+                <Card
                   data-testid="card-analytics-current"
                   className="cursor-pointer hover:bg-accent transition-colors"
                   onClick={() => addFilterTag("status", "CURRENT", "Current")}
@@ -426,14 +436,14 @@ export default function CurrencyTracker() {
                       {qualifications.filter(q => q.status === "CURRENT").length}
                     </div>
                     <p className="text-xs text-muted-foreground mt-1 hidden sm:block">
-                      {qualifications.length > 0 
+                      {qualifications.length > 0
                         ? `${((qualifications.filter(q => q.status === "CURRENT").length / qualifications.length) * 100).toFixed(0)}% of total`
-                        : "0%"
-                      }
+                        : "0%"}
                     </p>
                   </CardContent>
                 </Card>
-                <Card 
+
+                <Card
                   data-testid="card-analytics-expiring"
                   className="cursor-pointer hover:bg-accent transition-colors"
                   onClick={() => addFilterTag("status", "EXPIRING_SOON", "Expiring Soon")}
@@ -449,12 +459,12 @@ export default function CurrencyTracker() {
                     <p className="text-xs text-muted-foreground mt-1 hidden sm:block">
                       {qualifications.length > 0
                         ? `${((qualifications.filter(q => q.status === "EXPIRING_SOON").length / qualifications.length) * 100).toFixed(0)}% of total`
-                        : "0%"
-                      }
+                        : "0%"}
                     </p>
                   </CardContent>
                 </Card>
-                <Card 
+
+                <Card
                   data-testid="card-analytics-expired"
                   className="cursor-pointer hover:bg-accent transition-colors"
                   onClick={() => addFilterTag("status", "EXPIRED", "Expired")}
@@ -470,326 +480,318 @@ export default function CurrencyTracker() {
                     <p className="text-xs text-muted-foreground mt-1 hidden sm:block">
                       {qualifications.length > 0
                         ? `${((qualifications.filter(q => q.status === "EXPIRED").length / qualifications.length) * 100).toFixed(0)}% of total`
-                        : "0%"
-                      }
+                        : "0%"}
                     </p>
                   </CardContent>
                 </Card>
               </div>
 
-              {/* Tabbed Interface */}
-              <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="qualifications">Driver Qualifications</TabsTrigger>
-                  {user?.role === "admin" && (
-                    <TabsTrigger value="qr-codes" className="gap-2">
-                      <QrCode className="w-4 h-4" />
-                      QR Code Generator
-                    </TabsTrigger>
-                  )}
-                </TabsList>
-
-                {/* Qualifications Tab */}
-                <TabsContent value="qualifications" className="space-y-6 mt-6">
-                  <div className="grid gap-6">
-                    <Card data-testid="card-msp-breakdown">
-                      <CardHeader>
-                        <CardTitle>MSP Breakdown</CardTitle>
-                        <CardDescription>Currency status by MSP</CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-3">
-                          {msps.map(msp => {
-                            const mspQuals = qualifications.filter(q => q.user?.mspId === msp.id);
-                            const current = mspQuals.filter(q => q.status === "CURRENT").length;
-                            const expiring = mspQuals.filter(q => q.status === "EXPIRING_SOON").length;
-                            const expired = mspQuals.filter(q => q.status === "EXPIRED").length;
-                            
-                            return (
-                              <div 
-                                key={msp.id} 
-                                className="flex items-center justify-between border rounded-md p-3 cursor-pointer hover:bg-accent transition-colors"
-                                onClick={() => addFilterTag("msp", msp.id, msp.name)}
-                              >
-                                <div className="flex-1">
-                                  <p className="font-medium text-sm">{msp.name}</p>
-                                  <p className="text-xs text-muted-foreground">Total: {mspQuals.length}</p>
-                                </div>
-                                <div className="flex gap-2 text-xs font-medium">
-                                  <span className="text-green-600 dark:text-green-400 bg-green-500/10 px-2 py-1 rounded">{current}</span>
-                                  <span className="text-yellow-600 dark:text-yellow-400 bg-yellow-500/10 px-2 py-1 rounded">{expiring}</span>
-                                  <span className="text-red-600 dark:text-red-400 bg-red-500/10 px-2 py-1 rounded">{expired}</span>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    <Card data-testid="card-vehicle-breakdown">
-                      <CardHeader>
-                        <CardTitle>Vehicle Type Breakdown</CardTitle>
-                        <CardDescription>Currency status by vehicle</CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-3">
-                          {vehicleTypes.map(vehicle => {
-                            const vehicleQuals = qualifications.filter(q => q.vehicleType === vehicle);
-                            const current = vehicleQuals.filter(q => q.status === "CURRENT").length;
-                            const expiring = vehicleQuals.filter(q => q.status === "EXPIRING_SOON").length;
-                            const expired = vehicleQuals.filter(q => q.status === "EXPIRED").length;
-                            
-                            return (
-                              <div 
-                                key={vehicle} 
-                                className="flex items-center justify-between border rounded-md p-3 cursor-pointer hover:bg-accent transition-colors"
-                                onClick={() => addFilterTag("vehicle", vehicle, vehicle)}
-                              >
-                                <div className="flex-1 flex items-center gap-2">
-                                  <Car className="w-4 h-4 text-muted-foreground" />
-                                  <div>
-                                    <p className="font-medium text-sm">{vehicle}</p>
-                                    <p className="text-xs text-muted-foreground">Total: {vehicleQuals.length}</p>
-                                  </div>
-                                </div>
-                                <div className="flex gap-2 text-xs font-medium">
-                                  <span className="text-green-600 dark:text-green-400 bg-green-500/10 px-2 py-1 rounded">{current}</span>
-                                  <span className="text-yellow-600 dark:text-yellow-400 bg-yellow-500/10 px-2 py-1 rounded">{expiring}</span>
-                                  <span className="text-red-600 dark:text-red-400 bg-red-500/10 px-2 py-1 rounded">{expired}</span>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </div>
-
-                  {/* Search & Filter Section */}
-                  <Card className="mb-6">
-                    <CardContent className="pt-6">
+              {/* Driver Qualifications Content */}
+              <div className="space-y-6 mt-6">
+                <div className="grid gap-6">
+                  {/* MSP Breakdown */}
+                  <Card data-testid="card-msp-breakdown">
+                    <CardHeader>
+                      <CardTitle>MSP Breakdown</CardTitle>
+                      <CardDescription>Currency status by MSP</CardDescription>
+                    </CardHeader>
+                    <CardContent>
                       <div className="space-y-3">
-                        <div className="flex gap-2">
-                          <div className="relative flex-1">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                            <Input
-                              placeholder="Search by name or type filter (e.g., HQ, MSP 1, TERREX)..."
-                              value={searchTerm}
-                              onChange={(e) => handleSearchChange(e.target.value)}
-                              className="pl-10"
-                              data-testid="input-search-name"
-                            />
-                          </div>
-                          <Popover open={showFilterPopover} onOpenChange={setShowFilterPopover}>
-                            <PopoverTrigger asChild>
-                              <Button variant="outline" data-testid="button-add-filter">
-                                <Plus className="w-4 h-4 mr-2" />
-                                Add Filter
-                              </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-64 p-3" align="end">
-                              <div className="space-y-3">
-                                <div>
-                                  <p className="text-sm font-medium mb-2">MSP</p>
-                                  <div className="space-y-1">
-                                    {msps.map(msp => (
-                                      <Button
-                                        key={msp.id}
-                                        variant="ghost"
-                                        size="sm"
-                                        className="w-full justify-start"
-                                        onClick={() => addFilterTag("msp", msp.id, msp.name)}
-                                        data-testid={`filter-msp-${msp.id}`}
-                                      >
-                                        {msp.name}
-                                      </Button>
-                                    ))}
-                                  </div>
-                                </div>
+                        {msps.map(msp => {
+                          const mspQuals = qualifications.filter(q => q.user?.mspId === msp.id);
+                          const current = mspQuals.filter(q => q.status === "CURRENT").length;
+                          const expiring = mspQuals.filter(q => q.status === "EXPIRING_SOON").length;
+                          const expired = mspQuals.filter(q => q.status === "EXPIRED").length;
 
-                                <div>
-                                  <p className="text-sm font-medium mb-2">Vehicle Type</p>
-                                  <div className="space-y-1">
-                                    {vehicleTypes.map(vehicle => (
-                                      <Button
-                                        key={vehicle}
-                                        variant="ghost"
-                                        size="sm"
-                                        className="w-full justify-start gap-2"
-                                        onClick={() => addFilterTag("vehicle", vehicle, vehicle)}
-                                        data-testid={`filter-vehicle-${vehicle}`}
-                                      >
-                                        <Car className="w-3 h-3" />
-                                        {vehicle}
-                                      </Button>
-                                    ))}
-                                  </div>
-                                </div>
-
-                                <div>
-                                  <p className="text-sm font-medium mb-2">Status</p>
-                                  <div className="space-y-1">
-                                    {statusTypes.map(status => (
-                                      <Button
-                                        key={status.value}
-                                        variant="ghost"
-                                        size="sm"
-                                        className="w-full justify-start"
-                                        onClick={() => addFilterTag("status", status.value, status.label)}
-                                        data-testid={`filter-status-${status.value}`}
-                                      >
-                                        {status.label}
-                                      </Button>
-                                    ))}
-                                  </div>
-                                </div>
+                          return (
+                            <div
+                              key={msp.id}
+                              className="flex items-center justify-between border rounded-md p-3 cursor-pointer hover:bg-accent transition-colors"
+                              onClick={() => addFilterTag("msp", msp.id, msp.name)}
+                            >
+                              <div className="flex-1">
+                                <p className="font-medium text-sm">{msp.name}</p>
+                                <p className="text-xs text-muted-foreground">Total: {mspQuals.length}</p>
                               </div>
-                            </PopoverContent>
-                          </Popover>
-                        </div>
-
-                        {filterTags.length > 0 && (
-                          <div className="flex flex-wrap gap-2">
-                            {filterTags.map(tag => (
-                              <Badge key={tag.id} variant="secondary" className="gap-1" data-testid={`tag-${tag.id}`}>
-                                {tag.type === "vehicle" && <Car className="w-3 h-3" />}
-                                {tag.label}
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-4 w-4 p-0 hover:bg-transparent"
-                                  onClick={() => removeFilterTag(tag.id)}
-                                  data-testid={`remove-tag-${tag.id}`}
-                                >
-                                  <X className="w-3 h-3" />
-                                </Button>
-                              </Badge>
-                            ))}
-                          </div>
-                        )}
+                              <div className="flex gap-2 text-xs font-medium">
+                                <span className="text-green-600 dark:text-green-400 bg-green-500/10 px-2 py-1 rounded">{current}</span>
+                                <span className="text-yellow-600 dark:text-yellow-400 bg-yellow-500/10 px-2 py-1 rounded">{expiring}</span>
+                                <span className="text-red-600 dark:text-red-400 bg-red-500/10 px-2 py-1 rounded">{expired}</span>
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     </CardContent>
                   </Card>
 
-                  {/* Qualifications List */}
-                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <div className="lg:col-span-3" ref={qualificationsCardRef}>
-              <Card>
-                <CardHeader>
-                  <CardTitle>All Qualifications</CardTitle>
-                  <CardDescription>
-                    {filteredQualifications.length} qualification{filteredQualifications.length !== 1 ? 's' : ''}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {qualificationsLoading ? (
+                  {/* Vehicle Breakdown */}
+                  <Card data-testid="card-vehicle-breakdown">
+                    <CardHeader>
+                      <CardTitle>Vehicle Type Breakdown</CardTitle>
+                      <CardDescription>Currency status by vehicle</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        {vehicleTypes.map(vehicle => {
+                          const vehicleQuals = qualifications.filter(q => q.vehicleType === vehicle);
+                          const current = vehicleQuals.filter(q => q.status === "CURRENT").length;
+                          const expiring = vehicleQuals.filter(q => q.status === "EXPIRING_SOON").length;
+                          const expired = vehicleQuals.filter(q => q.status === "EXPIRED").length;
+
+                          return (
+                            <div
+                              key={vehicle}
+                              className="flex items-center justify-between border rounded-md p-3 cursor-pointer hover:bg-accent transition-colors"
+                              onClick={() => addFilterTag("vehicle", vehicle, vehicle)}
+                            >
+                              <div className="flex-1 flex items-center gap-2">
+                                <Car className="w-4 h-4 text-muted-foreground" />
+                                <div>
+                                  <p className="font-medium text-sm">{vehicle}</p>
+                                  <p className="text-xs text-muted-foreground">Total: {vehicleQuals.length}</p>
+                                </div>
+                              </div>
+                              <div className="flex gap-2 text-xs font-medium">
+                                <span className="text-green-600 dark:text-green-400 bg-green-500/10 px-2 py-1 rounded">{current}</span>
+                                <span className="text-yellow-600 dark:text-yellow-400 bg-yellow-500/10 px-2 py-1 rounded">{expiring}</span>
+                                <span className="text-red-600 dark:text-red-400 bg-red-500/10 px-2 py-1 rounded">{expired}</span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Search & Filter Section */}
+                <Card className="mb-6">
+                  <CardContent className="pt-6">
+                    {/* keep existing search/filter JSX here as-is */}
                     <div className="space-y-3">
-                      {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-16 w-full" />)}
-                    </div>
-                  ) : filteredQualifications.length > 0 ? (
-                    <>
-                      {/* Mobile Card View */}
-                      <div className="space-y-3 md:hidden">
-                        {filteredQualifications.map((qual) => (
-                          <div
-                            key={qual.id}
-                            className="border rounded-md p-4 cursor-pointer hover:bg-accent transition-colors"
-                            onClick={() => setSelectedQual(qual)}
-                            data-testid={`card-qualification-${qual.id}`}
-                          >
-                            <div className="flex items-start justify-between gap-3 mb-3">
-                              <div className="flex-1">
-                                <p className="font-semibold text-base">{qual.user?.fullName || "Unknown"}</p>
-                                <p className="text-xs text-muted-foreground">{qual.user?.rank || "-"}</p>
-                              </div>
-                              <div>
-                                {getStatusBadge(qual.status, qual.daysRemaining)}
-                              </div>
-                            </div>
-                            <div className="grid grid-cols-2 gap-3 text-sm">
-                              <div>
-                                <p className="text-xs text-muted-foreground">MSP</p>
-                                <p className="font-medium text-xs">{msps.find(m => m.id === qual.user?.mspId)?.name || "-"}</p>
-                              </div>
-                              <div>
-                                <p className="text-xs text-muted-foreground">Vehicle</p>
-                                <p className="font-medium text-xs">{qual.vehicleType}</p>
-                              </div>
-                              <div className="col-span-2">
-                                <p className="text-xs text-muted-foreground">Last Drive</p>
-                                <p className="font-medium text-xs">
-                                  {qual.lastDriveDate ? format(new Date(qual.lastDriveDate), "dd MMM yyyy") : "Never"}
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* Desktop Table View */}
-                      <div className="hidden md:block border rounded-md">
-                        <div className="overflow-x-auto">
-                          <table className="w-full">
-                            <thead className="bg-muted/50">
-                              <tr>
-                                <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">User</th>
-                                <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">Rank</th>
-                                <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">MSP</th>
-                                <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">Vehicle</th>
-                                <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">Last Drive</th>
-                                <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">Status</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {filteredQualifications.map((qual) => (
-                                <tr
-                                  key={qual.id}
-                                  className="border-t hover-elevate cursor-pointer"
-                                  onClick={() => setSelectedQual(qual)}
-                                  data-testid={`row-qualification-${qual.id}`}
-                                >
-                                  <td className="py-3 px-4 font-medium">{qual.user?.fullName || "Unknown"}</td>
-                                  <td className="py-3 px-4 text-muted-foreground">{qual.user?.rank || "-"}</td>
-                                  <td className="py-3 px-4 text-muted-foreground">
-                                    {msps.find(m => m.id === qual.user?.mspId)?.name || "-"}
-                                  </td>
-                                  <td className="py-3 px-4">
-                                    <Badge variant="outline">{qual.vehicleType}</Badge>
-                                  </td>
-                                  <td className="py-3 px-4 text-sm text-muted-foreground">
-                                    {qual.lastDriveDate ? format(new Date(qual.lastDriveDate), "dd MMM yyyy") : "Never"}
-                                  </td>
-                                  <td className="py-3 px-4">
-                                    {getStatusBadge(qual.status, qual.daysRemaining)}
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
+                      <div className="flex gap-2">
+                        <div className="relative flex-1">
+                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                          <Input
+                            placeholder="Search by name or type filter (e.g., HQ, MSP 1, TERREX)..."
+                            value={searchTerm}
+                            onChange={(e) => handleSearchChange(e.target.value)}
+                            className="pl-10"
+                            data-testid="input-search-name"
+                          />
                         </div>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center py-12">
-                      <Car className="w-12 h-12 text-muted-foreground mb-4" />
-                      <p className="text-lg font-medium">No qualifications found</p>
-                      <p className="text-sm text-muted-foreground mt-1">Try adjusting your filters or add a new qualification</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-                    </div>
-                  </div>
-                </TabsContent>
+                        <Popover open={showFilterPopover} onOpenChange={setShowFilterPopover}>
+                          <PopoverTrigger asChild>
+                            <Button variant="outline" data-testid="button-add-filter">
+                              <Plus className="w-4 h-4 mr-2" />
+                              Add Filter
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-64 p-3" align="end">
+                            {/* existing filter buttons */}
+                            <div className="space-y-3">
+                              <div>
+                                <p className="text-sm font-medium mb-2">MSP</p>
+                                <div className="space-y-1">
+                                  {msps.map(msp => (
+                                    <Button
+                                      key={msp.id}
+                                      variant="ghost"
+                                      size="sm"
+                                      className="w-full justify-start"
+                                      onClick={() => addFilterTag("msp", msp.id, msp.name)}
+                                      data-testid={`filter-msp-${msp.id}`}
+                                    >
+                                      {msp.name}
+                                    </Button>
+                                  ))}
+                                </div>
+                              </div>
 
-                {/* QR Code Generator Tab */}
-                {user?.role === "admin" && (
-                  <TabsContent value="qr-codes" className="mt-6">
-                    <AdminCurrencyDrives />
-                  </TabsContent>
-                )}
-              </Tabs>
+                              <div>
+                                <p className="text-sm font-medium mb-2">Vehicle Type</p>
+                                <div className="space-y-1">
+                                  {vehicleTypes.map(vehicle => (
+                                    <Button
+                                      key={vehicle}
+                                      variant="ghost"
+                                      size="sm"
+                                      className="w-full justify-start gap-2"
+                                      onClick={() => addFilterTag("vehicle", vehicle, vehicle)}
+                                      data-testid={`filter-vehicle-${vehicle}`}
+                                    >
+                                      <Car className="w-3 h-3" />
+                                      {vehicle}
+                                    </Button>
+                                  ))}
+                                </div>
+                              </div>
+
+                              <div>
+                                <p className="text-sm font-medium mb-2">Status</p>
+                                <div className="space-y-1">
+                                  {statusTypes.map(status => (
+                                    <Button
+                                      key={status.value}
+                                      variant="ghost"
+                                      size="sm"
+                                      className="w-full justify-start"
+                                      onClick={() => addFilterTag("status", status.value, status.label)}
+                                      data-testid={`filter-status-${status.value}`}
+                                    >
+                                      {status.label}
+                                    </Button>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+
+                      {filterTags.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {filterTags.map(tag => (
+                            <Badge key={tag.id} variant="secondary" className="gap-1" data-testid={`tag-${tag.id}`}>
+                              {tag.type === "vehicle" && <Car className="w-3 h-3" />}
+                              {tag.label}
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-4 w-4 p-0 hover:bg-transparent"
+                                onClick={() => removeFilterTag(tag.id)}
+                                data-testid={`remove-tag-${tag.id}`}
+                              >
+                                <X className="w-3 h-3" />
+                              </Button>
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Qualifications List */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  <div className="lg:col-span-3" ref={qualificationsCardRef}>
+                    {/* existing All Qualifications card */}
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>All Qualifications</CardTitle>
+                        <CardDescription>
+                          {filteredQualifications.length} qualification{filteredQualifications.length !== 1 ? "s" : ""}
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        {qualificationsLoading ? (
+                          <div className="space-y-3">
+                            {[1, 2, 3, 4].map(i => (
+                              <Skeleton key={i} className="h-16 w-full" />
+                            ))}
+                          </div>
+                        ) : filteredQualifications.length > 0 ? (
+                          <>
+                            {/* Mobile Card View */}
+                            <div className="space-y-3 md:hidden">
+                              {filteredQualifications.map((qual) => (
+                                <div
+                                  key={qual.id}
+                                  className="border rounded-md p-4 cursor-pointer hover:bg-accent transition-colors"
+                                  onClick={() => setSelectedQual(qual)}
+                                  data-testid={`card-qualification-${qual.id}`}
+                                >
+                                  <div className="flex items-start justify-between gap-3 mb-3">
+                                    <div className="flex-1">
+                                      <p className="font-semibold text-base">{qual.user?.fullName || "Unknown"}</p>
+                                      <p className="text-xs text-muted-foreground">{qual.user?.rank || "-"}</p>
+                                    </div>
+                                    <div>
+                                      {getStatusBadge(qual.status, qual.daysRemaining)}
+                                    </div>
+                                  </div>
+                                  <div className="grid grid-cols-2 gap-3 text-sm">
+                                    <div>
+                                      <p className="text-xs text-muted-foreground">MSP</p>
+                                      <p className="font-medium text-xs">
+                                        {msps.find(m => m.id === qual.user?.mspId)?.name || "-"}
+                                      </p>
+                                    </div>
+                                    <div>
+                                      <p className="text-xs text-muted-foreground">Vehicle</p>
+                                      <p className="font-medium text-xs">{qual.vehicleType}</p>
+                                    </div>
+                                    <div className="col-span-2">
+                                      <p className="text-xs text-muted-foreground">Last Drive</p>
+                                      <p className="font-medium text-xs">
+                                        {qual.lastDriveDate
+                                          ? formatSingapore(qual.lastDriveDate, "dd MMM yyyy")
+                                          : "Never"}
+                                      </p>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+
+                            {/* Desktop Table View */}
+                            <div className="hidden md:block border rounded-md">
+                              <div className="overflow-x-auto">
+                                <table className="w-full">
+                                  <thead className="bg-muted/50">
+                                    <tr>
+                                      <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">User</th>
+                                      <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">Rank</th>
+                                      <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">MSP</th>
+                                      <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">Vehicle</th>
+                                      <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">Last Drive</th>
+                                      <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">Status</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {filteredQualifications.map((qual) => (
+                                      <tr
+                                        key={qual.id}
+                                        className="border-t hover-elevate cursor-pointer"
+                                        onClick={() => setSelectedQual(qual)}
+                                        data-testid={`row-qualification-${qual.id}`}
+                                      >
+                                        <td className="py-3 px-4 font-medium">{qual.user?.fullName || "Unknown"}</td>
+                                        <td className="py-3 px-4 text-muted-foreground">{qual.user?.rank || "-"}</td>
+                                        <td className="py-3 px-4 text-muted-foreground">
+                                          {msps.find(m => m.id === qual.user?.mspId)?.name || "-"}
+                                        </td>
+                                        <td className="py-3 px-4 text-muted-foreground">{qual.vehicleType}</td>
+                                        <td className="py-3 px-4 text-muted-foreground">
+                                          {qual.lastDriveDate
+                                            ? formatSingapore(qual.lastDriveDate, "dd MMM yyyy")
+                                            : "Never"}
+                                        </td>
+                                        <td className="py-3 px-4">
+                                          {getStatusBadge(qual.status, qual.daysRemaining)}
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          </>
+                        ) : (
+                          <div className="flex flex-col items-center justify-center py-12">
+                            <Car className="w-12 h-12 text-muted-foreground mb-4" />
+                            <p className="text-lg font-medium">No qualifications found</p>
+                            <p className="text-sm text-muted-foreground mt-1">
+                              Try adjusting your filters or add a new qualification
+                            </p>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </div>
+                </div>
+              </div>
             </>
           )}
         </div>
@@ -809,13 +811,13 @@ export default function CurrencyTracker() {
                 <div>
                   <p className="text-xs text-muted-foreground">Qualified</p>
                   <p className="text-sm font-medium">
-                    {format(new Date(selectedQual.qualifiedOnDate), "dd MMM yyyy")}
+                    {formatSingapore(selectedQual.qualifiedOnDate, "dd MMM yyyy")}
                   </p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Expires</p>
                   <p className="text-sm font-medium">
-                    {format(new Date(selectedQual.currencyExpiryDate), "dd MMM yyyy")}
+                    {formatSingapore(selectedQual.currencyExpiryDate, "dd MMM yyyy")}
                   </p>
                 </div>
               </div>
@@ -855,7 +857,7 @@ export default function CurrencyTracker() {
                           <p className="text-sm font-medium">{log.vehicleNo}</p>
                         </div>
                         <p className="text-xs text-muted-foreground mt-1">
-                          {format(new Date(log.date), "dd MMM yyyy")} • {log.distanceKm.toFixed(1)} km
+                          {formatSingapore(log.date, "dd MMM yyyy")} • {log.distanceKm.toFixed(1)} km
                         </p>
                         {log.remarks && (
                           <p className="text-xs text-muted-foreground mt-1">{log.remarks}</p>
@@ -1263,7 +1265,7 @@ export default function CurrencyTracker() {
                           <tr key={idx} className="border-t">
                             <td className="p-2">{item.user}</td>
                             <td className="p-2">{item.vehicleType}</td>
-                            <td className="p-2">{format(new Date(item.qualifiedDate), "MMM dd, yyyy")}</td>
+                            <td className="p-2">{formatSingapore(item.qualifiedDate, "MMM dd, yyyy")}</td>
                           </tr>
                         ))}
                       </tbody>

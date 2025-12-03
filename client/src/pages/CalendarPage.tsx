@@ -8,6 +8,7 @@ import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { format, differenceInHours, differenceInMinutes, addHours, addDays, startOfDay, endOfDay, eachHourOfInterval } from "date-fns";
+import { toZonedTime, format as formatTz } from "date-fns-tz";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { AlertCircle, X, Users } from "lucide-react";
@@ -30,6 +31,15 @@ export default function CalendarPage() {
   const [capacityInfo, setCapacityInfo] = useState<CapacityInfo | null>(null);
   const [loadingCapacity, setLoadingCapacity] = useState(false);
   const [capacityBackgrounds, setCapacityBackgrounds] = useState<any[]>([]);
+
+  const getTimeInSingapore = (date: Date | string) => {
+    const utcDate = typeof date === 'string' ? new Date(date) : date;
+    return toZonedTime(utcDate, 'Asia/Singapore');
+  };
+
+  const formatSingapore = (date: Date | string, fmtStr: string) => {
+    return formatTz(getTimeInSingapore(date), fmtStr, { timeZone: 'Asia/Singapore' });
+  };
 
   const { data: user, isLoading: userLoading } = useQuery<SafeUser>({
     queryKey: ["/api/auth/me"],
@@ -575,13 +585,13 @@ export default function CalendarPage() {
                 <div>
                   <p className="text-sm font-medium text-muted-foreground mb-1">Start Time</p>
                   <p className="text-base font-semibold">
-                    {format(new Date(eventModal.startTime), "MMM d, HH:mm")}
+                    {formatSingapore(eventModal.startTime, "MMM d, HH:mm")}
                   </p>
                 </div>
                 <div>
                   <p className="text-sm font-medium text-muted-foreground mb-1">End Time</p>
                   <p className="text-base font-semibold">
-                    {format(new Date(eventModal.endTime), "MMM d, HH:mm")}
+                    {formatSingapore(eventModal.endTime, "MMM d, HH:mm")}
                   </p>
                 </div>
               </div>

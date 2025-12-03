@@ -15,7 +15,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { insertDriveLogSchema, type QualificationWithStatus, type DriveLog, type SafeUser } from "@shared/schema";
 import { z } from "zod";
 import { CalendarDays, Car, Plus, Gauge, Award, AlertTriangle, QrCode } from "lucide-react";
-import { format } from "date-fns";
+import { format, addDays, differenceInDays } from "date-fns";
+import { toZonedTime, format as formatTz } from "date-fns-tz";
 import { useState, useEffect } from "react";
 import { Navbar } from "@/components/Navbar";
 import { useLocation } from "wouter";
@@ -46,6 +47,15 @@ export default function MyCurrency() {
       window.history.replaceState({}, '', '/my-currency');
     }
   }, []);
+
+  const getTimeInSingapore = (date: Date | string) => {
+    const utcDate = typeof date === 'string' ? new Date(date) : date;
+    return toZonedTime(utcDate, 'Asia/Singapore');
+  };
+
+  const formatSingapore = (date: Date | string, fmtStr: string) => {
+    return formatTz(getTimeInSingapore(date), fmtStr, { timeZone: 'Asia/Singapore' });
+  };
 
   const { data: user, isLoading: userLoading } = useQuery<SafeUser>({
     queryKey: ["/api/auth/me"],
@@ -126,6 +136,24 @@ export default function MyCurrency() {
     setLocation("/login");
     return null;
   }
+
+  const getComputedStatusForQual = (qual: QualificationWithStatus) => {
+    const base = qual.lastDriveDate ?? qual.qualifiedOnDate;
+    const expiry = addDays(new Date(base), 88);
+    const today = new Date();
+    const daysRemaining = differenceInDays(expiry, today);
+
+    let status: "EXPIRED" | "EXPIRING_SOON" | "CURRENT";
+    if (daysRemaining < 0) {
+      status = "EXPIRED";
+    } else if (daysRemaining <= 30) {
+      status = "EXPIRING_SOON";
+    } else {
+      status = "CURRENT";
+    }
+
+    return { status, daysRemaining: Math.max(0, daysRemaining) };
+  };
 
   const handleSubmitLog = (data: any) => {
     createLogMutation.mutate({
@@ -251,32 +279,38 @@ export default function MyCurrency() {
         ) : qualifications && qualifications.length > 0 ? (
           <div className="grid gap-4 md:grid-cols-2">
             {qualifications.map((qual) => (
-              <Card key={qual.id} data-testid={`card-qualification-${qual.vehicleType}`}>
+              <Card key={`${qual.id}-${qual.qualifiedOnDate}-${qual.lastDriveDate}`} data-testid={`card-qualification-${qual.vehicleType}`}>
                 <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
                   <div className="flex items-center gap-2">
                     <Car className="w-5 h-5 text-muted-foreground" />
                     <CardTitle className="text-xl">{qual.vehicleType}</CardTitle>
                   </div>
-                  {getStatusBadge(qual.status, qual.daysRemaining)}
+                  {(() => {
+                    const { status, daysRemaining } = getComputedStatusForQual(qual);
+                    return getStatusBadge(status, daysRemaining);
+                  })()}
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <div className="grid grid-cols-2 gap-3 text-sm">
                     <div>
                       <p className="text-muted-foreground">Qualified On</p>
                       <p className="font-medium" data-testid={`text-qualified-date-${qual.vehicleType}`}>
-                        {format(new Date(qual.qualifiedOnDate), "dd MMM yyyy")}
+                        {formatSingapore(qual.qualifiedOnDate, "dd MMM yyyy")}
                       </p>
                     </div>
                     <div>
                       <p className="text-muted-foreground">Last Drive</p>
                       <p className="font-medium" data-testid={`text-last-drive-${qual.vehicleType}`}>
-                        {qual.lastDriveDate ? format(new Date(qual.lastDriveDate), "dd MMM yyyy") : "Never"}
+                        {qual.lastDriveDate ? formatSingapore(qual.lastDriveDate, "dd MMM yyyy") : "Never"}
                       </p>
                     </div>
                     <div className="col-span-2">
                       <p className="text-muted-foreground">Currency Expires</p>
                       <p className="font-medium" data-testid={`text-expiry-date-${qual.vehicleType}`}>
-                        {format(new Date(qual.currencyExpiryDate), "dd MMM yyyy")}
+                        {(() => {
+                          const base = qual.lastDriveDate ?? qual.qualifiedOnDate;
+                          return formatSingapore(addDays(new Date(base), 88), "dd MMM yyyy");
+                        })()}
                       </p>
                     </div>
                   </div>
@@ -327,7 +361,7 @@ export default function MyCurrency() {
                           )}
                         </div>
                         <p className="text-sm text-muted-foreground">
-                          {format(new Date(log.date), "dd MMM yyyy")} • {log.distanceKm.toFixed(1)} km
+                          {formatSingapore(log.date, "dd MMM yyyy")} • {log.distanceKm.toFixed(1)} km
                         </p>
                         {log.initialMileageKm !== null && log.finalMileageKm !== null && (
                           <p className="text-xs text-muted-foreground">{log.initialMileageKm.toFixed(1)} → {log.finalMileageKm.toFixed(1)} km</p>

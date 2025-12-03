@@ -5,6 +5,7 @@ import { AdminUsers } from "@/components/admin/AdminUsers";
 import { Button } from "@/components/ui/button";
 import { Plus, Upload } from "lucide-react";
 import { useState } from "react";
+import { PageLoader } from "@/components/ui/PageLoader";
 
 export default function Users() {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -12,14 +13,11 @@ export default function Users() {
   
   const { data: user, isLoading } = useQuery<SafeUser>({
     queryKey: ["/api/auth/me"],
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
   if (isLoading || !user) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-muted-foreground">Loading...</div>
-      </div>
-    );
+    return <PageLoader />;
   }
 
   return (

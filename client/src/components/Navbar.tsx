@@ -77,7 +77,14 @@ export function Navbar({ user, pageTitle }: NavbarProps) {
 
   const adminNavItems = [
     { name: "Dashboard", path: "/admin", icon: LayoutDashboard },
-    { name: "Currency Tracker", path: "/currency-tracker", icon: Car },
+    { 
+      name: "Currency", 
+      icon: Car,
+      submenu: [
+        { name: "Tracker", path: "/currency-tracker" },
+        { name: "Drive QR", path: "/drive-qr" },
+      ]
+    },
     { name: "IPPT Tracker", path: "/ippt-tracker", icon: LayoutDashboard },
     { name: "Mess Booking", path: "/mess-booking", icon: Gamepad2 },
     { name: "Users", path: "/users", icon: Users },
@@ -121,8 +128,14 @@ export function Navbar({ user, pageTitle }: NavbarProps) {
                   </DropdownMenu>
                 );
               }
+              
+              // Only render as link if item has a path
+              if (!("path" in item) || !item.path) {
+                return null;
+              }
+              
               const isActive = location === item.path;
-              const itemPath = "path" in item ? item.path : "";
+              const itemPath = item.path;
               const itemName = item.name;
               
               return (
@@ -203,7 +216,13 @@ export function Navbar({ user, pageTitle }: NavbarProps) {
                       </div>
                     );
                   }
-                  const itemPath = "path" in item ? item.path : "";
+                  
+                  // Only render as link if item has a path
+                  if (!("path" in item) || !item.path) {
+                    return null;
+                  }
+                  
+                  const itemPath = item.path;
                   const itemName = item.name;
                   
                   return (

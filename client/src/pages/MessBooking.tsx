@@ -15,6 +15,7 @@ import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { format, differenceInHours, differenceInMinutes, addHours, addDays, startOfDay, eachHourOfInterval } from "date-fns";
+import { toZonedTime, format as formatTz } from "date-fns-tz";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { AlertCircle, X, Users } from "lucide-react";
@@ -40,6 +41,15 @@ export default function MessBooking() {
   const [capacityInfo, setCapacityInfo] = useState<CapacityInfo | null>(null);
   const [loadingCapacity, setLoadingCapacity] = useState(false);
   const [capacityBackgrounds, setCapacityBackgrounds] = useState<any[]>([]);
+
+  const getTimeInSingapore = (date: Date | string) => {
+    const utcDate = typeof date === 'string' ? new Date(date) : date;
+    return toZonedTime(utcDate, 'Asia/Singapore');
+  };
+
+  const formatSingapore = (date: Date | string, fmtStr: string) => {
+    return formatTz(getTimeInSingapore(date), fmtStr, { timeZone: 'Asia/Singapore' });
+  };
 
   const { data: user, isLoading: userLoading } = useQuery<SafeUser>({
     queryKey: ["/api/auth/me"],
@@ -565,9 +575,9 @@ export default function MessBooking() {
                           data-testid={`booking-card-${booking.id}`}
                         >
                           <div>
-                            <p className="font-medium">{format(new Date(booking.startTime), "EEEE, MMMM d, yyyy")}</p>
+                            <p className="font-medium">{formatSingapore(booking.startTime, "EEEE, MMMM d, yyyy")}</p>
                             <p className="text-sm text-muted-foreground">
-                              {format(new Date(booking.startTime), "h:mm a")} - {format(new Date(booking.endTime), "h:mm a")}
+                              {formatSingapore(booking.startTime, "h:mm a")} - {formatSingapore(booking.endTime, "h:mm a")}
                             </p>
                             <p className="text-xs text-muted-foreground mt-1">
                               {booking.creditsCharged} credit{booking.creditsCharged !== 1 ? 's' : ''} charged
@@ -758,10 +768,10 @@ export default function MessBooking() {
               <div>
                 <p className="text-sm font-medium">Time Slot</p>
                 <p className="text-sm text-muted-foreground">
-                  {format(new Date(eventModal.startTime), "EEEE, MMMM d, yyyy")}
+                  {formatSingapore(eventModal.startTime, "EEEE, MMMM d, yyyy")}
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  {format(new Date(eventModal.startTime), "h:mm a")} - {format(new Date(eventModal.endTime), "h:mm a")}
+                  {formatSingapore(eventModal.startTime, "h:mm a")} - {formatSingapore(eventModal.endTime, "h:mm a")}
                 </p>
               </div>
               <div>
@@ -796,8 +806,8 @@ export default function MessBooking() {
             <DialogDescription>
               {timeslotDetailsModal && (
                 <>
-                  {format(new Date(timeslotDetailsModal.startTime), "EEEE, MMMM d, yyyy")} • {" "}
-                  {format(new Date(timeslotDetailsModal.startTime), "HHmm")} - {format(new Date(timeslotDetailsModal.endTime), "HHmm")}
+                  {formatSingapore(timeslotDetailsModal.startTime, "EEEE, MMMM d, yyyy")} • {" "}
+                  {formatSingapore(timeslotDetailsModal.startTime, "HHmm")} - {formatSingapore(timeslotDetailsModal.endTime, "HHmm")}
                 </>
               )}
             </DialogDescription>

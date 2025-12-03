@@ -6,6 +6,7 @@ import {
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, lte, gte, lt, gt, ne, desc } from "drizzle-orm";
+import { randomUUID } from "crypto";
 
 export interface IStorage {
   // User operations
@@ -127,7 +128,7 @@ export class DatabaseStorage implements IStorage {
   async createBooking(insertBooking: InsertBooking): Promise<Booking> {
     const [booking] = await db
       .insert(bookings)
-      .values(insertBooking)
+      .values(insertBooking as any)
       .returning();
     return booking;
   }
@@ -194,7 +195,7 @@ export class DatabaseStorage implements IStorage {
   async createMsp(insertMsp: InsertMsp): Promise<Msp> {
     const [msp] = await db
       .insert(msps)
-      .values(insertMsp)
+      .values(insertMsp as any)
       .returning();
     return msp;
   }
@@ -301,7 +302,7 @@ export class DatabaseStorage implements IStorage {
     } else {
       const [cfg] = await db
         .insert(config)
-        .values({ key, value })
+        .values({ key, value } as any)
         .returning();
       return cfg;
     }
@@ -351,7 +352,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async recordDriveScan(userId: string, driveId: string): Promise<void> {
-    await db.insert(currencyDriveScans).values({ userId, driveId } as any);
+    await db.insert(currencyDriveScans).values({ 
+      id: randomUUID(),
+      userId, 
+      driveId 
+    } as any);
   }
 
   async deleteExpiredCurrencyDrives(): Promise<number> {
@@ -377,11 +382,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getScanCountByDrive(driveId: string): Promise<number> {
-    const [result] = await db
-      .select({ count: sql<number>`COUNT(*)` })
+    const scans = await db
+      .select()
       .from(currencyDriveScans)
       .where(eq(currencyDriveScans.driveId, driveId));
-    return result?.count || 0;
+    return scans.length;
   }
 }
 

@@ -1,15 +1,14 @@
-import { sql } from "drizzle-orm";
 import { pgTable, text, varchar, timestamp, integer, doublePrecision, date, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
 export const msps = pgTable("msps", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: varchar("id").primaryKey(),
   name: text("name").notNull().unique(),
 });
 
 export const users = pgTable("users", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: varchar("id").primaryKey(),
   username: text("username").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
   fullName: text("full_name").notNull(),
@@ -20,7 +19,7 @@ export const users = pgTable("users", {
 });
 
 export const bookings = pgTable("bookings", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: varchar("id").primaryKey(),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   startTime: timestamp("start_time", { withTimezone: true }).notNull(),
   endTime: timestamp("end_time", { withTimezone: true }).notNull(),
@@ -31,13 +30,13 @@ export const bookings = pgTable("bookings", {
 });
 
 export const config = pgTable("config", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: varchar("id").primaryKey(),
   key: text("key").notNull().unique(),
   value: text("value").notNull(),
 });
 
 export const driverQualifications = pgTable("driver_qualifications", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: varchar("id").primaryKey(),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   vehicleType: text("vehicle_type").notNull().$type<"TERREX" | "BELREX">(),
   qualifiedOnDate: date("qualified_on_date").notNull(),
@@ -46,7 +45,7 @@ export const driverQualifications = pgTable("driver_qualifications", {
 });
 
 export const driveLogs = pgTable("drive_logs", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: varchar("id").primaryKey(),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   vehicleType: text("vehicle_type").notNull().$type<"TERREX" | "BELREX">(),
   vehicleNo: text("vehicle_no"),
@@ -60,7 +59,7 @@ export const driveLogs = pgTable("drive_logs", {
 });
 
 export const currencyDrives = pgTable("currency_drives", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: varchar("id").primaryKey(),
   code: text("code").notNull().unique(),
   vehicleType: text("vehicle_type").notNull().$type<"TERREX" | "BELREX">(),
   date: date("date").notNull(),
@@ -71,7 +70,7 @@ export const currencyDrives = pgTable("currency_drives", {
 });
 
 export const currencyDriveScans = pgTable("currency_drive_scans", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: varchar("id").primaryKey(),
   driveId: varchar("drive_id").notNull().references(() => currencyDrives.id, { onDelete: "cascade" }),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   scannedAt: timestamp("scanned_at", { withTimezone: true }).notNull().defaultNow(),
@@ -142,9 +141,9 @@ export const insertCurrencyDriveSchema = createInsertSchema(currencyDrives).omit
   createdAt: true,
   scans: true,
   createdBy: true,
+  expiresAt: true,
 }).extend({
   date: z.coerce.date(),
-  expiresAt: z.coerce.date(),
 });
 
 export const loginSchema = z.object({

@@ -21,6 +21,9 @@ export function QRScanner({ onClose }: QRScannerProps = {}) {
   const [manualCode, setManualCode] = useState("");
   const [showManualInput, setShowManualInput] = useState(false);
   const [scanResult, setScanResult] = useState<ScanResult | null>(null);
+  const [vehicleNumber, setVehicleNumber] = useState("");
+  const [showVehicleInput, setShowVehicleInput] = useState(false);
+  const [scannedCode, setScannedCode] = useState("");
   const videoRef = useRef<HTMLVideoElement>(null);
   const scannerRef = useRef<QrScanner | null>(null);
 
@@ -73,15 +76,20 @@ export function QRScanner({ onClose }: QRScannerProps = {}) {
   };
 
   const processQRCode = async (code: string) => {
-    await submitCode(code);
+    setScannedCode(code);
+    setShowVehicleInput(true);
+    await scannerRef.current?.pause();
   };
 
-  const submitCode = async (code: string) => {
+  const submitCode = async (code: string, vehicleNo?: string) => {
     if (!code.trim()) return;
 
     setIsScanning(true);
     try {
-      const response = await apiRequest("POST", "/api/currency-drives/scan", { code });
+      const response = await apiRequest("POST", "/api/currency-drives/scan", { 
+        code,
+        vehicleNo: vehicleNo || vehicleNumber
+      });
 
       setScanResult(response);
       await queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
@@ -89,6 +97,9 @@ export function QRScanner({ onClose }: QRScannerProps = {}) {
       await queryClient.invalidateQueries({ queryKey: ["/api/qualifications/my"] });
 
       setManualCode("");
+      setVehicleNumber("");
+      setShowVehicleInput(false);
+      setScannedCode("");
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -96,11 +107,34 @@ export function QRScanner({ onClose }: QRScannerProps = {}) {
         description: error.message || "Try another code",
       });
       // Resume scanning on error
-      if (scannerRef.current) {
+      if (scannerRef.current && !showVehicleInput) {
         await scannerRef.current.start();
       }
     } finally {
       setIsScanning(false);
+    }
+  };
+
+  // Handle vehicle number submission
+  const submitWithVehicleNumber = async () => {
+    if (!vehicleNumber.trim() || !/^\d{5}$/.test(vehicleNumber)) {
+      toast({
+        variant: "destructive",
+        title: "Invalid Vehicle Number",
+        description: "Vehicle number must be exactly 5 digits",
+      });
+      return;
+    }
+    await submitCode(scannedCode, vehicleNumber);
+  };
+
+  // Resume scanning without submitting
+  const resumeScanning = async () => {
+    setVehicleNumber("");
+    setShowVehicleInput(false);
+    setScannedCode("");
+    if (scannerRef.current) {
+      await scannerRef.current.start();
     }
   };
 
@@ -123,6 +157,51 @@ export function QRScanner({ onClose }: QRScannerProps = {}) {
         >
           Close
         </button>
+      </div>
+    );
+  }
+
+  // Vehicle Number Input Screen
+  if (showVehicleInput) {
+    return (
+      <div className="space-y-4 text-center">
+        <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-6">
+          <h3 className="text-lg font-semibold text-blue-600 dark:text-blue-400 mb-2">QR Code Scanned!</h3>
+          <p className="text-sm text-muted-foreground mb-4">Please enter the vehicle number (5 digits)</p>
+          
+          <div className="space-y-2">
+            <label className="text-xs font-medium text-muted-foreground">Vehicle Number:</label>
+            <Input
+              placeholder="12345"
+              value={vehicleNumber}
+              onChange={(e) => setVehicleNumber(e.target.value.replace(/\D/g, '').slice(0, 5))}
+              onKeyDown={(e) => e.key === "Enter" && submitWithVehicleNumber()}
+              disabled={isScanning}
+              maxLength={5}
+              className="text-center text-lg tracking-widest"
+              autoFocus
+            />
+            <p className="text-xs text-muted-foreground">Enter exactly 5 digits</p>
+          </div>
+        </div>
+        
+        <div className="flex gap-2">
+          <Button 
+            onClick={submitWithVehicleNumber}
+            disabled={isScanning || !vehicleNumber.trim() || !/^\d{5}$/.test(vehicleNumber)}
+            className="flex-1"
+          >
+            {isScanning ? "Processing..." : "Submit Drive"}
+          </Button>
+          <Button 
+            variant="outline"
+            onClick={resumeScanning}
+            disabled={isScanning}
+            className="flex-1"
+          >
+            Cancel
+          </Button>
+        </div>
       </div>
     );
   }
@@ -151,16 +230,26 @@ export function QRScanner({ onClose }: QRScannerProps = {}) {
               placeholder="QR code..."
               value={manualCode}
               onChange={(e) => setManualCode(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && submitCode(manualCode)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && manualCode.trim()) {
+                  setScannedCode(manualCode);
+                  setShowVehicleInput(true);
+                  setManualCode("");
+                }
+              }}
               disabled={isScanning}
               autoFocus
             />
             <Button 
-              onClick={() => submitCode(manualCode)}
+              onClick={() => {
+                setScannedCode(manualCode);
+                setShowVehicleInput(true);
+                setManualCode("");
+              }}
               disabled={isScanning || !manualCode.trim()}
               size="sm"
             >
-              {isScanning ? "..." : "Go"}
+              {isScanning ? "..." : "Next"}
             </Button>
           </div>
           <Button 

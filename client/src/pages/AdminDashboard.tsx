@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Users, Calendar, CreditCard, Car, AlertTriangle, CheckCircle } from "lucide-react";
 import { useLocation } from "wouter";
 import { Skeleton } from "@/components/ui/skeleton";
+import { addDays, differenceInDays } from "date-fns";
 
 export default function AdminDashboard() {
   const [, setLocation] = useLocation();
@@ -22,11 +23,29 @@ export default function AdminDashboard() {
     queryKey: ["/api/qualifications"],
   });
 
+  const getComputedStatusForQual = (qual: QualificationWithStatus) => {
+    const base = qual.lastDriveDate ?? qual.qualifiedOnDate;
+    const expiry = addDays(new Date(base), 88);
+    const today = new Date();
+    const daysRemaining = differenceInDays(expiry, today);
+
+    let status: "EXPIRED" | "EXPIRING_SOON" | "CURRENT";
+    if (daysRemaining < 0) {
+      status = "EXPIRED";
+    } else if (daysRemaining <= 30) {
+      status = "EXPIRING_SOON";
+    } else {
+      status = "CURRENT";
+    }
+
+    return { status, daysRemaining: Math.max(0, daysRemaining) };
+  };
+
   const currencyStats = {
     total: qualifications.length,
-    current: qualifications.filter(q => q.status === "CURRENT").length,
-    expiringSoon: qualifications.filter(q => q.status === "EXPIRING_SOON").length,
-    expired: qualifications.filter(q => q.status === "EXPIRED").length,
+    current: qualifications.filter(q => getComputedStatusForQual(q).status === "CURRENT").length,
+    expiringSoon: qualifications.filter(q => getComputedStatusForQual(q).status === "EXPIRING_SOON").length,
+    expired: qualifications.filter(q => getComputedStatusForQual(q).status === "EXPIRED").length,
   };
 
   if (userLoading) {

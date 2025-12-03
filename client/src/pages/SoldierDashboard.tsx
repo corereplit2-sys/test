@@ -6,7 +6,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Calendar, Clock, AlertCircle, Car, Award, Plus, Users, BookOpen, CreditCard } from "lucide-react";
 import { useLocation } from "wouter";
-import { format, differenceInHours, isPast } from "date-fns";
+import { format, differenceInHours, isPast, addDays, differenceInDays } from "date-fns";
+import { toZonedTime, format as formatTz } from "date-fns-tz";
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -28,6 +29,15 @@ export default function SoldierDashboard() {
   const [bookingToCancel, setBookingToCancel] = useState<Booking | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
 
+  const getTimeInSingapore = (date: Date | string) => {
+    const utcDate = typeof date === 'string' ? new Date(date) : date;
+    return toZonedTime(utcDate, 'Asia/Singapore');
+  };
+
+  const formatSingapore = (date: Date | string, fmtStr: string) => {
+    return formatTz(getTimeInSingapore(date), fmtStr, { timeZone: 'Asia/Singapore' });
+  };
+
   const { data: user, isLoading: userLoading } = useQuery<SafeUser>({
     queryKey: ["/api/auth/me"],
   });
@@ -47,6 +57,24 @@ export default function SoldierDashboard() {
   const canCancelBooking = (booking: Booking) => {
     const hoursUntilStart = differenceInHours(new Date(booking.startTime), new Date());
     return hoursUntilStart > 24;
+  };
+
+  const getComputedStatusForQual = (qual: QualificationWithStatus) => {
+    const base = qual.lastDriveDate ?? qual.qualifiedOnDate;
+    const expiry = addDays(new Date(base), 88);
+    const today = new Date();
+    const daysRemaining = differenceInDays(expiry, today);
+
+    let status: "EXPIRED" | "EXPIRING_SOON" | "CURRENT";
+    if (daysRemaining < 0) {
+      status = "EXPIRED";
+    } else if (daysRemaining <= 30) {
+      status = "EXPIRING_SOON";
+    } else {
+      status = "CURRENT";
+    }
+
+    return { status, daysRemaining: Math.max(0, daysRemaining) };
   };
 
   const handleCancelBooking = async () => {
@@ -205,28 +233,31 @@ export default function SoldierDashboard() {
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {qualifications.map((qual) => (
-                      <div key={qual.id} className="flex items-center justify-between p-2 border rounded-md">
-                        <div>
-                          <p className="font-medium text-sm">{qual.vehicleType}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {qual.daysRemaining > 0 ? `${qual.daysRemaining} days left` : "Expired"}
-                          </p>
+                    {qualifications.map((qual) => {
+                      const { status, daysRemaining } = getComputedStatusForQual(qual);
+                      return (
+                        <div key={`${qual.id}-${qual.qualifiedOnDate}-${qual.lastDriveDate}`} className="flex items-center justify-between p-2 border rounded-md">
+                          <div>
+                            <p className="font-medium text-sm">{qual.vehicleType}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {daysRemaining > 0 ? `${daysRemaining} days left` : "Expired"}
+                            </p>
+                          </div>
+                          <Badge
+                            variant={status === "CURRENT" ? "outline" : status === "EXPIRING_SOON" ? "secondary" : "destructive"}
+                            className={
+                              status === "CURRENT"
+                                ? "bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/30"
+                                : status === "EXPIRING_SOON"
+                                ? "bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 border-yellow-500/30"
+                                : ""
+                            }
+                          >
+                            {status === "CURRENT" ? "Current" : status === "EXPIRING_SOON" ? "Expiring" : "Expired"}
+                          </Badge>
                         </div>
-                        <Badge
-                          variant={qual.status === "CURRENT" ? "outline" : qual.status === "EXPIRING_SOON" ? "secondary" : "destructive"}
-                          className={
-                            qual.status === "CURRENT"
-                              ? "bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/30"
-                              : qual.status === "EXPIRING_SOON"
-                              ? "bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 border-yellow-500/30"
-                              : ""
-                          }
-                        >
-                          {qual.status === "CURRENT" ? "Current" : qual.status === "EXPIRING_SOON" ? "Expiring" : "Expired"}
-                        </Badge>
-                      </div>
-                    ))}
+                      );
+                    })}
                     <Button
                       variant="outline"
                       className="w-full mt-2"
@@ -277,7 +308,7 @@ export default function SoldierDashboard() {
                           <div className="flex-1">
                             <div className="flex items-center gap-3 mb-2">
                               <p className="font-medium">
-                                {format(new Date(booking.startTime), "EEE, MMM d, yyyy")}
+                                {formatSingapore(booking.startTime, "EEE, MMM d, yyyy")}
                               </p>
                               <Badge variant="secondary" className="bg-green-500 text-green-950">
                                 Active
@@ -287,8 +318,8 @@ export default function SoldierDashboard() {
                               <div className="flex items-center gap-1">
                                 <Clock className="w-4 h-4" />
                                 <span>
-                                  {format(new Date(booking.startTime), "HH:mm")} -{" "}
-                                  {format(new Date(booking.endTime), "HH:mm")}
+                                  {formatSingapore(booking.startTime, "HH:mm")} -{" "}
+                                  {formatSingapore(booking.endTime, "HH:mm")}
                                 </span>
                               </div>
                               <span className="font-mono font-semibold">
