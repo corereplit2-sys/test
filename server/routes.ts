@@ -268,15 +268,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Booking routes
   app.get("/api/bookings", requireAuth, async (req: any, res) => {
     try {
-      const user = req.user;
-      let allBookings;
-      
-      // Soldiers only see their own bookings, admins/commanders see all
-      if (user.role === "soldier") {
-        allBookings = await storage.getBookingsByUser(user.id);
-      } else {
-        allBookings = await storage.getAllBookings();
-      }
+      const allBookings = await storage.getAllBookings();
       
       // Add user information to each booking (sanitized)
       const bookingsWithUsers: BookingWithUser[] = await Promise.all(
@@ -296,25 +288,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const bookings = await storage.getBookingsByUser(req.user.id);
       res.json(bookings);
-    } catch (error: any) {
-      res.status(500).json({ message: error.message || "Failed to fetch bookings" });
-    }
-  });
-
-  // Get all bookings for capacity calculation (admin/commander access or for capacity backgrounds)
-  app.get("/api/bookings/all", requireAuth, async (req: any, res) => {
-    try {
-      const allBookings = await storage.getAllBookings();
-      
-      // Add user information to each booking (sanitized)
-      const bookingsWithUsers: BookingWithUser[] = await Promise.all(
-        allBookings.map(async (booking) => {
-          const user = await storage.getUser(booking.userId);
-          return { ...booking, user: user ? sanitizeUser(user) : undefined };
-        })
-      );
-
-      res.json(bookingsWithUsers);
     } catch (error: any) {
       res.status(500).json({ message: error.message || "Failed to fetch bookings" });
     }

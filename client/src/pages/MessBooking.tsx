@@ -59,11 +59,6 @@ export default function MessBooking() {
     queryKey: ["/api/bookings"],
   });
 
-  // For capacity calculation, we need all bookings regardless of user role
-  const { data: allBookingsForCapacity = [] } = useQuery<BookingWithUser[]>({
-    queryKey: ["/api/bookings/all"],
-  });
-
   const { data: calendarEvents = [], refetch: refetchEvents } = useQuery<any[]>({
     queryKey: ["/api/bookings/calendar-events"],
   });
@@ -153,7 +148,7 @@ export default function MessBooking() {
         .map(hourStart => {
           const hourEnd = addHours(hourStart, 1);
           
-          const currentBookings = allBookingsForCapacity.filter(booking => {
+          const currentBookings = allBookings.filter(booking => {
             if (booking.status !== 'active') return false;
             const bookingStart = new Date(booking.startTime);
             const bookingEnd = new Date(booking.endTime);
@@ -188,7 +183,7 @@ export default function MessBooking() {
     } catch (error) {
       console.error("Failed to generate capacity backgrounds:", error);
     }
-  }, [allBookingsForCapacity]);
+  }, [allBookings]);
 
   useEffect(() => {
     if (bookableWeek) {
@@ -196,7 +191,7 @@ export default function MessBooking() {
       const end = new Date(bookableWeek.end);
       generateCapacityBackgrounds(start, end);
     }
-  }, [allBookingsForCapacity, bookableWeek, generateCapacityBackgrounds]);
+  }, [allBookings, bookableWeek, generateCapacityBackgrounds]);
 
   useEffect(() => {
     // Show rules modal for soldiers on page load
