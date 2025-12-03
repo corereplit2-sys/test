@@ -102,12 +102,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const result = await client.query('SELECT * FROM users WHERE username = $1', [username]);
         const user = result.rows[0];
         
-        if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
+        console.log('User from DB:', user); // Debug log
+        
+        if (!user) {
+          return res.status(401).json({ message: 'Invalid username or password' });
+        }
+
+        // Try both possible password field names
+        const passwordField = user.passwordHash || user.password;
+        if (!passwordField) {
+          console.error('No password field found on user:', Object.keys(user));
+          return res.status(500).json({ message: 'Database error: no password field' });
+        }
+        
+        if (!(await bcrypt.compare(password, passwordField))) {
           return res.status(401).json({ message: 'Invalid username or password' });
         }
 
         const token = generateToken(user);
-        const { passwordHash, ...safeUser } = user;
+        const { passwordHash, password, ...safeUser } = user;
         
         return res.json({
           user: safeUser,
