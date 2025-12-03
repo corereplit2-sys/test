@@ -268,7 +268,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Booking routes
   app.get("/api/bookings", requireAuth, async (req: any, res) => {
     try {
-      const allBookings = await storage.getAllBookings();
+      const user = req.user;
+      let allBookings;
+      
+      // Soldiers only see their own bookings, admins/commanders see all
+      if (user.role === "soldier") {
+        allBookings = await storage.getBookingsByUser(user.id);
+      } else {
+        allBookings = await storage.getAllBookings();
+      }
       
       // Add user information to each booking (sanitized)
       const bookingsWithUsers: BookingWithUser[] = await Promise.all(

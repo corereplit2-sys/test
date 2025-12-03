@@ -690,7 +690,7 @@ export default function MessBooking() {
                       }
                       data-testid="badge-capacity"
                     >
-                      {capacityInfo.availableSpots} / {capacityInfo.maxCapacity} available
+                      {capacityInfo?.availableSpots ?? 0} / {capacityInfo?.maxCapacity ?? 20} available
                     </Badge>
                   </div>
                   {capacityInfo.isFull && (
