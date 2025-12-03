@@ -112,7 +112,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const client = await pool.connect();
       try {
-        const result = await client.query('SELECT * FROM qualifications ORDER BY created_at DESC');
+        // Table might not exist, return empty array instead of error
+        const result = await client.query('SELECT * FROM qualifications ORDER BY created_at DESC').catch(() => ({ rows: [] }));
         return res.json(result.rows);
       } finally {
         client.release();
