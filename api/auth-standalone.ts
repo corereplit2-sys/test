@@ -162,6 +162,58 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
+    if (pathname === '/api/auth/change-password' && req.method === 'POST') {
+      const token = extractTokenFromHeader(req.headers.authorization);
+      if (!token) {
+        return res.status(401).json({ message: 'No token provided' });
+      }
+
+      const payload = verifyToken(token);
+      if (!payload) {
+        return res.status(401).json({ message: 'Invalid token' });
+      }
+
+      const { oldPassword, newPassword } = req.body;
+
+      if (!oldPassword || !newPassword) {
+        return res.status(400).json({ message: 'Old password and new password are required' });
+      }
+
+      if (newPassword.length < 6) {
+        return res.status(400).json({ message: 'New password must be at least 6 characters long' });
+      }
+
+      const client = await pool.connect();
+      try {
+        // Get current user
+        const userResult = await client.query('SELECT * FROM users WHERE id = $1', [payload.userId]);
+        const user = userResult.rows[0];
+
+        if (!user) {
+          return res.status(404).json({ message: 'User not found' });
+        }
+
+        // Verify old password
+        const isOldPasswordValid = await bcrypt.compare(oldPassword, user.password_hash);
+        if (!isOldPasswordValid) {
+          return res.status(400).json({ message: 'Current password is incorrect' });
+        }
+
+        // Hash new password
+        const newPasswordHash = await bcrypt.hash(newPassword, 10);
+
+        // Update password
+        await client.query(
+          'UPDATE users SET password_hash = $1 WHERE id = $2',
+          [newPasswordHash, payload.userId]
+        );
+
+        return res.json({ message: 'Password changed successfully' });
+      } finally {
+        client.release();
+      }
+    }
+
     if (pathname === '/api/auth/logout' && req.method === 'POST') {
       return res.json({ message: 'Logged out successfully' });
     }
