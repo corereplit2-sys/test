@@ -49,6 +49,11 @@ export default function CalendarPage() {
     queryKey: ["/api/bookings"],
   });
 
+  // For capacity calculation, we need all bookings regardless of user role
+  const { data: allBookingsForCapacity = [] } = useQuery<BookingWithUser[]>({
+    queryKey: ["/api/bookings/all"],
+  });
+
   const { data: bookableWeek, isLoading: weekLoading } = useQuery<BookableWeekRange>({
     queryKey: ["/api/config/booking-release-day"],
   });
@@ -72,7 +77,7 @@ export default function CalendarPage() {
 
   const events = useMemo(() => [
     ...bookings
-      .filter(b => b.status === "active")
+      .filter(b => b.status === "active" && (user.role === "admin" || user.role === "commander" || b.userId === user.id))
       .map(booking => ({
         id: booking.id,
         title: (user.role === "admin" || user.role === "commander") && booking.user 
@@ -123,8 +128,8 @@ export default function CalendarPage() {
         .map(hourStart => {
           const hourEnd = addHours(hourStart, 1);
           
-          // Count concurrent bookings for this hour from local bookings array
-          const currentBookings = bookings.filter(booking => {
+          // Count concurrent bookings for this hour from all bookings array
+          const currentBookings = allBookingsForCapacity.filter(booking => {
             if (booking.status !== 'active') return false;
             const bookingStart = new Date(booking.startTime);
             const bookingEnd = new Date(booking.endTime);
@@ -164,7 +169,7 @@ export default function CalendarPage() {
     } catch (error) {
       console.error("Failed to generate capacity backgrounds:", error);
     }
-  }, [bookings]);
+  }, [allBookingsForCapacity]);
 
   // Fetch capacity backgrounds when bookings or bookable week changes
   useEffect(() => {
@@ -173,7 +178,7 @@ export default function CalendarPage() {
       const end = new Date(bookableWeek.end);
       generateCapacityBackgrounds(start, end);
     }
-  }, [bookings, bookableWeek, generateCapacityBackgrounds]); // Refresh when bookings change
+  }, [allBookingsForCapacity, bookableWeek, generateCapacityBackgrounds]); // Refresh when bookings change
 
   // Fetch capacity when booking modal opens
   useEffect(() => {

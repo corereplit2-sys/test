@@ -301,6 +301,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get all bookings for capacity calculation (admin/commander access or for capacity backgrounds)
+  app.get("/api/bookings/all", requireAuth, async (req: any, res) => {
+    try {
+      const allBookings = await storage.getAllBookings();
+      
+      // Add user information to each booking (sanitized)
+      const bookingsWithUsers: BookingWithUser[] = await Promise.all(
+        allBookings.map(async (booking) => {
+          const user = await storage.getUser(booking.userId);
+          return { ...booking, user: user ? sanitizeUser(user) : undefined };
+        })
+      );
+
+      res.json(bookingsWithUsers);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || "Failed to fetch bookings" });
+    }
+  });
+
   // Get calendar events - role-based view
   app.get("/api/bookings/calendar-events", requireAuth, async (req: any, res) => {
     try {
