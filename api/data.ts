@@ -41,8 +41,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const { pathname } = new URL(req.url || '', 'http://localhost');
     
-    // Simple users endpoint
-    if (pathname === '/api/users' && req.method === 'GET') {
+    // Admin users endpoint
+    if (pathname === '/api/admin/users' && req.method === 'GET') {
       const token = extractTokenFromHeader(req.headers.authorization);
       if (!token) {
         return res.status(401).json({ message: 'No token provided' });
@@ -72,7 +72,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    // Simple qualifications endpoint
+    // MSPs endpoint
+    if (pathname === '/api/msps' && req.method === 'GET') {
+      const token = extractTokenFromHeader(req.headers.authorization);
+      if (!token) {
+        return res.status(401).json({ message: 'No token provided' });
+      }
+
+      const payload = verifyToken(token);
+      if (!payload) {
+        return res.status(401).json({ message: 'Invalid token' });
+      }
+
+      const client = await pool.connect();
+      try {
+        const result = await client.query('SELECT * FROM msps ORDER BY name');
+        return res.json(result.rows);
+      } finally {
+        client.release();
+      }
+    }
+
+    // Qualifications endpoint
     if (pathname === '/api/qualifications' && req.method === 'GET') {
       const token = extractTokenFromHeader(req.headers.authorization);
       if (!token) {

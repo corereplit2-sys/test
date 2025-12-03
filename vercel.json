@@ -23,7 +23,7 @@
       "dest": "/api/auth-standalone.ts"
     },
     {
-      "src": "/api/(users|qualifications)",
+      "src": "/api/(admin/users|msps|qualifications)",
       "dest": "/api/data.ts"
     },
     {

@@ -47,8 +47,10 @@ export function JWTProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (username: string, password: string) => {
     try {
+      console.log('JWT Login attempt for:', username);
       // Clear any existing token first
       logout();
+      console.log('Cleared existing token');
       
       const response = await fetch('/api/auth/login', {
         method: 'POST',
@@ -60,15 +62,19 @@ export function JWTProvider({ children }: { children: React.ReactNode }) {
 
       if (response.ok) {
         const data = await response.json();
+        console.log('Login response:', data);
         setUser(data.user);
         setToken(data.token);
         localStorage.setItem('jwt_token', data.token);
+        console.log('JWT Login successful for:', data.user.username);
         return { success: true };
       } else {
         const error = await response.json();
+        console.log('Login error:', error);
         return { success: false, error: error.message };
       }
     } catch (error) {
+      console.log('Login exception:', error);
       return { success: false, error: 'Login failed' };
     }
   };
