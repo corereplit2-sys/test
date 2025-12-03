@@ -9,17 +9,14 @@
       }
     },
     {
-      "src": "api/index.ts",
-      "use": "@vercel/node",
-      "config": {
-        "includeFiles": "server/**/*"
-      }
+      "src": "api/auth-simple.ts",
+      "use": "@vercel/node"
     }
   ],
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "/api/index.ts"
+      "dest": "/api/auth-simple.ts"
     },
     {
       "src": "/(.*)",
