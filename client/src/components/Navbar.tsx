@@ -12,7 +12,7 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
 } from "@/components/ui/dropdown-menu";
-import { LogOut, User as UserIcon, LayoutDashboard, Calendar as CalendarIcon, Car, Gamepad2, Users, ChevronDown } from "lucide-react";
+import { LogOut, User as UserIcon, LayoutDashboard, Calendar as CalendarIcon, Car, Gamepad2, Users, ChevronDown, QrCode } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation, Link } from "wouter";
