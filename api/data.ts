@@ -93,7 +93,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    // Qualifications endpoint - use driver_qualifications table with proper field mapping
+    // Qualifications endpoint - join with users to get names
     if (pathname === '/api/qualifications' && req.method === 'GET') {
       const token = extractTokenFromHeader(req.headers.authorization);
       if (!token) {
@@ -107,21 +107,115 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const client = await pool.connect();
       try {
-        // First, let's see what columns actually exist
-        const columns = await client.query(`
-          SELECT column_name, data_type 
-          FROM information_schema.columns 
-          WHERE table_name = 'driver_qualifications' 
-          ORDER BY ordinal_position
+        // Join with users table to get user names and MSP info
+        const result = await client.query(`
+          SELECT 
+            dq.id,
+            dq.user_id,
+            dq.vehicle_type,
+            dq.qualified_on_date,
+            dq.last_drive_date,
+            dq.currency_expiry_date,
+            u.username,
+            u.full_name,
+            u.rank,
+            u.msp_id,
+            m.name as msp_name
+          FROM driver_qualifications dq
+          LEFT JOIN users u ON dq.user_id = u.id
+          LEFT JOIN msps m ON u.msp_id = m.id
+          ORDER BY u.full_name
         `);
         
-        console.log('Driver qualifications columns:', columns.rows);
+        // Map to frontend expected format
+        const qualifications = result.rows.map(row => ({
+          id: row.id,
+          userId: row.user_id,
+          username: row.username,
+          fullName: row.full_name,
+          rank: row.rank,
+          vehicleType: row.vehicle_type,
+          qualifiedOnDate: row.qualified_on_date,
+          lastDriveDate: row.last_drive_date,
+          currencyExpiryDate: row.currency_expiry_date,
+          mspId: row.msp_id,
+          mspName: row.msp_name,
+          // Status logic for frontend
+          status: row.currency_expiry_date && new Date(row.currency_expiry_date) > new Date() ? 'current' : 'expired'
+        }));
         
-        // Get all data to see structure
-        const result = await client.query('SELECT * FROM driver_qualifications LIMIT 5');
-        console.log('Sample data:', result.rows);
+        return res.json(qualifications);
+      } finally {
+        client.release();
+      }
+    }
+
+    // Currency stats endpoint
+    if (pathname === '/api/admin/stats' && req.method === 'GET') {
+      const token = extractTokenFromHeader(req.headers.authorization);
+      if (!token) {
+        return res.status(401).json({ message: 'No token provided' });
+      }
+
+      const payload = verifyToken(token);
+      if (!payload) {
+        return res.status(401).json({ message: 'Invalid token' });
+      }
+
+      const client = await pool.connect();
+      try {
+        // Get currency stats by MSP
+        const mspStats = await client.query(`
+          SELECT 
+            m.id as msp_id,
+            m.name as msp_name,
+            COUNT(dq.id) as total_qualifications,
+            COUNT(CASE WHEN dq.currency_expiry_date > CURRENT_DATE THEN 1 END) as current_qualifications,
+            COUNT(CASE WHEN dq.currency_expiry_date <= CURRENT_DATE THEN 1 END) as expired_qualifications
+          FROM msps m
+          LEFT JOIN users u ON m.id = u.msp_id
+          LEFT JOIN driver_qualifications dq ON u.id = dq.user_id
+          GROUP BY m.id, m.name
+          ORDER BY m.name
+        `);
         
-        // Return the raw data for now
+        return res.json(mspStats.rows);
+      } finally {
+        client.release();
+      }
+    }
+
+    // Bookings endpoint for calendar
+    if (pathname === '/api/bookings' && req.method === 'GET') {
+      const token = extractTokenFromHeader(req.headers.authorization);
+      if (!token) {
+        return res.status(401).json({ message: 'No token provided' });
+      }
+
+      const payload = verifyToken(token);
+      if (!payload) {
+        return res.status(401).json({ message: 'Invalid token' });
+      }
+
+      const client = await pool.connect();
+      try {
+        const result = await client.query(`
+          SELECT 
+            b.id,
+            b.user_id,
+            b.booking_date,
+            b.booking_time,
+            b.purpose,
+            b.status,
+            u.full_name,
+            u.rank,
+            m.name as msp_name
+          FROM bookings b
+          LEFT JOIN users u ON b.user_id = u.id
+          LEFT JOIN msps m ON u.msp_id = m.id
+          ORDER BY b.booking_date, b.booking_time
+        `);
+        
         return res.json(result.rows);
       } finally {
         client.release();
