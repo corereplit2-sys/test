@@ -23,7 +23,7 @@
       "dest": "/api/auth-standalone.ts"
     },
     {
-      "src": "/api/(admin/users|admin/stats|msps|qualifications|bookings)",
+      "src": "/api/(admin/users|admin/stats|msps|qualifications|bookings|bookings/my|bookings/calendar-events|bookings/capacity|bookings/.*/cancel|currency-drives|currency-drives/scan|currency-drives/.*)",
       "dest": "/api/data.ts"
     },
     {
