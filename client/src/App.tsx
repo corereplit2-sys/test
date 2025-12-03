@@ -4,6 +4,7 @@ import { QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/ThemeProvider";
+import { JWTProvider } from "@/contexts/JWTContext";
 import NotFound from "@/pages/not-found";
 import Login from "@/pages/Login";
 import SoldierDashboard from "@/pages/SoldierDashboard";
@@ -113,10 +114,12 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider defaultTheme="dark">
-        <TooltipProvider>
-          <Toaster />
-          <Router />
-        </TooltipProvider>
+        <JWTProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Router />
+          </TooltipProvider>
+        </JWTProvider>
       </ThemeProvider>
     </QueryClientProvider>
   );

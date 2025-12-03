@@ -1,0 +1,92 @@
+import React, { createContext, useContext, useEffect, useState } from 'react';
+import { SafeUser } from '@shared/schema';
+
+interface JWTContextType {
+  user: SafeUser | null;
+  token: string | null;
+  login: (username: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  logout: () => void;
+  isLoading: boolean;
+}
+
+const JWTContext = createContext<JWTContextType | undefined>(undefined);
+
+export function JWTProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<SafeUser | null>(null);
+  const [token, setToken] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    // Check for stored token on mount
+    const storedToken = localStorage.getItem('jwt_token');
+    if (storedToken) {
+      setToken(storedToken);
+      // Verify token and get user
+      fetch('/api/auth/me', {
+        headers: {
+          'Authorization': `Bearer ${storedToken}`
+        }
+      })
+      .then(res => {
+        if (res.ok) return res.json();
+        throw new Error('Invalid token');
+      })
+      .then(userData => {
+        setUser(userData);
+      })
+      .catch(() => {
+        // Token invalid, remove it
+        localStorage.removeItem('jwt_token');
+        setToken(null);
+      })
+      .finally(() => setIsLoading(false));
+    } else {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const login = async (username: string, password: string) => {
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ username, password })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setUser(data.user);
+        setToken(data.token);
+        localStorage.setItem('jwt_token', data.token);
+        return { success: true };
+      } else {
+        const error = await response.json();
+        return { success: false, error: error.message };
+      }
+    } catch (error) {
+      return { success: false, error: 'Login failed' };
+    }
+  };
+
+  const logout = () => {
+    setUser(null);
+    setToken(null);
+    localStorage.removeItem('jwt_token');
+  };
+
+  return (
+    <JWTContext.Provider value={{ user, token, login, logout, isLoading }}>
+      {children}
+    </JWTContext.Provider>
+  );
+}
+
+export function useJWT() {
+  const context = useContext(JWTContext);
+  if (context === undefined) {
+    throw new Error('useJWT must be used within a JWTProvider');
+  }
+  return context;
+}
