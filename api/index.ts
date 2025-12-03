@@ -1,5 +1,5 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
-import { storage } from '../server/storage';
+import { storage } from './storage';
 import * as bcrypt from 'bcryptjs';
 import { loginSchema } from '@shared/schema';
 import { generateToken, verifyToken, extractTokenFromHeader } from '@shared/jwt';
