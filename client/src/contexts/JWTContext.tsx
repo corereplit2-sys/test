@@ -19,8 +19,8 @@ export function JWTProvider({ children }: { children: React.ReactNode }) {
   const justLoggedIn = useRef(false);
 
   useEffect(() => {
-    // Don't run if we're in the middle of a login or just logged in
-    if (isLoggingIn || justLoggedIn.current) {
+    // Don't run if we just logged in
+    if (justLoggedIn.current) {
       return;
     }
     
@@ -50,7 +50,7 @@ export function JWTProvider({ children }: { children: React.ReactNode }) {
     } else {
       setIsLoading(false);
     }
-  }, [isLoggingIn]);
+  }, []); // Empty dependency array - only run on mount
 
   const login = async (username: string, password: string) => {
     // Prevent multiple simultaneous login attempts
@@ -92,11 +92,30 @@ export function JWTProvider({ children }: { children: React.ReactNode }) {
           localStorage.setItem('jwt_token', data.token);
           console.log('JWT Login successful for:', data.user.username);
           
-          // Set flag to prevent useEffect from interfering
-          justLoggedIn.current = true;
-          setTimeout(() => {
-            justLoggedIn.current = false;
-          }, 1000);
+          // Immediately verify the token to ensure it's correct
+          setTimeout(async () => {
+            try {
+              const verifyResponse = await fetch('/api/auth/me', {
+                headers: {
+                  'Authorization': `Bearer ${data.token}`
+                }
+              });
+              
+              if (verifyResponse.ok) {
+                const verifyData = await verifyResponse.json();
+                console.log('Token verification after login:', verifyData);
+                if (verifyData.username !== username) {
+                  console.error('Token verification mismatch!', { expected: username, received: verifyData.username });
+                  // Force logout if mismatch
+                  setUser(null);
+                  setToken(null);
+                  localStorage.removeItem('jwt_token');
+                }
+              }
+            } catch (error) {
+              console.error('Token verification error:', error);
+            }
+          }, 500);
           
           return { success: true };
         } else {
