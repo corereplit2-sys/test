@@ -208,6 +208,91 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
+    // User-specific qualifications endpoint
+    if (pathname === '/api/qualifications/my' && req.method === 'GET') {
+      const token = extractTokenFromHeader(req.headers.authorization);
+      if (!token) {
+        return res.status(401).json({ message: 'No token provided' });
+      }
+
+      const payload = verifyToken(token);
+      if (!payload) {
+        return res.status(401).json({ message: 'Invalid token' });
+      }
+
+      const client = await pool.connect();
+      try {
+        // Only return qualifications for the current user
+        const result = await client.query(`
+          SELECT 
+            dq.id,
+            dq.user_id,
+            dq.vehicle_type,
+            dq.qualified_on_date,
+            dq.last_drive_date,
+            dq.currency_expiry_date,
+            u.id        AS user_db_id,
+            u.username  AS user_username,
+            u.full_name AS user_full_name,
+            u.role      AS user_role,
+            u.credits   AS user_credits,
+            u.rank      AS user_rank,
+            u.msp_id    AS user_msp_id
+          FROM driver_qualifications dq
+          LEFT JOIN users u ON dq.user_id = u.id
+          WHERE dq.user_id = $1
+        `, [payload.userId]);
+
+        const now = new Date();
+        const msPerDay = 1000 * 60 * 60 * 24;
+
+        const qualifications = result.rows.map(row => {
+          const expiry = row.currency_expiry_date ? new Date(row.currency_expiry_date) : null;
+          let daysRemaining = 0;
+          let status: 'CURRENT' | 'EXPIRING_SOON' | 'EXPIRED' = 'EXPIRED';
+
+          if (expiry && !isNaN(expiry.getTime())) {
+            daysRemaining = Math.floor((expiry.getTime() - now.getTime()) / msPerDay);
+            if (daysRemaining < 0) {
+              status = 'EXPIRED';
+            } else if (daysRemaining <= 30) {
+              status = 'EXPIRING_SOON';
+            } else {
+              status = 'CURRENT';
+            }
+          }
+
+          const user = row.user_db_id
+            ? {
+                id: row.user_db_id,
+                username: row.user_username,
+                fullName: row.user_full_name,
+                role: row.user_role,
+                credits: row.user_credits,
+                rank: row.user_rank,
+                mspId: row.user_msp_id,
+              }
+            : undefined;
+
+          return {
+            id: row.id,
+            userId: row.user_id,
+            vehicleType: row.vehicle_type,
+            qualifiedOnDate: row.qualified_on_date,
+            lastDriveDate: row.last_drive_date,
+            currencyExpiryDate: row.currency_expiry_date,
+            status,
+            daysRemaining: Math.max(0, daysRemaining),
+            user,
+          };
+        });
+
+        return res.json(qualifications);
+      } finally {
+        client.release();
+      }
+    }
+
     // Currency stats endpoint
     if (pathname === '/api/admin/stats' && req.method === 'GET') {
       const token = extractTokenFromHeader(req.headers.authorization);
