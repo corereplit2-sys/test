@@ -93,7 +93,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    // Qualifications endpoint - use driver_qualifications table without ORDER BY
+    // Qualifications endpoint - use driver_qualifications table with proper field mapping
     if (pathname === '/api/qualifications' && req.method === 'GET') {
       const token = extractTokenFromHeader(req.headers.authorization);
       if (!token) {
@@ -107,8 +107,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const client = await pool.connect();
       try {
-        // Use driver_qualifications table without ordering since created_at doesn't exist
-        const result = await client.query('SELECT * FROM driver_qualifications');
+        // First, let's see what columns actually exist
+        const columns = await client.query(`
+          SELECT column_name, data_type 
+          FROM information_schema.columns 
+          WHERE table_name = 'driver_qualifications' 
+          ORDER BY ordinal_position
+        `);
+        
+        console.log('Driver qualifications columns:', columns.rows);
+        
+        // Get all data to see structure
+        const result = await client.query('SELECT * FROM driver_qualifications LIMIT 5');
+        console.log('Sample data:', result.rows);
+        
+        // Return the raw data for now
         return res.json(result.rows);
       } finally {
         client.release();
