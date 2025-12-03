@@ -15,6 +15,7 @@ export function JWTProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<SafeUser | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   useEffect(() => {
     // Check for stored token on mount
@@ -46,7 +47,14 @@ export function JWTProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const login = async (username: string, password: string) => {
+    // Prevent multiple simultaneous login attempts
+    if (isLoggingIn) {
+      console.log('Login already in progress, ignoring duplicate call');
+      return { success: false, error: 'Login already in progress' };
+    }
+
     try {
+      setIsLoggingIn(true);
       console.log('JWT Login attempt for:', username);
       // Clear any existing token first (skip API call)
       logout(true);
@@ -76,6 +84,8 @@ export function JWTProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       console.log('Login exception:', error);
       return { success: false, error: 'Login failed' };
+    } finally {
+      setIsLoggingIn(false);
     }
   };
 
