@@ -93,7 +93,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    // Qualifications endpoint - join with users to get names
+    // Qualifications endpoint - mirror original /api/qualifications shape
     if (pathname === '/api/qualifications' && req.method === 'GET') {
       const token = extractTokenFromHeader(req.headers.authorization);
       if (!token) {
@@ -107,7 +107,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const client = await pool.connect();
       try {
-        // Join with users table to get user names and MSP info
+        // For now, return all qualifications (admin view). If you later
+        // need role-based filtering, we can extend this with payload.role.
         const result = await client.query(`
           SELECT 
             dq.id,
@@ -116,34 +117,61 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             dq.qualified_on_date,
             dq.last_drive_date,
             dq.currency_expiry_date,
-            u.username,
-            u.full_name,
-            u.rank,
-            u.msp_id,
-            m.name as msp_name
+            u.id        AS user_db_id,
+            u.username  AS user_username,
+            u.full_name AS user_full_name,
+            u.role      AS user_role,
+            u.credits   AS user_credits,
+            u.rank      AS user_rank,
+            u.msp_id    AS user_msp_id
           FROM driver_qualifications dq
           LEFT JOIN users u ON dq.user_id = u.id
-          LEFT JOIN msps m ON u.msp_id = m.id
-          ORDER BY u.full_name
         `);
-        
-        // Map to frontend expected format
-        const qualifications = result.rows.map(row => ({
-          id: row.id,
-          userId: row.user_id,
-          username: row.username,
-          fullName: row.full_name,
-          rank: row.rank,
-          vehicleType: row.vehicle_type,
-          qualifiedOnDate: row.qualified_on_date,
-          lastDriveDate: row.last_drive_date,
-          currencyExpiryDate: row.currency_expiry_date,
-          mspId: row.msp_id,
-          mspName: row.msp_name,
-          // Status logic for frontend
-          status: row.currency_expiry_date && new Date(row.currency_expiry_date) > new Date() ? 'current' : 'expired'
-        }));
-        
+
+        const now = new Date();
+        const msPerDay = 1000 * 60 * 60 * 24;
+
+        const qualifications = result.rows.map(row => {
+          const expiry = row.currency_expiry_date ? new Date(row.currency_expiry_date) : null;
+          let daysRemaining = 0;
+          let status: 'CURRENT' | 'EXPIRING_SOON' | 'EXPIRED' = 'EXPIRED';
+
+          if (expiry && !isNaN(expiry.getTime())) {
+            daysRemaining = Math.floor((expiry.getTime() - now.getTime()) / msPerDay);
+            if (daysRemaining < 0) {
+              status = 'EXPIRED';
+            } else if (daysRemaining <= 30) {
+              status = 'EXPIRING_SOON';
+            } else {
+              status = 'CURRENT';
+            }
+          }
+
+          const user = row.user_db_id
+            ? {
+                id: row.user_db_id,
+                username: row.user_username,
+                fullName: row.user_full_name,
+                role: row.user_role,
+                credits: row.user_credits,
+                rank: row.user_rank,
+                mspId: row.user_msp_id,
+              }
+            : undefined;
+
+          return {
+            id: row.id,
+            userId: row.user_id,
+            vehicleType: row.vehicle_type,
+            qualifiedOnDate: row.qualified_on_date,
+            lastDriveDate: row.last_drive_date,
+            currencyExpiryDate: row.currency_expiry_date,
+            status,
+            daysRemaining: Math.max(0, daysRemaining),
+            user,
+          };
+        });
+
         return res.json(qualifications);
       } finally {
         client.release();
@@ -185,7 +213,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    // Bookings endpoint for calendar
+    // Bookings endpoint - mirror original /api/bookings (BookingWithUser[])
     if (pathname === '/api/bookings' && req.method === 'GET') {
       const token = extractTokenFromHeader(req.headers.authorization);
       if (!token) {
@@ -203,20 +231,51 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           SELECT 
             b.id,
             b.user_id,
-            b.booking_date,
-            b.booking_time,
-            b.purpose,
-            b.status,
-            u.full_name,
-            u.rank,
-            m.name as msp_name
+            b.start_time      AS start_time,
+            b.end_time        AS end_time,
+            b.credits_charged AS credits_charged,
+            b.status          AS status,
+            b.created_at      AS created_at,
+            b.cancelled_at    AS cancelled_at,
+            u.id              AS user_db_id,
+            u.username        AS user_username,
+            u.full_name       AS user_full_name,
+            u.role            AS user_role,
+            u.credits         AS user_credits,
+            u.rank            AS user_rank,
+            u.msp_id          AS user_msp_id
           FROM bookings b
           LEFT JOIN users u ON b.user_id = u.id
-          LEFT JOIN msps m ON u.msp_id = m.id
-          ORDER BY b.booking_date, b.booking_time
+          ORDER BY b.start_time
         `);
-        
-        return res.json(result.rows);
+
+        const bookings = result.rows.map(row => {
+          const user = row.user_db_id
+            ? {
+                id: row.user_db_id,
+                username: row.user_username,
+                fullName: row.user_full_name,
+                role: row.user_role,
+                credits: row.user_credits,
+                rank: row.user_rank,
+                mspId: row.user_msp_id,
+              }
+            : undefined;
+
+          return {
+            id: row.id,
+            userId: row.user_id,
+            startTime: row.start_time,
+            endTime: row.end_time,
+            creditsCharged: row.credits_charged,
+            status: row.status,
+            createdAt: row.created_at,
+            cancelledAt: row.cancelled_at,
+            user,
+          };
+        });
+
+        return res.json(bookings);
       } finally {
         client.release();
       }
