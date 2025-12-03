@@ -496,13 +496,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const client = await pool.connect();
       try {
-        // First, let's check what bookings exist
+        // First, let's check what bookings exist and their statuses
         const allBookingsResult = await client.query(`
           SELECT COUNT(*) as total_bookings,
                  COUNT(CASE WHEN status = 'active' THEN 1 END) as active_bookings
           FROM bookings
         `);
         console.log('Bookings count:', allBookingsResult.rows[0]);
+
+        // Check all statuses
+        const statusCheckResult = await client.query(`
+          SELECT status, COUNT(*) as count
+          FROM bookings
+          GROUP BY status
+        `);
+        console.log('Booking statuses:', statusCheckResult.rows);
+
+        // Get all bookings regardless of status for debugging
+        const allBookingsDebug = await client.query(`
+          SELECT id, status, start_time, end_time
+          FROM bookings
+          ORDER BY start_time
+        `);
+        console.log('All bookings for debugging:', allBookingsDebug.rows);
 
         const result = await client.query(`
           SELECT 
