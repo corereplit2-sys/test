@@ -43,17 +43,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     
     // Admin users endpoint
     if (pathname === '/api/admin/users' && req.method === 'GET') {
-      console.log('Data API: Admin users request');
       const token = extractTokenFromHeader(req.headers.authorization);
-      console.log('Data API: Token extracted:', token ? 'present' : 'missing');
-      
       if (!token) {
         return res.status(401).json({ message: 'No token provided' });
       }
 
       const payload = verifyToken(token);
-      console.log('Data API: Token verified:', payload ? 'valid' : 'invalid');
-      
       if (!payload) {
         return res.status(401).json({ message: 'Invalid token' });
       }
@@ -98,7 +93,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    // Qualifications endpoint
+    // Qualifications endpoint - use driver_qualifications table without ORDER BY
     if (pathname === '/api/qualifications' && req.method === 'GET') {
       const token = extractTokenFromHeader(req.headers.authorization);
       if (!token) {
@@ -112,8 +107,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const client = await pool.connect();
       try {
-        // Use the correct table name: driver_qualifications
-        const result = await client.query('SELECT * FROM driver_qualifications ORDER BY created_at DESC');
+        // Use driver_qualifications table without ordering since created_at doesn't exist
+        const result = await client.query('SELECT * FROM driver_qualifications');
         return res.json(result.rows);
       } finally {
         client.release();
