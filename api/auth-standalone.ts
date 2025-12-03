@@ -109,7 +109,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         // Try both possible password field names
-        const passwordField = user.passwordHash || user.password;
+        const passwordField = user.password_hash || user.passwordHash || user.password;
         if (!passwordField) {
           console.error('No password field found on user:', Object.keys(user));
           return res.status(500).json({ message: 'Database error: no password field' });
@@ -120,7 +120,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         const token = generateToken(user);
-        const { passwordHash, password: pwd, ...safeUser } = user;
+        const { password_hash, passwordHash, password: pwd, ...safeUser } = user;
         
         return res.json({
           user: safeUser,
