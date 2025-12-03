@@ -36,14 +36,13 @@ export default function Login() {
           description: "Welcome back!",
         });
 
-        // Use the user data from the JWT context after successful login
-        setTimeout(() => {
-          if (user?.role === "admin") {
-            setLocation("/admin");
-          } else {
-            setLocation("/dashboard");
-          }
-        }, 100);
+        // Navigate immediately after successful login
+        // Don't rely on the user state which might have race conditions
+        if (data.username === "admin") {
+          setLocation("/admin");
+        } else {
+          setLocation("/dashboard");
+        }
       } else {
         toast({
           variant: "destructive",

@@ -13,11 +13,12 @@ import {
   DropdownMenuSubTrigger,
 } from "@/components/ui/dropdown-menu";
 import { LogOut, User as UserIcon, LayoutDashboard, Calendar as CalendarIcon, Car, Gamepad2, Users, ChevronDown, QrCode } from "lucide-react";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation, Link } from "wouter";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { ChangePasswordDialog } from "@/components/ChangePasswordDialog";
+import { useJWT } from "@/contexts/JWTContext";
 import { cn } from "@/lib/utils";
 
 interface NavbarProps {
@@ -28,10 +29,11 @@ interface NavbarProps {
 export function Navbar({ user, pageTitle }: NavbarProps) {
   const { toast } = useToast();
   const [location, setLocation] = useLocation();
+  const { logout } = useJWT();
 
   const handleLogout = async () => {
     try {
-      await apiRequest("POST", "/api/auth/logout");
+      logout();
       queryClient.invalidateQueries();
       setLocation("/login");
       toast({
