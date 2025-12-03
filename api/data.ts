@@ -112,24 +112,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const client = await pool.connect();
       try {
-        // Try different possible table names
-        let result;
-        try {
-          result = await client.query('SELECT * FROM qualifications ORDER BY created_at DESC');
-        } catch (e) {
-          try {
-            result = await client.query('SELECT * FROM "qualifications" ORDER BY "created_at" DESC');
-          } catch (e2) {
-            try {
-              result = await client.query('SELECT * FROM qualification ORDER BY created_at DESC');
-            } catch (e3) {
-              // List all tables to debug
-              const tables = await client.query("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'");
-              console.log('Available tables:', tables.rows.map(r => r.table_name));
-              return res.json([]);
-            }
-          }
-        }
+        // Use the correct table name: driver_qualifications
+        const result = await client.query('SELECT * FROM driver_qualifications ORDER BY created_at DESC');
         return res.json(result.rows);
       } finally {
         client.release();
