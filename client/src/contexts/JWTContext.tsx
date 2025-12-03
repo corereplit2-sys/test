@@ -48,8 +48,8 @@ export function JWTProvider({ children }: { children: React.ReactNode }) {
   const login = async (username: string, password: string) => {
     try {
       console.log('JWT Login attempt for:', username);
-      // Clear any existing token first
-      logout();
+      // Clear any existing token first (skip API call)
+      logout(true);
       console.log('Cleared existing token');
       
       const response = await fetch('/api/auth/login', {
@@ -79,10 +79,17 @@ export function JWTProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const logout = () => {
+  const logout = (skipApiCall = false) => {
     setUser(null);
     setToken(null);
     localStorage.removeItem('jwt_token');
+    
+    if (!skipApiCall) {
+      // Only make API call if not just clearing for a new login
+      fetch('/api/auth/logout', { method: 'POST' }).catch(() => {
+        // Ignore errors during logout API call
+      });
+    }
   };
 
   return (

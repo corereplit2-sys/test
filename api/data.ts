@@ -3,7 +3,7 @@ import 'dotenv/config';
 import * as pg from 'pg';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
-import { addDays } from 'date-fns';
+import { addDays, startOfWeek, endOfWeek } from 'date-fns';
 import { z } from 'zod';
 import { randomUUID } from 'crypto';
 
@@ -38,13 +38,13 @@ const insertUserSchema = z.object({
   username: z.string().min(1),
   password: z.string().min(6),
   fullName: z.string().min(1),
-  role: z.enum(['admin', 'commander', 'driver']),
+  role: z.enum(['admin', 'commander', 'soldier']),
   rank: z.string().optional(),
-  mspId: z.number().optional(),
+  mspId: z.string().optional(),
 });
 
 const insertDriverQualificationSchema = z.object({
-  userId: z.number(),
+  userId: z.string(),
   vehicleType: z.string(),
   qualifiedOnDate: z.string(),
 });
@@ -328,8 +328,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       try {
+        console.log('Qualification request body:', req.body);
         const parsed = insertDriverQualificationSchema.safeParse(req.body);
+        console.log('Qualification validation result:', parsed);
+        
         if (!parsed.success) {
+          console.log('Qualification validation errors:', parsed.error.errors);
           return res.status(400).json({ message: 'Invalid qualification data', errors: parsed.error.errors });
         }
 
@@ -377,8 +381,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       try {
+        console.log('User creation request body:', req.body);
         const parsed = insertUserSchema.safeParse(req.body);
+        console.log('User validation result:', parsed);
+        
         if (!parsed.success) {
+          console.log('User validation errors:', parsed.error.errors);
           return res.status(400).json({ message: 'Invalid user data', errors: parsed.error.errors });
         }
 
@@ -394,10 +402,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           const passwordHash = await bcrypt.hash(parsed.data.password, 10);
 
           const result = await client.query(`
-            INSERT INTO users (username, password_hash, full_name, role, rank, msp_id, credits)
-            VALUES ($1, $2, $3, $4, $5, $6, 0)
+            INSERT INTO users (id, username, password_hash, full_name, role, rank, msp_id, credits)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, 0)
             RETURNING id, username, "full_name", role, credits, rank, "msp_id"
           `, [
+            randomUUID(),
             parsed.data.username,
             passwordHash,
             parsed.data.fullName,
@@ -487,6 +496,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const client = await pool.connect();
       try {
+        // First, let's check what bookings exist
+        const allBookingsResult = await client.query(`
+          SELECT COUNT(*) as total_bookings,
+                 COUNT(CASE WHEN status = 'active' THEN 1 END) as active_bookings
+          FROM bookings
+        `);
+        console.log('Bookings count:', allBookingsResult.rows[0]);
+
         const result = await client.query(`
           SELECT 
             b.id,
@@ -501,6 +518,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           ORDER BY b.start_time
         `);
 
+        console.log('Raw calendar events query result:', result.rows);
+
         const events = result.rows.map(row => ({
           id: row.id,
           start: row.start_time,
@@ -508,6 +527,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           title: `${row.full_name || row.username} - Mess Booking`,
           status: row.status
         }));
+
+        console.log('Processed calendar events:', events);
 
         return res.json(events);
       } finally {
@@ -660,6 +681,41 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         `, [bookingId]);
 
         return res.json({ message: 'Booking cancelled successfully' });
+      } finally {
+        client.release();
+      }
+    }
+
+    // Config endpoint - booking release day
+    if (pathname === '/api/config/booking-release-day' && req.method === 'GET') {
+      const token = extractTokenFromHeader(req.headers.authorization);
+      if (!token) {
+        return res.status(401).json({ message: 'No token provided' });
+      }
+
+      const payload = verifyToken(token);
+      if (!payload) {
+        return res.status(401).json({ message: 'Invalid token' });
+      }
+
+      const client = await pool.connect();
+      try {
+        // Get release day config (default to 0 = Sunday)
+        const configResult = await client.query('SELECT value FROM config WHERE key = $1', ['bookingReleaseDay']);
+        const releaseDay = configResult.rows.length > 0 ? parseInt(configResult.rows[0].value) : 0;
+        
+        // Calculate current bookable week (Sunday-Saturday)
+        const today = new Date();
+        const weekStart = startOfWeek(today, { weekStartsOn: 0 });
+        const weekEnd = endOfWeek(weekStart, { weekStartsOn: 0 });
+        
+        const response = {
+          start: weekStart.toISOString(),
+          end: weekEnd.toISOString(),
+          releaseDay,
+        };
+        
+        return res.json(response);
       } finally {
         client.release();
       }
