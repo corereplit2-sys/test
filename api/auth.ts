@@ -19,19 +19,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { pathname } = new URL(req.url || '', 'http://localhost');
     
     if (pathname === '/api/auth/me' && req.method === 'GET') {
-      // Get current user
-      const userId = req.session?.userId;
-      if (!userId) {
+      // Get current user - simplified for serverless
+      const authHeader = req.headers.authorization;
+      if (!authHeader) {
         return res.status(401).json({ message: 'Not authenticated' });
       }
 
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(401).json({ message: 'User not found' });
-      }
-
-      const { password, ...safeUser } = user;
-      return res.json(safeUser);
+      // For now, we'll skip session handling in serverless
+      // This would need JWT or Vercel KV for proper session management
+      return res.status(501).json({ message: 'Session handling not implemented for serverless yet' });
     }
 
     if (pathname === '/api/auth/login' && req.method === 'POST') {
@@ -44,43 +40,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const { username, password } = result.data;
       const user = await storage.getUserByUsername(username);
       
-      if (!user || !(await bcrypt.compare(password, user.password))) {
+      if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
         return res.status(401).json({ message: 'Invalid username or password' });
       }
 
-      const { password: _, ...safeUser } = user;
+      const { passwordHash, ...safeUser } = user;
       return res.json(safeUser);
     }
 
     if (pathname === '/api/auth/logout' && req.method === 'POST') {
-      // Logout
-      req.session?.destroy();
+      // Logout - simplified for serverless
       return res.json({ message: 'Logged out successfully' });
     }
 
     if (pathname === '/api/auth/change-password' && req.method === 'POST') {
-      // Change password
-      const userId = req.session?.userId;
-      if (!userId) {
-        return res.status(401).json({ message: 'Not authenticated' });
-      }
-
-      const result = changePasswordSchema.safeParse(req.body);
-      if (!result.success) {
-        return res.status(400).json({ message: 'Invalid input' });
-      }
-
-      const { currentPassword, newPassword } = result.data;
-      const user = await storage.getUser(userId);
-      
-      if (!user || !(await bcrypt.compare(currentPassword, user.password))) {
-        return res.status(401).json({ message: 'Current password is incorrect' });
-      }
-
-      const hashedPassword = await bcrypt.hash(newPassword, 10);
-      await storage.updateUser(userId, { password: hashedPassword });
-      
-      return res.json({ message: 'Password changed successfully' });
+      // Change password - simplified for serverless
+      return res.status(501).json({ message: 'Password change not implemented for serverless yet' });
     }
 
     return res.status(404).json({ message: 'Endpoint not found' });
