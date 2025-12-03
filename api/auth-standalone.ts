@@ -120,7 +120,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         const token = generateToken(user);
-        const { passwordHash, password, ...safeUser } = user;
+        const { passwordHash, password: pwd, ...safeUser } = user;
         
         return res.json({
           user: safeUser,
