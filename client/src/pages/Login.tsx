@@ -6,14 +6,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { Loader2 } from "lucide-react";
+import { useJWT } from "@/contexts/JWTContext";
 
 export default function Login() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const { login: jwtLogin, user } = useJWT();
   const [isLoading, setIsLoading] = useState(false);
 
   const form = useForm<LoginCredentials>({
@@ -27,17 +28,28 @@ export default function Login() {
   const onSubmit = async (data: LoginCredentials) => {
     setIsLoading(true);
     try {
-      const user = await apiRequest("POST", "/api/auth/login", data);
+      const result = await jwtLogin(data.username, data.password);
       
-      toast({
-        title: "Login successful",
-        description: `Welcome back, ${user.fullName}!`,
-      });
+      if (result.success) {
+        toast({
+          title: "Login successful",
+          description: "Welcome back!",
+        });
 
-      if (user.role === "admin") {
-        setLocation("/admin");
+        // Use the user data from the JWT context after successful login
+        setTimeout(() => {
+          if (user?.role === "admin") {
+            setLocation("/admin");
+          } else {
+            setLocation("/dashboard");
+          }
+        }, 100);
       } else {
-        setLocation("/dashboard");
+        toast({
+          variant: "destructive",
+          title: "Login failed",
+          description: result.error || "Invalid username or password",
+        });
       }
     } catch (error: any) {
       toast({
