@@ -66,11 +66,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     
     if (pathname === '/api/auth/me' && req.method === 'GET') {
       const token = extractTokenFromHeader(req.headers.authorization);
+      console.log('Auth me request - Token present:', !!token);
+      
       if (!token) {
         return res.status(401).json({ message: 'No token provided' });
       }
 
       const payload = verifyToken(token);
+      console.log('Auth me request - Token payload:', payload ? { userId: payload.userId, username: payload.username } : 'Invalid');
+      
       if (!payload) {
         return res.status(401).json({ message: 'Invalid token' });
       }
@@ -94,6 +98,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           rank: user.rank,
           mspId: user.msp_id
         };
+        
+        console.log('Auth me returning user:', safeUser);
         
         return res.json(safeUser);
       } finally {
