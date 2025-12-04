@@ -895,9 +895,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const qualificationsWithStatus: QualificationWithStatus[] = await Promise.all(
         qualifications.map(async (q) => {
           const qualUser = await storage.getUser(q.userId);
+          const driveLogs = await storage.getDriveLogsByUserAndVehicle(q.userId, q.vehicleType);
+          const recalculatedQual = await recalculateCurrencyForQualification(
+            q,
+            driveLogs,
+            storage.updateQualification.bind(storage)
+          );
           return {
-            ...q,
-            ...getCurrencyStatus(q),
+            ...recalculatedQual,
+            ...getCurrencyStatus(recalculatedQual),
             user: qualUser ? sanitizeUser(qualUser) : undefined,
           };
         })
@@ -914,10 +920,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const user = req.user as User;
       const qualifications = await storage.getQualificationsByUser(user.id);
       
-      const qualificationsWithStatus: QualificationWithStatus[] = qualifications.map(q => ({
-        ...q,
-        ...getCurrencyStatus(q),
-      }));
+      const qualificationsWithStatus: QualificationWithStatus[] = await Promise.all(
+        qualifications.map(async (q) => {
+          const driveLogs = await storage.getDriveLogsByUserAndVehicle(q.userId, q.vehicleType);
+          const recalculatedQual = await recalculateCurrencyForQualification(
+            q,
+            driveLogs,
+            storage.updateQualification.bind(storage)
+          );
+          return {
+            ...recalculatedQual,
+            ...getCurrencyStatus(recalculatedQual),
+          };
+        })
+      );
       
       res.json(qualificationsWithStatus);
     } catch (error: any) {
