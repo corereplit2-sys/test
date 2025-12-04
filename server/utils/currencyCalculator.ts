@@ -20,70 +20,50 @@ export interface CurrencyCalculationResult {
  * - Initial currency valid for 88 days from qualification date
  * - To maintain currency: must drive ≥2km (cumulative) within any 88-day window
  * - Once 2km reached in a window, new window starts from that drive date
- * - Status: GREEN (>30d), AMBER (15-30d), RED (<15d or expired)
  */
 export function calculateCurrency(
   qualification: DriverQualification,
   driveLogs: DriveLog[]
 ): CurrencyCalculationResult {
   // Sort logs by date ascending
-  const sortedLogs = [...driveLogs].sort((a, b) => 
+  const sortedLogs = [...driveLogs].sort((a, b) =>
     new Date(a.date).getTime() - new Date(b.date).getTime()
   );
 
-  // Start with qualified date
-  let currentStartDate = parseISO(qualification.qualifiedOnDate);
-  let currentWindowEnd = addDays(currentStartDate, CURRENCY_WINDOW_DAYS);
+  // Initial currency: 88 days from qualification date
+  const qualifiedDate = parseISO(qualification.qualifiedOnDate);
+  let finalExpiryDate = addDays(qualifiedDate, CURRENCY_WINDOW_DAYS);
   let lastValidDriveDate: Date | null = null;
-  let finalExpiryDate: Date = currentWindowEnd;
 
-  // Process each drive log
-  for (const log of sortedLogs) {
+  // Sliding 88‑day window over drive logs
+  for (let i = 0; i < sortedLogs.length; i++) {
+    const log = sortedLogs[i];
     const logDate = parseISO(log.date);
-    
-    // If log is after current window, we may have lost currency
-    while (logDate > currentWindowEnd) {
-      // Move to next window starting from the last window end
-      currentStartDate = addDays(currentStartDate, CURRENCY_WINDOW_DAYS);
-      currentWindowEnd = addDays(currentStartDate, CURRENCY_WINDOW_DAYS);
-      finalExpiryDate = currentWindowEnd;
-      
-      // If we've gone past the log date without accumulating distance, currency was lost
-      if (logDate > currentWindowEnd) {
-        continue;
-      }
-      break;
-    }
-    
-    // Accumulate distance in current window
+
+    // Define this window as the 88 days counting back from this log (inclusive)
+    const windowStart = addDays(logDate, -CURRENCY_WINDOW_DAYS);
+
     let cumulativeDistance = 0;
-    const windowStartDate = currentStartDate;
-    
-    for (const windowLog of sortedLogs) {
+    for (let j = 0; j <= i; j++) {
+      const windowLog = sortedLogs[j];
       const windowLogDate = parseISO(windowLog.date);
-      
-      // Only count logs within current window
-      if (windowLogDate >= windowStartDate && windowLogDate <= currentWindowEnd) {
+
+      if (windowLogDate >= windowStart && windowLogDate <= logDate) {
         cumulativeDistance += windowLog.distanceKm;
-        
-        // Check if we've hit the threshold
-        if (cumulativeDistance >= REQUIRED_DISTANCE_KM) {
-          lastValidDriveDate = windowLogDate;
-          finalExpiryDate = addDays(windowLogDate, CURRENCY_WINDOW_DAYS);
-          
-          // Move to next window starting from this drive
-          currentStartDate = windowLogDate;
-          currentWindowEnd = addDays(windowLogDate, CURRENCY_WINDOW_DAYS);
-          break;
-        }
       }
+    }
+
+    // If the 2km requirement is met within this 88‑day window, currency renews
+    if (cumulativeDistance >= REQUIRED_DISTANCE_KM) {
+      lastValidDriveDate = logDate;
+      finalExpiryDate = addDays(logDate, CURRENCY_WINDOW_DAYS);
     }
   }
 
   // Calculate status based on days remaining
   const today = new Date();
   const daysRemaining = differenceInDays(finalExpiryDate, today);
-  
+
   let status: CurrencyStatus;
   if (daysRemaining < 0) {
     status = "EXPIRED";
@@ -96,8 +76,8 @@ export function calculateCurrency(
   }
 
   return {
-    currencyExpiryDate: finalExpiryDate.toISOString().split('T')[0],
-    lastDriveDate: lastValidDriveDate?.toISOString().split('T')[0] || null,
+    currencyExpiryDate: finalExpiryDate.toISOString().split("T")[0],
+    lastDriveDate: lastValidDriveDate?.toISOString().split("T")[0] || null,
     status,
     daysRemaining: Math.max(0, daysRemaining),
   };

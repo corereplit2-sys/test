@@ -90,11 +90,11 @@ export default function MessBooking() {
       title: event.title,
       start: event.start,
       end: event.end,
-      backgroundColor: user.role === "admin" ? "#a855f7" : "#3b82f6",
-      borderColor: user.role === "admin" ? "#9333ea" : "#2563eb",
+      backgroundColor: user.role === "admin" || user.role === "commander" ? "#a855f7" : "#3b82f6",
+      borderColor: user.role === "admin" || user.role === "commander" ? "#9333ea" : "#2563eb",
       extendedProps: {
         calendarEvent: event,
-        isAdmin: user.role === "admin",
+        isAdmin: user.role === "admin" || user.role === "commander",
       },
     })),
     ...capacityBackgrounds

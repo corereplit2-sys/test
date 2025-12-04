@@ -348,8 +348,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get booking details for a specific timeslot (admin only)
-  app.get("/api/bookings/timeslot-details", requireAuth, requireAdmin, async (req: any, res) => {
+  // Get booking details for a specific timeslot (admin or commander)
+  app.get("/api/bookings/timeslot-details", requireAuth, requireAdminOrCommander, async (req: any, res) => {
     try {
       const { startTime, endTime } = req.query;
       
