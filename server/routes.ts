@@ -901,9 +901,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             driveLogs,
             storage.updateQualification.bind(storage)
           );
+          // Use recalculated qualification if successful, otherwise fall back to original
+          const finalQual = recalculatedQual || q;
           return {
-            ...recalculatedQual,
-            ...getCurrencyStatus(recalculatedQual),
+            ...finalQual,
+            ...getCurrencyStatus(finalQual),
             user: qualUser ? sanitizeUser(qualUser) : undefined,
           };
         })
@@ -928,9 +930,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             driveLogs,
             storage.updateQualification.bind(storage)
           );
+          // Use recalculated qualification if successful, otherwise fall back to original
+          const finalQual = recalculatedQual || q;
           return {
-            ...recalculatedQual,
-            ...getCurrencyStatus(recalculatedQual),
+            ...finalQual,
+            ...getCurrencyStatus(finalQual),
           };
         })
       );
