@@ -896,12 +896,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         qualifications.map(async (q) => {
           const qualUser = await storage.getUser(q.userId);
           const driveLogs = await storage.getDriveLogsByUserAndVehicle(q.userId, q.vehicleType);
+          
           const recalculatedQual = await recalculateCurrencyForQualification(
             q,
             driveLogs,
             storage.updateQualification.bind(storage)
           );
-          // Use recalculated qualification if successful, otherwise fall back to original
+          
           const finalQual = recalculatedQual || q;
           return {
             ...finalQual,

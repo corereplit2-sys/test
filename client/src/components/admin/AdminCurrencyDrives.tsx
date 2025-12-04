@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { QrCode, Trash2, Copy, Download, Eye } from "lucide-react";
+import { QrCode, Trash, Copy, Download, Eye } from "lucide-react";
 import { format, addDays } from "date-fns";
 import type { CurrencyDrive } from "@shared/schema";
 import QRCode from "qrcode";
@@ -179,7 +179,7 @@ export function AdminCurrencyDrives() {
                         Copy
                       </Button>
                       <Button size="sm" variant="destructive" onClick={() => handleDelete(drive.id)} className="flex-1">
-                        <Trash2 className="w-4 h-4 mr-1" />
+                        <Trash className="w-4 h-4 mr-1" />
                         Delete
                       </Button>
                     </div>
@@ -218,7 +218,7 @@ export function AdminCurrencyDrives() {
                               <Copy className="w-4 h-4" />
                             </Button>
                             <Button size="sm" variant="ghost" onClick={() => handleDelete(drive.id)}>
-                              <Trash2 className="w-4 h-4 text-destructive" />
+                              <Trash className="w-4 h-4 text-destructive" />
                             </Button>
                           </div>
                         </td>

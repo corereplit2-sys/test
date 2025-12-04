@@ -14,7 +14,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertDriverQualificationSchema, insertDriveLogSchema, type QualificationWithStatus, type DriveLog, type SafeUser, type Msp } from "@shared/schema";
 import { z } from "zod";
-import { Car, Plus, Search, AlertTriangle, Award, Trash2, Gauge, X, ArrowLeft, Upload, QrCode } from "lucide-react";
+import { Car, Plus, Search, AlertTriangle, Award, Trash, Gauge, X, ArrowLeft, Upload, QrCode, Edit } from "lucide-react";
 import { QRScanner } from "@/components/soldier/QRScanner";
 import { AdminCurrencyDrives } from "@/components/admin/AdminCurrencyDrives";
 import { format } from "date-fns";
@@ -58,6 +58,7 @@ export default function CurrencyTracker() {
   const [filterTags, setFilterTags] = useState<FilterTag[]>([]);
   const [isAddingQual, setIsAddingQual] = useState(false);
   const [isAddingLog, setIsAddingLog] = useState(false);
+  const [isEditingQual, setIsEditingQual] = useState(false);
   const [selectedQual, setSelectedQual] = useState<QualificationWithStatus | null>(null);
   const [deletingLog, setDeletingLog] = useState<DriveLog | null>(null);
   const [userSearchTerm, setUserSearchTerm] = useState("");
@@ -229,7 +230,7 @@ export default function CurrencyTracker() {
       queryClient.invalidateQueries({ queryKey: ["/api/qualifications"] });
       toast({
         title: "Drive log deleted",
-        description: "Currency has been recalculated",
+        description: "Drive log has been deleted successfully",
       });
       setDeletingLog(null);
     },
@@ -237,6 +238,27 @@ export default function CurrencyTracker() {
       toast({
         variant: "destructive",
         title: "Failed to delete drive log",
+        description: error.message || "Please try again",
+      });
+    },
+  });
+
+  const deleteQualMutation = useMutation({
+    mutationFn: async (qualId: string) => {
+      return await apiRequest("DELETE", `/api/qualifications/${qualId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/qualifications"] });
+      toast({
+        title: "Qualification deleted",
+        description: "Driver qualification has been deleted successfully",
+      });
+      setSelectedQual(null);
+    },
+    onError: (error: any) => {
+      toast({
+        variant: "destructive",
+        title: "Failed to delete qualification",
         description: error.message || "Please try again",
       });
     },
@@ -361,6 +383,10 @@ export default function CurrencyTracker() {
       vehicleType: selectedQual.vehicleType,
     };
     createLogMutation.mutate(fullData);
+  };
+
+  const handleDeleteQualification = (qualId: string) => {
+    deleteQualMutation.mutate(qualId);
   };
 
   const handleDeleteLog = () => {
@@ -703,12 +729,45 @@ export default function CurrencyTracker() {
                                   data-testid={`card-qualification-${qual.id}`}
                                 >
                                   <div className="flex items-start justify-between gap-3 mb-3">
-                                    <div className="flex-1">
+                                    <div className="flex-1" onClick={() => setSelectedQual(qual)}>
                                       <p className="font-semibold text-base">{qual.user?.fullName || "Unknown"}</p>
                                       <p className="text-xs text-muted-foreground">{qual.user?.rank || "-"}</p>
                                     </div>
-                                    <div>
+                                    <div className="flex items-center gap-2">
                                       {getStatusBadge(qual.status, qual.daysRemaining)}
+                                      {(user?.role === "admin" || user?.role === "commander") && (
+                                        <div className="flex gap-1">
+                                          <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setSelectedQual(qual);
+                                              // Set form values for editing
+                                              qualForm.setValue("userId", qual.userId);
+                                              qualForm.setValue("vehicleType", qual.vehicleType);
+                                              qualForm.setValue("qualifiedOnDate", qual.qualifiedOnDate);
+                                              setIsEditingQual(true);
+                                            }}
+                                            className="h-8 w-8 p-0"
+                                          >
+                                            <Edit className="w-3 h-3" />
+                                          </Button>
+                                          <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              if (confirm(`Are you sure you want to delete this qualification for ${qual.user?.fullName}?`)) {
+                                                handleDeleteQualification(qual.id);
+                                              }
+                                            }}
+                                            className="h-8 w-8 p-0"
+                                          >
+                                            <Trash className="w-3 h-3" />
+                                          </Button>
+                                        </div>
+                                      )}
                                     </div>
                                   </div>
                                   <div className="grid grid-cols-2 gap-3 text-sm">
@@ -747,6 +806,9 @@ export default function CurrencyTracker() {
                                       <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">Vehicle</th>
                                       <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">Last Drive</th>
                                       <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">Status</th>
+                                      {(user?.role === "admin" || user?.role === "commander") && (
+                                        <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">Actions</th>
+                                      )}
                                     </tr>
                                   </thead>
                                   <tbody>
@@ -771,6 +833,43 @@ export default function CurrencyTracker() {
                                         <td className="py-3 px-4">
                                           {getStatusBadge(qual.status, qual.daysRemaining)}
                                         </td>
+                                        {(user?.role === "admin" || user?.role === "commander") && (
+                                          <td className="py-3 px-4">
+                                            <div className="flex gap-2">
+                                              <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  setSelectedQual(qual);
+                                                  // Set form values for editing
+                                                  qualForm.setValue("userId", qual.userId);
+                                                  qualForm.setValue("vehicleType", qual.vehicleType);
+                                                  qualForm.setValue("qualifiedOnDate", qual.qualifiedOnDate);
+                                                  setIsEditingQual(true);
+                                                }}
+                                                className="h-8 w-8 p-0"
+                                                title="Edit Qualification"
+                                              >
+                                                <Edit className="w-3 h-3" />
+                                              </Button>
+                                              <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  if (confirm(`Are you sure you want to delete this qualification for ${qual.user?.fullName}?`)) {
+                                                    handleDeleteQualification(qual.id);
+                                                  }
+                                                }}
+                                                className="h-8 w-8 p-0"
+                                                title="Delete Qualification"
+                                              >
+                                                <Trash className="w-3 h-3" />
+                                              </Button>
+                                            </div>
+                                          </td>
+                                        )}
                                       </tr>
                                     ))}
                                   </tbody>
@@ -801,9 +900,9 @@ export default function CurrencyTracker() {
         <Dialog open={!!selectedQual} onOpenChange={() => setSelectedQual(null)}>
           <DialogContent className="max-h-[90vh] overflow-y-auto">
             <DialogHeader className="sticky top-0 bg-background pb-4">
-              <DialogTitle>Drive History</DialogTitle>
+              <DialogTitle>{selectedQual.user?.fullName} - {selectedQual.vehicleType}</DialogTitle>
               <DialogDescription>
-                {selectedQual.user?.fullName} - {selectedQual.vehicleType}
+                Qualification details and drive history
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
@@ -869,7 +968,7 @@ export default function CurrencyTracker() {
                         onClick={() => setDeletingLog(log)}
                         data-testid={`button-delete-log-mobile-${log.id}`}
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash className="w-4 h-4" />
                       </Button>
                     </div>
                   ))}
@@ -1028,6 +1127,122 @@ export default function CurrencyTracker() {
           </Form>
         </DialogContent>
       </Dialog>
+
+      {isEditingQual && selectedQual && (
+        <Dialog open={isEditingQual} onOpenChange={setIsEditingQual}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Qualification</DialogTitle>
+              <DialogDescription>
+                Edit driver qualification for {selectedQual.user?.fullName}
+              </DialogDescription>
+            </DialogHeader>
+            <Form {...qualForm}>
+              <form onSubmit={qualForm.handleSubmit((data) => {
+                if (!selectedQual) return;
+                const qualData = {
+                  vehicleType: data.vehicleType,
+                  qualifiedOnDate: data.qualifiedOnDate,
+                };
+                // Update mutation here
+                apiRequest("PUT", `/api/qualifications/${selectedQual.id}`, qualData).then(() => {
+                  queryClient.invalidateQueries({ queryKey: ["/api/qualifications"] });
+                  toast({
+                    title: "Qualification updated",
+                    description: "Driver qualification has been updated successfully",
+                  });
+                  setIsEditingQual(false);
+                  qualForm.reset();
+                }).catch((error) => {
+                  toast({
+                    variant: "destructive",
+                    title: "Failed to update qualification",
+                    description: error.message || "Please try again",
+                  });
+                });
+              })} className="space-y-4">
+                <FormField
+                  control={qualForm.control}
+                  name="userId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Driver</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <Input
+                            {...field}
+                            placeholder="Search for driver..."
+                            value={selectedQual.user?.fullName || ""}
+                            disabled={true} // Disable editing user for now
+                          />
+                          <Search className="absolute right-3 top-3 h-4 w-4 text-muted-foreground" />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={qualForm.control}
+                  name="vehicleType"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Vehicle Type</FormLabel>
+                      <FormControl>
+                        <Select
+                          onValueChange={field.onChange}
+                          value={field.value}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select vehicle type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="TERREX">TERREX</SelectItem>
+                            <SelectItem value="BELREX">BELREX</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={qualForm.control}
+                  name="qualifiedOnDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Qualified Date</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          type="date"
+                          value={field.value}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <DialogFooter>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsEditingQual(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="submit">
+                    Update Qualification
+                  </Button>
+                </DialogFooter>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
+      )}
 
       <Dialog open={isAddingLog} onOpenChange={setIsAddingLog}>
         <DialogContent data-testid="dialog-add-drive-log-admin">

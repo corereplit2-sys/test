@@ -30,15 +30,20 @@ export function calculateCurrency(
     new Date(a.date).getTime() - new Date(b.date).getTime()
   );
 
-  // Initial currency: 88 days from qualification date
-  const qualifiedDate = parseISO(qualification.qualifiedOnDate);
-  let finalExpiryDate = addDays(qualifiedDate, CURRENCY_WINDOW_DAYS);
-  let lastValidDriveDate: Date | null = null;
+  // Helper to create Singapore date (treat YYYY-MM-DD as Singapore date)
+  const sgDate = (dateStr: string) => {
+    const [year, month, day] = dateStr.split('-').map(Number);
+    return new Date(year, month - 1, day, 12, 0, 0); // noon to avoid UTC issues
+  };
 
-  // Sliding 88‑day window over drive logs
+  // Initial currency: 88 days from qualification date (Singapore time)
+  const qualifiedDate = sgDate(qualification.qualifiedOnDate);
+  let finalExpiryDate = addDays(qualifiedDate, CURRENCY_WINDOW_DAYS);
+
+  // Sliding 88‑day window over drive logs for expiry calculation
   for (let i = 0; i < sortedLogs.length; i++) {
     const log = sortedLogs[i];
-    const logDate = parseISO(log.date);
+    const logDate = sgDate(log.date);
 
     // Define this window as the 88 days counting back from this log (inclusive)
     const windowStart = addDays(logDate, -CURRENCY_WINDOW_DAYS);
@@ -46,7 +51,7 @@ export function calculateCurrency(
     let cumulativeDistance = 0;
     for (let j = 0; j <= i; j++) {
       const windowLog = sortedLogs[j];
-      const windowLogDate = parseISO(windowLog.date);
+      const windowLogDate = sgDate(windowLog.date);
 
       if (windowLogDate >= windowStart && windowLogDate <= logDate) {
         cumulativeDistance += windowLog.distanceKm;
@@ -55,14 +60,14 @@ export function calculateCurrency(
 
     // If the 2km requirement is met within this 88‑day window, currency renews
     if (cumulativeDistance >= REQUIRED_DISTANCE_KM) {
-      lastValidDriveDate = logDate;
       finalExpiryDate = addDays(logDate, CURRENCY_WINDOW_DAYS);
     }
   }
 
-  // Calculate status based on days remaining
+  // Calculate status based on days remaining (Singapore time)
   const today = new Date();
-  const daysRemaining = differenceInDays(finalExpiryDate, today);
+  const todaySG = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 12, 0, 0);
+  const daysRemaining = differenceInDays(finalExpiryDate, todaySG);
 
   let status: CurrencyStatus;
   if (daysRemaining < 0) {
@@ -75,9 +80,14 @@ export function calculateCurrency(
     status = "CURRENT";
   }
 
+  // For lastDriveDate, use the most recent drive log date
+  const mostRecentDriveDate = sortedLogs.length > 0 
+    ? sortedLogs[sortedLogs.length - 1].date 
+    : null;
+
   return {
-    currencyExpiryDate: finalExpiryDate.toISOString().split("T")[0],
-    lastDriveDate: lastValidDriveDate?.toISOString().split("T")[0] || null,
+    currencyExpiryDate: finalExpiryDate.toISOString().split('T')[0],
+    lastDriveDate: mostRecentDriveDate,
     status,
     daysRemaining: Math.max(0, daysRemaining),
   };

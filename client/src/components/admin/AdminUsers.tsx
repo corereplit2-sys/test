@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Plus, Pencil, Trash2, Search, X, Users } from "lucide-react";
+import { Plus, Edit, Trash, Search, X, Users } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -657,7 +657,7 @@ export function AdminUsers({ showCreateDialog, setShowCreateDialog, showBatchImp
                             onClick={() => openEditDialog(user)}
                             data-testid={`button-edit-${user.id}`}
                           >
-                            <Pencil className="w-4 h-4" />
+                            <Edit className="w-4 h-4" />
                           </Button>
                           {user.role !== "admin" && (
                             <Button
@@ -666,7 +666,7 @@ export function AdminUsers({ showCreateDialog, setShowCreateDialog, showBatchImp
                               onClick={() => setDeletingUser(user)}
                               data-testid={`button-delete-${user.id}`}
                             >
-                              <Trash2 className="w-4 h-4" />
+                              <Trash className="w-4 h-4" />
                             </Button>
                           )}
                         </div>
