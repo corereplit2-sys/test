@@ -395,45 +395,31 @@ export default function CurrencyTracker() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <Navbar user={user} pageTitle="Currency Tracker" />
-      
-      <div className="pt-16">
-        <div className="max-w-7xl mx-auto px-4 md:px-6 py-6 md:py-8">
-          {selectedQual ? (
-            <div className="mb-6">
-              <Button 
-                variant="ghost" 
-                onClick={() => setSelectedQual(null)}
-                data-testid="button-back-to-qualifications"
-                className="gap-2"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                Back to All Qualifications
-              </Button>
-            </div>
-          ) : (
+    <>
+      <div className="min-h-screen bg-background">
+        <Navbar user={user} pageTitle="Currency Tracker" />
+        
+        <div className="pt-16">
+          <div className="max-w-7xl mx-auto px-4 md:px-6 py-6 md:py-8">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
               <div>
                 <h1 className="text-2xl md:text-3xl font-bold">Currency Tracker</h1>
                 <p className="text-muted-foreground mt-1 text-sm">Company-wide driver currency management</p>
               </div>
-              {user?.role === "admin" && (
-                <div className="flex gap-2 flex-wrap">
-                  <Button variant="outline" onClick={() => setShowBatchImport(true)} data-testid="button-batch-import" size="sm" className="md:size-auto">
-                    <Upload className="w-4 h-4 mr-2" />
-                    Batch Import
-                  </Button>
-                  <Button onClick={() => setIsAddingQual(true)} data-testid="button-add-qualification" size="sm" className="md:size-auto">
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add Qualification
-                  </Button>
-                </div>
-              )}
-            </div>
-          )}
+                {user?.role === "admin" && (
+                  <div className="flex gap-2 flex-wrap">
+                    <Button variant="outline" onClick={() => setShowBatchImport(true)} data-testid="button-batch-import" size="sm" className="md:size-auto">
+                      <Upload className="w-4 h-4 mr-2" />
+                      Batch Import
+                    </Button>
+                    <Button onClick={() => setIsAddingQual(true)} data-testid="button-add-qualification" size="sm" className="md:size-auto">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Qualification
+                    </Button>
+                  </div>
+                )}
+              </div>
 
-          {!selectedQual && (
             <>
               {/* Analytics cards */}
               <div className="grid gap-2 grid-cols-2 md:grid-cols-4 mb-6">
@@ -729,45 +715,12 @@ export default function CurrencyTracker() {
                                   data-testid={`card-qualification-${qual.id}`}
                                 >
                                   <div className="flex items-start justify-between gap-3 mb-3">
-                                    <div className="flex-1" onClick={() => setSelectedQual(qual)}>
-                                      <p className="font-semibold text-base">{qual.user?.fullName || "Unknown"}</p>
+                                    <div className="flex-1 min-w-0 pr-2" onClick={() => setSelectedQual(qual)}>
+                                      <p className="font-semibold text-base truncate">{qual.user?.fullName || "Unknown"}</p>
                                       <p className="text-xs text-muted-foreground">{qual.user?.rank || "-"}</p>
                                     </div>
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-2 flex-shrink-0">
                                       {getStatusBadge(qual.status, qual.daysRemaining)}
-                                      {(user?.role === "admin" || user?.role === "commander") && (
-                                        <div className="flex gap-1">
-                                          <Button
-                                            size="sm"
-                                            variant="ghost"
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              setSelectedQual(qual);
-                                              // Set form values for editing
-                                              qualForm.setValue("userId", qual.userId);
-                                              qualForm.setValue("vehicleType", qual.vehicleType);
-                                              qualForm.setValue("qualifiedOnDate", qual.qualifiedOnDate);
-                                              setIsEditingQual(true);
-                                            }}
-                                            className="h-8 w-8 p-0"
-                                          >
-                                            <Edit className="w-3 h-3" />
-                                          </Button>
-                                          <Button
-                                            size="sm"
-                                            variant="ghost"
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              if (confirm(`Are you sure you want to delete this qualification for ${qual.user?.fullName}?`)) {
-                                                handleDeleteQualification(qual.id);
-                                              }
-                                            }}
-                                            className="h-8 w-8 p-0"
-                                          >
-                                            <Trash className="w-3 h-3" />
-                                          </Button>
-                                        </div>
-                                      )}
                                     </div>
                                   </div>
                                   <div className="grid grid-cols-2 gap-3 text-sm">
@@ -781,7 +734,13 @@ export default function CurrencyTracker() {
                                       <p className="text-xs text-muted-foreground">Vehicle</p>
                                       <p className="font-medium text-xs">{qual.vehicleType}</p>
                                     </div>
-                                    <div className="col-span-2">
+                                    <div>
+                                      <p className="text-xs text-muted-foreground">Qualified</p>
+                                      <p className="font-medium text-xs">
+                                        {formatSingapore(qual.qualifiedOnDate, "dd MMM yyyy")}
+                                      </p>
+                                    </div>
+                                    <div>
                                       <p className="text-xs text-muted-foreground">Last Drive</p>
                                       <p className="font-medium text-xs">
                                         {qual.lastDriveDate
@@ -790,6 +749,40 @@ export default function CurrencyTracker() {
                                       </p>
                                     </div>
                                   </div>
+
+                                  {(user?.role === "admin" || user?.role === "commander") && (
+                                    <div className="flex justify-end gap-2 mt-3 pt-3 border-t">
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setSelectedQual(qual);
+                                          // Set form values for editing
+                                          qualForm.setValue("userId", qual.userId);
+                                          qualForm.setValue("vehicleType", qual.vehicleType);
+                                          qualForm.setValue("qualifiedOnDate", qual.qualifiedOnDate);
+                                          setIsEditingQual(true);
+                                        }}
+                                        className="h-8 w-8 p-0 flex-shrink-0"
+                                      >
+                                        <Edit className="w-3 h-3" />
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          if (confirm(`Are you sure you want to delete this qualification for ${qual.user?.fullName}?`)) {
+                                            handleDeleteQualification(qual.id);
+                                          }
+                                        }}
+                                        className="h-8 w-8 p-0 flex-shrink-0"
+                                      >
+                                        <Trash className="w-3 h-3" />
+                                      </Button>
+                                    </div>
+                                  )}
                                 </div>
                               ))}
                             </div>
@@ -892,7 +885,7 @@ export default function CurrencyTracker() {
                 </div>
               </div>
             </>
-          )}
+          </div>
         </div>
       </div>
 
@@ -1520,6 +1513,6 @@ export default function CurrencyTracker() {
           )}
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }

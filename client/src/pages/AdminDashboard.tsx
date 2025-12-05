@@ -3,10 +3,10 @@ import { SafeUser, DashboardStats, type QualificationWithStatus } from "@shared/
 import { Navbar } from "@/components/Navbar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Users, Calendar, CreditCard, Car, AlertTriangle, CheckCircle } from "lucide-react";
+import { Users, Calendar, CreditCard, Car, AlertTriangle, CheckCircle, Clock, CalendarDays } from "lucide-react";
 import { useLocation } from "wouter";
 import { Skeleton } from "@/components/ui/skeleton";
-import { addDays, differenceInDays } from "date-fns";
+import { addDays, differenceInDays, format } from "date-fns";
 
 export default function AdminDashboard() {
   const [, setLocation] = useLocation();
@@ -48,6 +48,108 @@ export default function AdminDashboard() {
     expired: qualifications.filter(q => getComputedStatusForQual(q).status === "EXPIRED").length,
   };
 
+  // Calculate critical dates
+  const getCriticalDates = () => {
+    const today = new Date();
+    const terrexQuals = qualifications.filter(q => q.vehicleType === "TERREX");
+    const belrexQuals = qualifications.filter(q => q.vehicleType === "BELREX");
+    
+    const getEarliestSchedulingDeadline = (quals: QualificationWithStatus[]) => {
+      if (quals.length === 0) return null;
+      
+      // Find the qualification with the earliest expiry among CURRENT and EXPIRING_SOON only
+      // Skip EXPIRED ones since they're already past scheduling deadline
+      const activeQuals = quals.filter(q => {
+        const status = getComputedStatusForQual(q).status;
+        return status === 'CURRENT' || status === 'EXPIRING_SOON';
+      });
+      
+      if (activeQuals.length === 0) return null;
+      
+      // Find the earliest expiry date
+      const earliestQual = activeQuals.reduce((earliest, qual) => {
+        const baseDate = qual.lastDriveDate ? new Date(qual.lastDriveDate) : new Date(qual.qualifiedOnDate);
+        const expiryDate = addDays(baseDate, 88);
+        const earliestExpiry = earliest ? addDays(new Date(earliest.lastDriveDate || earliest.qualifiedOnDate), 88) : new Date('9999-12-31');
+        
+        return expiryDate < earliestExpiry ? qual : earliest;
+      }, null as QualificationWithStatus | null);
+      
+      if (!earliestQual) return null;
+      
+      // Count how many drivers expire by this same date (within 1 day)
+      const earliestExpiryDate = addDays(new Date(earliestQual.lastDriveDate || earliestQual.qualifiedOnDate), 88);
+      const driversExpiringByThisDate = activeQuals.filter(qual => {
+        const expiryDate = addDays(new Date(qual.lastDriveDate || qual.qualifiedOnDate), 88);
+        return Math.abs(differenceInDays(expiryDate, earliestExpiryDate)) <= 1; // Same day or 1 day difference
+      });
+      
+      return {
+        qualification: earliestQual,
+        expiryDate: earliestExpiryDate,
+        driverCount: driversExpiringByThisDate.length,
+        drivers: driversExpiringByThisDate
+      };
+    };
+
+    const getUrgentSchedulingDeadline = (quals: QualificationWithStatus[]) => {
+      if (quals.length === 0) return null;
+      
+      // Find the qualification that needs scheduling most urgently
+      return quals
+        .filter(q => getComputedStatusForQual(q).status === "EXPIRING_SOON")
+        .sort((a, b) => {
+          const statusA = getComputedStatusForQual(a);
+          const statusB = getComputedStatusForQual(b);
+          return statusA.daysRemaining - statusB.daysRemaining;
+        })[0];
+    };
+
+    const getOverdueDeadline = (quals: QualificationWithStatus[]) => {
+      if (quals.length === 0) return null;
+      
+      // Find the most expired qualification
+      return quals
+        .filter(q => getComputedStatusForQual(q).status === "EXPIRED")
+        .sort((a, b) => {
+          const statusA = getComputedStatusForQual(a);
+          const statusB = getComputedStatusForQual(b);
+          return statusA.daysRemaining - statusB.daysRemaining;
+        })[0];
+    };
+
+    return {
+      terrex: {
+        earliestDeadline: getEarliestSchedulingDeadline(terrexQuals),
+        urgentDeadline: getUrgentSchedulingDeadline(terrexQuals),
+        overdueDeadline: getOverdueDeadline(terrexQuals),
+      },
+      belrex: {
+        earliestDeadline: getEarliestSchedulingDeadline(belrexQuals),
+        urgentDeadline: getUrgentSchedulingDeadline(belrexQuals),
+        overdueDeadline: getOverdueDeadline(belrexQuals),
+      },
+      overall: {
+        nextExpiring: qualifications
+          .filter(q => getComputedStatusForQual(q).status === "EXPIRING_SOON")
+          .sort((a, b) => {
+            const statusA = getComputedStatusForQual(a);
+            const statusB = getComputedStatusForQual(b);
+            return statusA.daysRemaining - statusB.daysRemaining;
+          })[0],
+        mostExpired: qualifications
+          .filter(q => getComputedStatusForQual(q).status === "EXPIRED")
+          .sort((a, b) => {
+            const statusA = getComputedStatusForQual(a);
+            const statusB = getComputedStatusForQual(b);
+            return statusA.daysRemaining - statusB.daysRemaining;
+          })[0],
+      }
+    };
+  };
+
+  const criticalDates = getCriticalDates();
+
   if (userLoading) {
     return (
       <div className="min-h-screen bg-background">
@@ -77,177 +179,72 @@ export default function AdminDashboard() {
           <div className="space-y-6 mb-8">
             <div>
               <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
-                <Calendar className="w-5 h-5" />
-                Mess Booking Overview
+                <Clock className="w-5 h-5" />
+                Upcoming Drive Deadlines
               </h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* TERREX Next Deadline */}
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
-                      Total Users
+                      TERREX Next Deadline
                     </CardTitle>
-                    <Users className="w-5 h-5 text-muted-foreground" />
+                    <CalendarDays className="w-5 h-5 text-blue-600" />
                   </CardHeader>
                   <CardContent>
-                    {statsLoading ? (
+                    {qualificationsLoading ? (
                       <Skeleton className="h-10 w-20" />
-                    ) : (
-                      <div className="text-3xl font-bold" data-testid="stat-total-users">
-                        {stats?.totalUsers || 0}
+                    ) : criticalDates.terrex.earliestDeadline ? (
+                      <div>
+                        <div className={`text-lg font-bold ${
+                          getComputedStatusForQual(criticalDates.terrex.earliestDeadline.qualification).status === 'EXPIRED' ? 'text-destructive' :
+                          getComputedStatusForQual(criticalDates.terrex.earliestDeadline.qualification).status === 'EXPIRING_SOON' ? 'text-yellow-600' :
+                          'text-green-600'
+                        }`}>
+                          {format(criticalDates.terrex.earliestDeadline.expiryDate, "dd MMM yyyy")}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {criticalDates.terrex.earliestDeadline.driverCount} driver{criticalDates.terrex.earliestDeadline.driverCount !== 1 ? 's' : ''}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {getComputedStatusForQual(criticalDates.terrex.earliestDeadline.qualification).daysRemaining} days left
+                        </p>
                       </div>
+                    ) : (
+                      <div className="text-lg font-bold text-muted-foreground">No active drivers</div>
                     )}
                   </CardContent>
                 </Card>
 
+                {/* BELREX Next Deadline */}
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
-                      Active Bookings Today
+                      BELREX Next Deadline
                     </CardTitle>
-                    <Calendar className="w-5 h-5 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    {statsLoading ? (
-                      <Skeleton className="h-10 w-20" />
-                    ) : (
-                      <div className="text-3xl font-bold" data-testid="stat-active-bookings">
-                        {stats?.activeBookingsToday || 0}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
-                      Credits Issued
-                    </CardTitle>
-                    <CreditCard className="w-5 h-5 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    {statsLoading ? (
-                      <Skeleton className="h-10 w-20" />
-                    ) : (
-                      <div className="text-3xl font-bold" data-testid="stat-total-credits">
-                        {stats?.totalCreditsIssued || 0}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
-
-            <div>
-              <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
-                <Car className="w-5 h-5" />
-                Driver Currency Overview
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <Card
-                  className="cursor-pointer hover-elevate active-elevate-2 transition-all"
-                  onClick={() => setLocation("/currency-tracker")}
-                  data-testid="card-total-qualifications"
-                >
-                  <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
-                      Total Qualifications
-                    </CardTitle>
-                    <Car className="w-5 h-5 text-muted-foreground" />
+                    <CalendarDays className="w-5 h-5 text-green-600" />
                   </CardHeader>
                   <CardContent>
                     {qualificationsLoading ? (
                       <Skeleton className="h-10 w-20" />
-                    ) : (
-                      <div className="text-3xl font-bold" data-testid="stat-total-qualifications">
-                        {currencyStats.total}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-
-                <Card
-                  className="cursor-pointer hover-elevate active-elevate-2 transition-all"
-                  onClick={() => setLocation("/currency-tracker?status=CURRENT")}
-                  data-testid="card-current-qualifications"
-                >
-                  <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
-                      Current
-                    </CardTitle>
-                    <CheckCircle className="w-5 h-5 text-green-600" />
-                  </CardHeader>
-                  <CardContent>
-                    {qualificationsLoading ? (
-                      <Skeleton className="h-10 w-20" />
-                    ) : (
-                      <div className="flex items-baseline gap-2">
-                        <div className="text-3xl font-bold text-green-600" data-testid="stat-current-qualifications">
-                          {currencyStats.current}
+                    ) : criticalDates.belrex.earliestDeadline ? (
+                      <div>
+                        <div className={`text-lg font-bold ${
+                          getComputedStatusForQual(criticalDates.belrex.earliestDeadline.qualification).status === 'EXPIRED' ? 'text-destructive' :
+                          getComputedStatusForQual(criticalDates.belrex.earliestDeadline.qualification).status === 'EXPIRING_SOON' ? 'text-yellow-600' :
+                          'text-green-600'
+                        }`}>
+                          {format(criticalDates.belrex.earliestDeadline.expiryDate, "dd MMM yyyy")}
                         </div>
-                        {currencyStats.total > 0 && (
-                          <span className="text-sm text-muted-foreground">
-                            ({Math.round((currencyStats.current / currencyStats.total) * 100)}%)
-                          </span>
-                        )}
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {criticalDates.belrex.earliestDeadline.driverCount} driver{criticalDates.belrex.earliestDeadline.driverCount !== 1 ? 's' : ''}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {getComputedStatusForQual(criticalDates.belrex.earliestDeadline.qualification).daysRemaining} days left
+                        </p>
                       </div>
-                    )}
-                  </CardContent>
-                </Card>
-
-                <Card
-                  className="cursor-pointer hover-elevate active-elevate-2 transition-all"
-                  onClick={() => setLocation("/currency-tracker?status=EXPIRING_SOON")}
-                  data-testid="card-expiring-qualifications"
-                >
-                  <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
-                      Expiring Soon
-                    </CardTitle>
-                    <AlertTriangle className="w-5 h-5 text-yellow-600" />
-                  </CardHeader>
-                  <CardContent>
-                    {qualificationsLoading ? (
-                      <Skeleton className="h-10 w-20" />
                     ) : (
-                      <div className="flex items-baseline gap-2">
-                        <div className="text-3xl font-bold text-yellow-600" data-testid="stat-expiring-qualifications">
-                          {currencyStats.expiringSoon}
-                        </div>
-                        {currencyStats.total > 0 && (
-                          <span className="text-sm text-muted-foreground">
-                            ({Math.round((currencyStats.expiringSoon / currencyStats.total) * 100)}%)
-                          </span>
-                        )}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-
-                <Card
-                  className="cursor-pointer hover-elevate active-elevate-2 transition-all"
-                  onClick={() => setLocation("/currency-tracker?status=EXPIRED")}
-                  data-testid="card-expired-qualifications"
-                >
-                  <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
-                      Expired
-                    </CardTitle>
-                    <AlertTriangle className="w-5 h-5 text-destructive" />
-                  </CardHeader>
-                  <CardContent>
-                    {qualificationsLoading ? (
-                      <Skeleton className="h-10 w-20" />
-                    ) : (
-                      <div className="flex items-baseline gap-2">
-                        <div className="text-3xl font-bold text-destructive" data-testid="stat-expired-qualifications">
-                          {currencyStats.expired}
-                        </div>
-                        {currencyStats.total > 0 && (
-                          <span className="text-sm text-muted-foreground">
-                            ({Math.round((currencyStats.expired / currencyStats.total) * 100)}%)
-                          </span>
-                        )}
-                      </div>
+                      <div className="text-lg font-bold text-muted-foreground">No active drivers</div>
                     )}
                   </CardContent>
                 </Card>

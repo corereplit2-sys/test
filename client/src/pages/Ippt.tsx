@@ -25,14 +25,26 @@ export default function IPPT() {
   return (
     <div className="min-h-screen bg-background">
       <Navbar user={user} pageTitle="My IPPT" />
-      <div className="pt-32 flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <h2 className="text-3xl font-bold" data-testid="page-ippt-title">
-            Work in Progress
-          </h2>
-          <p className="text-muted-foreground max-w-md">
-            The IPPT feature is coming soon. We're currently working on bringing this feature to you.
-          </p>
+      
+      <div className="pt-16">
+        <div className="max-w-7xl mx-auto px-4 md:px-6 py-6 md:py-8">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+            <div>
+              <h1 className="text-2xl md:text-3xl font-bold">My IPPT</h1>
+              <p className="text-muted-foreground mt-1 text-sm">Track your Individual Physical Proficiency Test status and results</p>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-center py-16">
+            <div className="text-center space-y-4">
+              <h2 className="text-3xl font-bold" data-testid="page-ippt-title">
+                Work in Progress
+              </h2>
+              <p className="text-muted-foreground max-w-md">
+                The IPPT feature is coming soon. We're currently working on bringing this feature to you.
+              </p>
+            </div>
+          </div>
         </div>
       </div>
     </div>

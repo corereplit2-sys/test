@@ -24,21 +24,19 @@ export default function DriveQR() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Navbar user={user} />
-      <div className="container mx-auto px-4 py-6">
-        <div className="flex items-center gap-4 mb-6">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setLocation("/admin")}
-            className="flex items-center gap-2"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to Admin Dashboard
-          </Button>
-        </div>
+      <Navbar user={user} pageTitle="Currency Drives" />
+      
+      <div className="pt-16">
+        <div className="max-w-7xl mx-auto px-4 md:px-6 py-6 md:py-8">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+            <div>
+              <h1 className="text-2xl md:text-3xl font-bold">Currency Drives</h1>
+              <p className="text-muted-foreground mt-1 text-sm">Manage QR codes for currency drive verification</p>
+            </div>
+          </div>
 
-        <AdminCurrencyDrives />
+          <AdminCurrencyDrives />
+        </div>
       </div>
     </div>
   );
