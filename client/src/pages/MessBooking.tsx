@@ -150,8 +150,9 @@ export default function MessBooking() {
           
           const currentBookings = allBookings.filter(booking => {
             if (booking.status !== 'active') return false;
-            const bookingStart = new Date(booking.startTime);
-            const bookingEnd = new Date(booking.endTime);
+            // Convert booking times to Singapore timezone for consistent comparison
+            const bookingStart = getTimeInSingapore(booking.startTime);
+            const bookingEnd = getTimeInSingapore(booking.endTime);
             return bookingStart < hourEnd && bookingEnd > hourStart;
           }).length;
 

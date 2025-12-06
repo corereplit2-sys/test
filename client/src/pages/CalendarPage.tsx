@@ -126,32 +126,28 @@ export default function CalendarPage() {
           // Count concurrent bookings for this hour from local bookings array
           const currentBookings = bookings.filter(booking => {
             if (booking.status !== 'active') return false;
-            const bookingStart = new Date(booking.startTime);
-            const bookingEnd = new Date(booking.endTime);
+            // Convert booking times to Singapore timezone for consistent comparison
+            const bookingStart = getTimeInSingapore(booking.startTime);
+            const bookingEnd = getTimeInSingapore(booking.endTime);
             // Check overlap: booking.start < hourEnd AND booking.end > hourStart
             return bookingStart < hourEnd && bookingEnd > hourStart;
           }).length;
 
-          // Determine color based on capacity - high opacity for clear visibility
           let backgroundColor = '';
           let borderColor = '';
           
           if (currentBookings >= 20) {
-            // Red for full (20 bookings) - very prominent
             backgroundColor = 'rgba(239, 68, 68, 0.6)';
             borderColor = 'rgba(239, 68, 68, 0.9)';
           } else if (currentBookings >= 15) {
-            // Yellow for limited (15-19 bookings) - very prominent
             backgroundColor = 'rgba(234, 179, 8, 0.6)';
             borderColor = 'rgba(234, 179, 8, 0.9)';
           } else {
-            // Green for good availability (<15 bookings) - very prominent
             backgroundColor = 'rgba(34, 197, 94, 0.6)';
             borderColor = 'rgba(34, 197, 94, 0.9)';
           }
 
           return {
-            id: `capacity-${hourStart.toISOString()}`,
             start: hourStart,
             end: hourEnd,
             display: 'background',
