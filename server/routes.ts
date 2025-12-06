@@ -12,6 +12,7 @@ import {
 import { differenceInHours, differenceInMinutes, startOfDay, endOfDay, addDays, parseISO, isAfter, format, differenceInDays } from "date-fns";
 import { getCurrentBookableWeek, DEFAULT_BOOKING_RELEASE_DAY } from "./utils/bookingSchedule";
 import { calculateCurrency, getCurrencyStatus, recalculateCurrencyForQualification } from "./utils/currencyCalculator";
+import { toZonedTime } from "date-fns-tz";
 import { eq } from "drizzle-orm";
 import { 
   users, bookings, driveLogs, driverQualifications, currencyDrives, currencyDriveScans, Msp, config
@@ -762,7 +763,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const releaseDayConfig = await storage.getConfig("bookingReleaseDay");
       const releaseDay = releaseDayConfig ? parseInt(releaseDayConfig.value) : DEFAULT_BOOKING_RELEASE_DAY;
       
-      const { start } = getCurrentBookableWeek(releaseDay);
+      // Use Singapore timezone for consistent week calculation
+      const singaporeTime = toZonedTime(new Date(), 'Asia/Singapore');
+      const { start } = getCurrentBookableWeek(releaseDay, singaporeTime);
       const currentWeekStart = start.toISOString().split('T')[0]; // YYYY-MM-DD
       
       const lastResetConfig = await storage.getConfig("lastCreditResetWeek");
@@ -784,7 +787,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Update last reset week
         await storage.setConfig("lastCreditResetWeek", currentWeekStart);
         
-        console.log(`[AUTO RESET] Credits reset for ${soldiers.length} soldiers to ${defaultCredits} credits for week ${currentWeekStart}`);
+        console.log(`[AUTO RESET] Credits reset for ${soldiers.length} soldiers to ${defaultCredits} credits for week ${currentWeekStart} (SG timezone)`);
       }
     } catch (error) {
       console.error("[AUTO RESET] Failed to reset credits:", error);
@@ -832,7 +835,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const releaseDayConfig = await storage.getConfig("bookingReleaseDay");
       const releaseDay = releaseDayConfig ? parseInt(releaseDayConfig.value) : DEFAULT_BOOKING_RELEASE_DAY;
       
-      const { start, end } = getCurrentBookableWeek(releaseDay);
+      // Use Singapore timezone for consistent week calculation
+      const singaporeTime = toZonedTime(new Date(), 'Asia/Singapore');
+      const { start, end } = getCurrentBookableWeek(releaseDay, singaporeTime);
       
       const response: BookableWeekRange = {
         start: start.toISOString(),
