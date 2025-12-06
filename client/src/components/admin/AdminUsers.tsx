@@ -1,11 +1,11 @@
  import { useQuery, useMutation } from "@tanstack/react-query";
 import { SafeUser, InsertUser, UpdateUser, Msp, type QualificationWithStatus } from "@shared/schema";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Plus, Edit, Trash, Search, X, Users } from "lucide-react";
+import { Plus, Edit, Trash, Search, X, Users, UserCheck, UserX, Shield } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -35,7 +35,7 @@ import { z } from "zod";
 
 type FilterTag = {
   id: string;
-  type: "msp" | "rank";
+  type: "msp" | "rank" | "role" | "status";
   label: string;
   value: string;
 };
@@ -49,6 +49,7 @@ interface AdminUsersProps {
 
 export function AdminUsers({ showCreateDialog, setShowCreateDialog, showBatchImport, setShowBatchImport }: AdminUsersProps) {
   const { toast } = useToast();
+  const usersCardRef = useRef<HTMLDivElement>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterTags, setFilterTags] = useState<FilterTag[]>([]);
   const [editingUser, setEditingUser] = useState<SafeUser | null>(null);
@@ -72,12 +73,17 @@ export function AdminUsers({ showCreateDialog, setShowCreateDialog, showBatchImp
 
   const uniqueRanks = Array.from(new Set(users.map(u => u.rank).filter(Boolean))) as string[];
 
-  const addFilterTag = (type: "msp" | "rank", value: string, label: string) => {
+  const addFilterTag = (type: "msp" | "rank" | "role" | "status", value: string, label: string) => {
     const id = `${type}-${value}`;
     if (!filterTags.find(tag => tag.id === id)) {
       setFilterTags([...filterTags, { id, type, label, value }]);
     }
     setShowFilterPopover(false);
+    
+    // Auto-scroll to users card
+    setTimeout(() => {
+      usersCardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 100);
   };
 
   const removeFilterTag = (id: string) => {
@@ -214,7 +220,6 @@ export function AdminUsers({ showCreateDialog, setShowCreateDialog, showBatchImp
       username: "",
       fullName: "",
       role: "soldier",
-      credits: 10,
       password: "",
       rank: "",
       mspId: "",
@@ -341,7 +346,6 @@ export function AdminUsers({ showCreateDialog, setShowCreateDialog, showBatchImp
       username: user.username,
       fullName: user.fullName,
       role: user.role,
-      credits: user.credits,
       password: "",
       rank: user.rank || "",
       mspId: user.mspId || "",
@@ -350,61 +354,6 @@ export function AdminUsers({ showCreateDialog, setShowCreateDialog, showBatchImp
 
   return (
     <>
-      <div className="grid gap-4 md:grid-cols-4 mb-6">
-        <Card data-testid="card-user-analytics-total">
-          <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Users</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{soldiers.length}</div>
-            <p className="text-xs text-muted-foreground mt-1">Soldiers & Commanders</p>
-          </CardContent>
-        </Card>
-        <Card data-testid="card-user-analytics-qualifications">
-          <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Qualifications</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{qualifications.length}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {soldiers.length > 0 ? (qualifications.length / soldiers.length).toFixed(1) : "0"} per user
-            </p>
-          </CardContent>
-        </Card>
-        <Card data-testid="card-user-analytics-current">
-          <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Current Currency</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-              {qualifications.filter(q => q.status === "CURRENT").length}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {qualifications.length > 0
-                ? `${((qualifications.filter(q => q.status === "CURRENT").length / qualifications.length) * 100).toFixed(0)}% of total`
-                : "0%"
-              }
-            </p>
-          </CardContent>
-        </Card>
-        <Card data-testid="card-user-analytics-expired">
-          <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Expired Currency</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-600 dark:text-red-400">
-              {qualifications.filter(q => q.status === "EXPIRED").length}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {qualifications.length > 0
-                ? `${((qualifications.filter(q => q.status === "EXPIRED").length / qualifications.length) * 100).toFixed(0)}% of total`
-                : "0%"
-              }
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
       <div className="grid gap-6 md:grid-cols-2 mb-6">
         <Card data-testid="card-user-msp-breakdown">
           <CardHeader>
@@ -428,11 +377,15 @@ export function AdminUsers({ showCreateDialog, setShowCreateDialog, showBatchImp
                     {msps.map(msp => {
                       const mspUsers = soldiers.filter(u => u.mspId === msp.id);
                       const mspQuals = qualifications.filter(q => q.user?.mspId === msp.id);
-                      const current = mspQuals.filter(q => q.status === "CURRENT").length;
+                      const current = mspQuals.filter(q => q.status === "CURRENT" || q.status === "EXPIRING_SOON").length;
                       const expired = mspQuals.filter(q => q.status === "EXPIRED").length;
                       
                       return (
-                        <tr key={msp.id} className="border-t hover-elevate">
+                        <tr 
+                          key={msp.id} 
+                          className="border-t hover-elevate cursor-pointer" 
+                          onClick={() => addFilterTag("msp", msp.id, msp.name)}
+                        >
                           <td className="py-2 px-3 font-medium">{msp.name}</td>
                           <td className="py-2 px-3 text-center">{mspUsers.length}</td>
                           <td className="py-2 px-3 text-center">{mspQuals.length}</td>
@@ -445,6 +398,18 @@ export function AdminUsers({ showCreateDialog, setShowCreateDialog, showBatchImp
                         </tr>
                       );
                     })}
+                    {/* Total Row */}
+                    <tr className="border-t-2 bg-muted/30 font-semibold">
+                      <td className="py-2 px-3">Total</td>
+                      <td className="py-2 px-3 text-center">{soldiers.length}</td>
+                      <td className="py-2 px-3 text-center">{qualifications.length}</td>
+                      <td className="py-2 px-3 text-center text-green-600 dark:text-green-400">
+                        {qualifications.filter(q => q.status === "CURRENT" || q.status === "EXPIRING_SOON").length}
+                      </td>
+                      <td className="py-2 px-3 text-center text-red-600 dark:text-red-400">
+                        {qualifications.filter(q => q.status === "EXPIRED").length}
+                      </td>
+                    </tr>
                   </tbody>
                 </table>
               </div>
@@ -476,7 +441,11 @@ export function AdminUsers({ showCreateDialog, setShowCreateDialog, showBatchImp
                         const isCommander = rankUsers.length > 0 && rankUsers[0].role === "commander";
                         
                         return (
-                          <tr key={rank} className="border-t hover-elevate">
+                          <tr 
+                            key={rank} 
+                            className="border-t hover-elevate cursor-pointer"
+                            onClick={() => addFilterTag("rank", rank, rank)}
+                          >
                             <td className="py-2 px-3 font-medium">{rank}</td>
                             <td className="py-2 px-3 text-center">{rankUsers.length}</td>
                             <td className="py-2 px-3 text-center">
@@ -502,7 +471,7 @@ export function AdminUsers({ showCreateDialog, setShowCreateDialog, showBatchImp
         </Card>
       </div>
 
-      <Card className="mb-6">
+      <Card className="mb-6" ref={usersCardRef}>
         <CardContent className="pt-6">
           <div className="space-y-3">
           <div className="flex gap-2">
@@ -606,77 +575,152 @@ export function AdminUsers({ showCreateDialog, setShowCreateDialog, showBatchImp
                 )}
               </p>
             </div>
-            <div className="border rounded-md">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                <thead className="bg-muted/50">
-                  <tr>
-                    <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">Name</th>
-                    <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">Rank</th>
-                    <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">MSP</th>
-                    <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">Role</th>
-                    <th className="text-right text-sm font-semibold uppercase tracking-wide py-3 px-4">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredUsers.map((user) => (
-                    <tr key={user.id} className="border-t hover-elevate" data-testid={`user-row-${user.id}`}>
-                      <td className="py-3 px-4 font-medium">{user.fullName}</td>
-                      <td className="py-3 px-4 text-muted-foreground">{user.rank || "-"}</td>
-                      <td className="py-3 px-4">
-                        {user.mspId ? (
-                          <Badge
-                            variant="secondary"
-                            className={getMspColor(msps.find(m => m.id === user.mspId)?.name || "")}
-                          >
-                            {msps.find(m => m.id === user.mspId)?.name}
-                          </Badge>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
-                      </td>
-                      <td className="py-3 px-4">
+
+            {/* Mobile Card View */}
+            <div className="space-y-3 md:hidden">
+              {filteredUsers.map((user) => (
+                <div
+                  key={user.id}
+                  className="border rounded-md p-4 hover:bg-accent transition-colors"
+                  data-testid={`user-card-${user.id}`}
+                >
+                  <div className="flex items-start justify-between gap-3 mb-3">
+                    <div className="flex-1 min-w-0 pr-2">
+                      <p className="font-semibold text-base truncate">{user.fullName}</p>
+                      <p className="text-xs text-muted-foreground">{user.rank || "-"}</p>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <Badge
+                        variant="secondary"
+                        className={
+                          user.role === "admin"
+                            ? "bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/30"
+                            : user.role === "commander"
+                            ? "bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-500/30"
+                            : "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/30"
+                        }
+                      >
+                        {user.role === "admin" ? "Admin" : user.role === "commander" ? "Commander" : "Soldier"}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 text-sm">
+                    <div className="flex items-center gap-2">
+                      <span className="text-muted-foreground">MSP:</span>
+                      {user.mspId ? (
                         <Badge
                           variant="secondary"
-                          className={
-                            user.role === "admin" 
-                              ? "bg-yellow-500 text-yellow-950" 
-                              : user.role === "commander"
-                              ? "bg-purple-500 text-purple-950"
-                              : "bg-blue-500 text-blue-950"
-                          }
+                          className={getMspColor(msps.find(m => m.id === user.mspId)?.name || "")}
                         >
-                          {user.role === "admin" ? "Admin" : user.role === "commander" ? "Commander" : "Soldier"}
+                          {msps.find(m => m.id === user.mspId)?.name}
                         </Badge>
-                      </td>
-                      <td className="py-3 px-4">
-                        <div className="flex items-center justify-end gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => openEditDialog(user)}
-                            data-testid={`button-edit-${user.id}`}
-                          >
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                          {user.role !== "admin" && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setDeletingUser(user)}
-                              data-testid={`button-delete-${user.id}`}
-                            >
-                              <Trash className="w-4 h-4" />
-                            </Button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {(user?.role !== "admin") && (
+                    <div className="flex justify-end gap-2 mt-3 pt-3 border-t">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => openEditDialog(user)}
+                        className="h-8 w-8 p-0 flex-shrink-0"
+                        data-testid={`button-edit-${user.id}`}
+                      >
+                        <Edit className="w-3 h-3" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setDeletingUser(user)}
+                        className="h-8 w-8 p-0 text-destructive hover:text-destructive flex-shrink-0"
+                        data-testid={`button-delete-${user.id}`}
+                      >
+                        <Trash className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
-          </div>
+
+            {/* Desktop Table View */}
+            <div className="hidden md:block border rounded-md">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-muted/50">
+                    <tr>
+                      <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">Name</th>
+                      <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">Rank</th>
+                      <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">MSP</th>
+                      <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">Role</th>
+                      <th className="text-right text-sm font-semibold uppercase tracking-wide py-3 px-4">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredUsers.map((user) => (
+                      <tr key={user.id} className="border-t hover-elevate" data-testid={`user-row-${user.id}`}>
+                        <td className="py-3 px-4 font-medium">{user.fullName}</td>
+                        <td className="py-3 px-4 text-muted-foreground">{user.rank || "-"}</td>
+                        <td className="py-3 px-4">
+                          {user.mspId ? (
+                            <Badge
+                              variant="secondary"
+                              className={getMspColor(msps.find(m => m.id === user.mspId)?.name || "")}
+                            >
+                              {msps.find(m => m.id === user.mspId)?.name}
+                            </Badge>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </td>
+                        <td className="py-3 px-4">
+                          <Badge
+                            variant="secondary"
+                            className={
+                              user.role === "admin"
+                                ? "bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/30"
+                                : user.role === "commander"
+                                ? "bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-500/30"
+                                : "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/30"
+                            }
+                          >
+                            {user.role === "admin" ? "Admin" : user.role === "commander" ? "Commander" : "Soldier"}
+                          </Badge>
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => openEditDialog(user)}
+                              className="h-8 w-8 p-0"
+                              data-testid={`button-edit-${user.id}`}
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            {user.role !== "admin" && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => setDeletingUser(user)}
+                                className="h-8 w-8 p-0"
+                                data-testid={`button-delete-${user.id}`}
+                              >
+                                <Trash className="w-4 h-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </>
           )}
         </CardContent>
@@ -836,7 +880,7 @@ export function AdminUsers({ showCreateDialog, setShowCreateDialog, showBatchImp
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Edit User</DialogTitle>
-            <DialogDescription>Update user details and credits</DialogDescription>
+            <DialogDescription>Update user details</DialogDescription>
           </DialogHeader>
           <Form {...editForm}>
             <form onSubmit={editForm.handleSubmit(handleUpdate)} className="space-y-6">
@@ -934,31 +978,10 @@ export function AdminUsers({ showCreateDialog, setShowCreateDialog, showBatchImp
                         </FormControl>
                         <SelectContent>
                           <SelectItem value="soldier">Soldier</SelectItem>
+                          <SelectItem value="commander">Commander</SelectItem>
                           <SelectItem value="admin">Admin</SelectItem>
                         </SelectContent>
                       </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={editForm.control}
-                  name="credits"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Credits</FormLabel>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          type="number"
-                          step="0.5"
-                          className="h-12"
-                          onChange={(e) => field.onChange(parseFloat(e.target.value))}
-                          data-testid="input-edit-credits"
-                        />
-                      </FormControl>
-                      <FormMessage />
                     </FormItem>
                   )}
                 />

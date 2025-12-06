@@ -254,6 +254,7 @@ export default function CurrencyTracker() {
         description: "Driver qualification has been deleted successfully",
       });
       setSelectedQual(null);
+      setDeletingQual(null);
     },
     onError: (error: any) => {
       toast({
@@ -385,8 +386,11 @@ export default function CurrencyTracker() {
     createLogMutation.mutate(fullData);
   };
 
-  const handleDeleteQualification = (qualId: string) => {
-    deleteQualMutation.mutate(qualId);
+  const [deletingQual, setDeletingQual] = useState<QualificationWithStatus | null>(null);
+
+  const handleDeleteQualification = () => {
+    if (!deletingQual) return;
+    deleteQualMutation.mutate(deletingQual.id);
   };
 
   const handleDeleteLog = () => {
@@ -773,9 +777,7 @@ export default function CurrencyTracker() {
                                         variant="ghost"
                                         onClick={(e) => {
                                           e.stopPropagation();
-                                          if (confirm(`Are you sure you want to delete this qualification for ${qual.user?.fullName}?`)) {
-                                            handleDeleteQualification(qual.id);
-                                          }
+                                          setDeletingQual(qual);
                                         }}
                                         className="h-8 w-8 p-0 flex-shrink-0"
                                       >
@@ -851,9 +853,7 @@ export default function CurrencyTracker() {
                                                 variant="ghost"
                                                 onClick={(e) => {
                                                   e.stopPropagation();
-                                                  if (confirm(`Are you sure you want to delete this qualification for ${qual.user?.fullName}?`)) {
-                                                    handleDeleteQualification(qual.id);
-                                                  }
+                                                  setDeletingQual(qual);
                                                 }}
                                                 className="h-8 w-8 p-0"
                                                 title="Delete Qualification"
@@ -1392,6 +1392,27 @@ export default function CurrencyTracker() {
               data-testid="button-confirm-delete-log"
             >
               Delete Log
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!deletingQual} onOpenChange={() => setDeletingQual(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Qualification</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete {deletingQual?.user?.fullName}'s qualification? This action cannot be undone
+              and will also delete all associated drive logs.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteQualification}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete Qualification
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
