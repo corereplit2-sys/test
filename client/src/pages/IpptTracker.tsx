@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useLocation } from "wouter";
-import { Search, X, Plus, Filter, Edit2, Save, Calendar } from "lucide-react";
+import { Search, X, Plus, Filter, Edit2, Save, Calendar, Camera } from "lucide-react";
+import Tesseract from 'tesseract.js';
 import { type IpptAttempt, type IpptSession, type IpptSessionWithAttempts, type IpptCommanderStats, type TrooperIpptSummary, type SafeUser, type UserEligibility } from "@shared/schema";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -11,6 +12,20 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Navbar } from "@/components/Navbar";
+
+// Helper function to calculate run score based on time
+const calculateRunScore = (runTimeSeconds: number): number => {
+  if (runTimeSeconds <= 480) return 50; // 8:00 or faster
+  if (runTimeSeconds <= 540) return 45; // 9:00
+  if (runTimeSeconds <= 600) return 40; // 10:00
+  if (runTimeSeconds <= 660) return 35; // 11:00
+  if (runTimeSeconds <= 720) return 30; // 12:00
+  if (runTimeSeconds <= 780) return 25; // 13:00
+  if (runTimeSeconds <= 840) return 20; // 14:00
+  if (runTimeSeconds <= 900) return 15; // 15:00
+  if (runTimeSeconds <= 960) return 10; // 16:00
+  return 5; // Slower than 16:00
+};
 
 interface GroupStatistics {
   bestBreakdown: {
@@ -115,9 +130,120 @@ function IpptTracker() {
   const [eligibilityForm, setEligibilityForm] = useState({
     isEligible: true,
     reason: '',
-    ineligibilityType: 'indefinite' as 'indefinite' | 'until_date',
+    ineligibilityType: 'indefinite' as "indefinite" | "until_date",
     untilDate: ''
   });
+
+  // Scan Scoresheet State
+  const [scanModalOpen, setScanModalOpen] = useState<boolean>(false);
+  const [scanStep, setScanStep] = useState<'scan' | 'confirm' | 'edit'>('scan');
+  const [scannedData, setScannedData] = useState<{
+    situps: number;
+    pushups: number;
+    runTimeSeconds: number;
+    situpScore: number;
+    pushupScore: number;
+    runScore: number;
+    totalScore: number;
+    result: string;
+  } | null>(null);
+  const [editingData, setEditingData] = useState<{
+    situps: number;
+    pushups: number;
+    runTimeSeconds: number;
+  } | null>(null);
+  const [draftEntries, setDraftEntries] = useState<Array<{
+    id: string;
+    data: typeof scannedData;
+    timestamp: Date;
+  }>>([]);
+  const [isScanning, setIsScanning] = useState<boolean>(false);
+  const [scanProgress, setScanProgress] = useState<number>(0);
+
+  // OCR parsing function for IPPT scoresheet
+  const parseIpptResults = (ocrText: string) => {
+    const lines = ocrText.split('\n').map(line => line.trim());
+    let situps = 0;
+    let pushups = 0;
+    let runTimeSeconds = 0;
+    
+    // Extract sit-ups (look for patterns like "Sit-ups: 35" or "35 reps")
+    lines.forEach(line => {
+      const situpMatch = line.match(/(?:sit.?ups?|reps)[:\s]*(\d+)/i);
+      if (situpMatch) situps = parseInt(situpMatch[1]);
+      
+      // Extract push-ups
+      const pushupMatch = line.match(/(?:push.?ups?|reps)[:\s]*(\d+)/i);
+      if (pushupMatch) pushups = parseInt(pushupMatch[1]);
+      
+      // Extract run time (look for patterns like "2.4km: 12:00" or "12:00")
+      const runMatch = line.match(/(?:2\.4km|run|time)[:\s]*(\d{1,2}):(\d{2})/i);
+      if (runMatch) {
+        const minutes = parseInt(runMatch[1]);
+        const seconds = parseInt(runMatch[2]);
+        runTimeSeconds = minutes * 60 + seconds;
+      }
+    });
+    
+    // Calculate scores using existing logic
+    const situpScore = situps > 40 ? 25 : Math.max(0, (situps - 1) * 0.5);
+    const pushupScore = pushups > 40 ? 25 : Math.max(0, (pushups - 1) * 0.5);
+    const runScore = calculateRunScore(runTimeSeconds);
+    const totalScore = situpScore + pushupScore + runScore;
+    
+    // Determine result
+    let result = 'Fail';
+    if (totalScore >= 75) result = 'Gold';
+    else if (totalScore >= 61) result = 'Silver';
+    else if (totalScore >= 51) result = 'Pass';
+    else if (totalScore >= 26) result = 'YTT';
+    
+    return {
+      situps,
+      pushups,
+      runTimeSeconds,
+      situpScore,
+      pushupScore,
+      runScore,
+      totalScore,
+      result
+    };
+  };
+
+  // Handle image upload and OCR processing
+  const handleImageUpload = async (file: File) => {
+    setIsScanning(true);
+    setScanProgress(0);
+    
+    try {
+      const result = await Tesseract.recognize(
+        file,
+        'eng',
+        {
+          logger: (m) => {
+            if (m.status === 'recognizing text') {
+              setScanProgress(Math.round(m.progress * 100));
+            }
+          }
+        }
+      );
+      
+      const parsedData = parseIpptResults(result.data.text);
+      setScannedData(parsedData);
+      setEditingData({
+        situps: parsedData.situps,
+        pushups: parsedData.pushups,
+        runTimeSeconds: parsedData.runTimeSeconds
+      });
+      setScanStep('confirm');
+    } catch (error) {
+      console.error('OCR Error:', error);
+      alert('Failed to process image. Please try again with a clearer photo.');
+    } finally {
+      setIsScanning(false);
+      setScanProgress(0);
+    }
+  };
 
   // API queries
   const { data: commanderStats, isLoading, error } = useQuery<IpptCommanderStats>({
@@ -756,9 +882,13 @@ function IpptTracker() {
         <div className="max-w-7xl mx-auto px-3 md:px-6 py-4 md:py-8">
           {/* Header */}
           <div className="mb-6 md:mb-8">
-            <h1 className="text-2xl md:text-4xl font-bold tracking-tight text-foreground">IPPT Dashboard</h1>
+            <h1 className="text-2xl md:text-4xl font-bold tracking-tight text-foreground">IPPT Tracker</h1>
             <p className="text-sm md:text-lg text-muted-foreground mt-1 md:mt-2">
-              Monitor and analyze IPPT performance across MSC
+              {viewMode === 'overview' ? 'Monitor and analyze IPPT statistics according to group' :
+               viewMode === 'leaderboard' ? 'View top performers and rankings according to group' :
+               viewMode === 'conduct' ? 'View conduct participants and IPPT scores by session' :
+               viewMode === 'scores' ? 'Click on any personnel to view detailed IPPT records and eligibility information' :
+               'Manage IPPT data and personnel records'}
             </p>
           </div>
 
@@ -854,7 +984,7 @@ function IpptTracker() {
                   
                   {/* Conduct Selector - Only show for conduct view */}
                   {viewMode === 'conduct' && (
-                    <>
+                    <div className="flex gap-2">
                       <Select value={selectedConduct} onValueChange={setSelectedConduct}>
                         <SelectTrigger id="conduct-select" className="w-full sm:w-[180px]">
                           <SelectValue placeholder="Select conduct" />
@@ -867,7 +997,14 @@ function IpptTracker() {
                           ))}
                         </SelectContent>
                       </Select>
-                    </>
+                      <Button
+                        onClick={() => setScanModalOpen(true)}
+                        className="flex items-center gap-2 px-3 py-2 text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                      >
+                        <Plus className="w-4 h-4" />
+                        Add
+                      </Button>
+                    </div>
                   )}
                   
                   {/* Search - Only show for individual view */}
@@ -1563,11 +1700,7 @@ function IpptTracker() {
           {viewMode === 'scores' && (
             <div className="space-y-6 md:space-y-8">
               <Card className="shadow-lg border-0 overflow-hidden">
-                <div className="bg-muted/80 border-b border-border p-3 sm:p-4 md:p-6">
-                  <h2 className="text-lg md:text-xl font-semibold text-foreground text-center">Individual Personnel Records</h2>
-                  <p className="text-muted-foreground text-center mt-2">Search and manage individual IPPT records</p>
-                </div>
-                <div className="p-3 sm:p-4 md:p-6">
+                                <div className="p-3 sm:p-4 md:p-6">
                   {/* Filter Tags Display */}
                   {filterTags.length > 0 && (
                     <div className="flex flex-wrap gap-2">
@@ -2692,6 +2825,228 @@ function IpptTracker() {
                   </>
                 )}
               </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Scan Scoresheet Modal */}
+      {scanModalOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-background rounded-lg shadow-xl max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <h2 className="text-lg font-semibold text-foreground mb-4">Scan IPPT Scoresheet</h2>
+              <p className="text-sm text-muted-foreground mb-4">Use your phone camera to scan a standard IPPT scoresheet</p>
+              
+              {scanStep === 'scan' && (
+                <div className="space-y-4">
+                  <div className="border-2 border-dashed border-border rounded-lg p-4 text-center">
+                    <input
+                      ref={(input) => {
+                        if (input) {
+                          input.onchange = (e) => {
+                            const file = (e.target as HTMLInputElement).files?.[0];
+                            if (file) {
+                              handleImageUpload(file);
+                            }
+                          };
+                        }
+                      }}
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      className="hidden"
+                      id="scan-input"
+                    />
+                    <label htmlFor="scan-input" className="cursor-pointer">
+                      <Camera className="w-12 h-12 mx-auto text-muted-foreground mb-2" />
+                      <p className="text-sm text-muted-foreground mb-2">Tap to scan IPPT scoresheet</p>
+                      <p className="text-xs text-muted-foreground">Use camera or upload image</p>
+                    </label>
+                  </div>
+                  
+                  {isScanning && (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-center">
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                        <span className="ml-2 text-sm text-muted-foreground">Processing image...</span>
+                      </div>
+                      <div className="w-full bg-muted rounded-full h-2">
+                        <div 
+                          className="bg-primary h-2 rounded-full transition-all duration-300"
+                          style={{ width: `${scanProgress}%` }}
+                        ></div>
+                      </div>
+                      <p className="text-xs text-center text-muted-foreground">{scanProgress}%</p>
+                    </div>
+                  )}
+                  
+                  {!isScanning && (
+                    <Button 
+                      onClick={() => document.getElementById('scan-input')?.click()}
+                      className="w-full"
+                    >
+                      <Camera className="w-4 h-4 mr-2" />
+                      Scan Scoresheet
+                    </Button>
+                  )}
+                </div>
+              )}
+
+              {scanStep === 'confirm' && scannedData && (
+                <div className="space-y-4">
+                  <div className="bg-muted rounded-lg p-4">
+                    <h3 className="font-semibold text-foreground mb-2">Extracted Results</h3>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <span className="text-muted-foreground">Sit-ups:</span>
+                        <span className="font-medium">{scannedData.situps} reps</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Push-ups:</span>
+                        <span className="font-medium">{scannedData.pushups} reps</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">2.4km Run:</span>
+                        <span className="font-medium">{Math.floor(scannedData.runTimeSeconds / 60)}:{(scannedData.runTimeSeconds % 60).toString().padStart(2, '0')}</span>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 text-sm mt-4">
+                      <div>
+                        <span className="text-muted-foreground">Sit-up Score:</span>
+                        <span className="font-medium">{scannedData.situpScore} pts</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Push-up Score:</span>
+                        <span className="font-medium">{scannedData.pushupScore} pts</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Run Score:</span>
+                        <span className="font-medium">{scannedData.runScore} pts</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Total Score:</span>
+                        <span className="font-bold text-lg">{scannedData.totalScore} pts</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Result:</span>
+                        <span className={`font-medium ${scannedData.result === 'Gold' ? 'text-yellow-600' : scannedData.result === 'Silver' ? 'text-gray-600' : scannedData.result === 'Pass' ? 'text-green-600' : 'text-blue-600'}`}>{scannedData.result}</span>
+                      </div>
+                    </div>
+                    
+                    <div className="flex gap-2 mt-4">
+                      <Button 
+                        onClick={() => setScanStep('edit')}
+                        variant="outline"
+                        className="flex-1"
+                      >
+                        Edit
+                      </Button>
+                      <Button 
+                        onClick={() => {
+                          const newEntry = {
+                            id: Date.now().toString(),
+                            data: scannedData,
+                            timestamp: new Date()
+                          };
+                          setDraftEntries(prev => [...prev, newEntry]);
+                          setScannedData(null);
+                          setScanStep('scan');
+                        }}
+                        className="flex-1"
+                      >
+                        Save as Draft
+                      </Button>
+                      <Button 
+                        onClick={() => {
+                          // Here you would save to database
+                          console.log('Saving to database:', scannedData);
+                          setScanModalOpen(false);
+                          setScanStep('scan');
+                          setScannedData(null);
+                        }}
+                        className="flex-1 bg-primary text-primary-foreground"
+                      >
+                        Finalise Conduct
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {scanStep === 'edit' && (
+                <div className="space-y-4">
+                  <div className="bg-muted rounded-lg p-4">
+                    <h3 className="font-semibold text-foreground mb-2">Edit Extracted Data</h3>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-sm font-medium text-foreground">Sit-ups</label>
+                        <Input 
+                          type="number"
+                          value={editingData?.situps || ''}
+                          onChange={(e) => setEditingData(prev => prev ? {...prev, situps: parseInt(e.target.value) || 0} : null)}
+                          className="mt-1"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-foreground">Push-ups</label>
+                        <Input 
+                          type="number"
+                          value={editingData?.pushups || ''}
+                          onChange={(e) => setEditingData(prev => prev ? {...prev, pushups: parseInt(e.target.value) || 0} : null)}
+                          className="mt-1"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-foreground">2.4km Run (seconds)</label>
+                        <Input 
+                          type="number"
+                          value={editingData?.runTimeSeconds || ''}
+                          onChange={(e) => setEditingData(prev => prev ? {...prev, runTimeSeconds: parseInt(e.target.value) || 0} : null)}
+                          className="mt-1"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="flex gap-2 mt-4">
+                      <Button 
+                        onClick={() => setScanStep('confirm')}
+                        className="flex-1"
+                      >
+                        Back
+                      </Button>
+                      <Button 
+                        onClick={() => {
+                          if (editingData && scannedData) {
+                            const updatedData = {
+                              ...scannedData,
+                              ...editingData,
+                              situpScore: editingData.situps > 40 ? 25 : (editingData.situps - 1) * 0.5,
+                              pushupScore: editingData.pushups > 40 ? 25 : (editingData.pushups - 1) * 0.5,
+                              runScore: calculateRunScore(editingData.runTimeSeconds),
+                              totalScore: (editingData.situps > 40 ? 25 : (editingData.situps - 1) * 0.5) + (editingData.pushups > 40 ? 25 : (editingData.pushups - 1) * 0.5) + calculateRunScore(editingData.runTimeSeconds)
+                            };
+                            setScannedData(updatedData);
+                            setScanStep('confirm');
+                          }
+                        }}
+                        className="flex-1 bg-primary text-primary-foreground"
+                      >
+                        Update
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex justify-end mt-6">
+                <Button 
+                  variant="outline"
+                  onClick={() => setScanModalOpen(false)}
+                >
+                  Close
+                </Button>
+              </div>
             </div>
           </div>
         </div>
