@@ -1513,9 +1513,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/users/:userId/eligibility", requireAuth, async (req: any, res) => {
     try {
       const { userId } = req.params;
+      console.log('Fetching eligibility for user:', userId);
       const eligibility = await storage.getUserEligibility(userId);
+      console.log('Eligibility data found:', eligibility);
       res.json(eligibility);
     } catch (error: any) {
+      console.error('Error fetching eligibility:', error);
       res.status(500).json({ message: error.message });
     }
   });
@@ -1524,6 +1527,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { userId } = req.params;
       const eligibilityData = req.body;
+      
+      console.log('Updating eligibility for user:', userId);
+      console.log('Data received:', eligibilityData);
       
       // Validate required fields if setting as not eligible
       if (!eligibilityData.isEligible) {
@@ -1539,8 +1545,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const eligibility = await storage.updateUserEligibility(userId, eligibilityData);
+      console.log('Eligibility updated successfully:', eligibility);
       res.json(eligibility);
     } catch (error: any) {
+      console.error('Error updating eligibility:', error);
       res.status(500).json({ message: error.message });
     }
   });

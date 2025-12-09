@@ -194,25 +194,74 @@ function IpptTracker() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
       });
-      if (!response.ok) throw new Error('Failed to update eligibility');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Failed to update eligibility');
+      }
       return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/ippt/commander-stats"] });
       setEligibilityEditorOpen(false);
       setEditingTrooper(null);
+    },
+    onError: (error: any) => {
+      alert(`Error saving eligibility: ${error.message}`);
+      console.error('Eligibility update error:', error);
     }
   });
 
   // Eligibility Editor Handlers
   const openEligibilityEditor = (trooper: TrooperIpptSummary) => {
+    console.log('=== Opening Eligibility Editor ===');
+    console.log('Trooper:', trooper.user.fullName, 'ID:', trooper.user.id);
+    
     setEditingTrooper(trooper);
-    setEligibilityForm({
-      isEligible: true, // Default to eligible
-      reason: '',
-      ineligibilityType: 'indefinite',
-      untilDate: ''
-    });
+    
+    // Fetch existing eligibility data
+    console.log('Fetching eligibility from:', `/api/users/${trooper.user.id}/eligibility`);
+    fetch(`/api/users/${trooper.user.id}/eligibility`)
+      .then(response => {
+        console.log('Response status:', response.status);
+        return response.json();
+      })
+      .then(eligibility => {
+        console.log('Eligibility data received:', eligibility);
+        if (eligibility) {
+          // Load existing eligibility data
+          const formData = {
+            isEligible: eligibility.isEligible === "true",
+            reason: eligibility.reason || '',
+            ineligibilityType: (eligibility.ineligibilityType || 'indefinite') as "indefinite" | "until_date",
+            untilDate: eligibility.untilDate || ''
+          };
+          console.log('Setting form data:', formData);
+          setEligibilityForm(formData);
+        } else {
+          // Default to eligible if no record exists
+          const defaultData = {
+            isEligible: true,
+            reason: '',
+            ineligibilityType: 'indefinite',
+            untilDate: ''
+          };
+          console.log('No existing data, using defaults:', defaultData);
+          setEligibilityForm(defaultData);
+        }
+      })
+      .catch(error => {
+        console.error('Error fetching eligibility:', error);
+        // Default to eligible on error
+        const errorData = {
+          isEligible: true,
+          reason: '',
+          ineligibilityType: 'indefinite' as "indefinite" | "until_date",
+          untilDate: ''
+        };
+        console.log('Error occurred, using defaults:', errorData);
+        setEligibilityForm(errorData);
+      });
+    
     setEligibilityEditorOpen(true);
   };
 
@@ -228,28 +277,46 @@ function IpptTracker() {
   };
 
   const saveEligibility = () => {
-    if (!editingTrooper) return;
+    console.log('=== Saving Eligibility ===');
+    console.log('Current editing trooper:', editingTrooper?.user.fullName);
+    console.log('Current form state:', eligibilityForm);
+    
+    if (!editingTrooper) {
+      console.error('No editing trooper found!');
+      return;
+    }
+    
+    // Debug logging
+    console.log('Saving eligibility for:', editingTrooper.user.fullName);
+    console.log('Form data:', eligibilityForm);
     
     // Validation
     if (!eligibilityForm.isEligible) {
       if (!eligibilityForm.reason.trim()) {
+        console.log('Validation failed: Reason is required');
         alert('Reason is required when setting eligibility to Not Eligible');
         return;
       }
       if (eligibilityForm.ineligibilityType === 'until_date' && !eligibilityForm.untilDate) {
+        console.log('Validation failed: Until date is required');
         alert('Until date is required when ineligibility type is Until Date');
         return;
       }
     }
     
+    const dataToSend = {
+      isEligible: eligibilityForm.isEligible,
+      reason: eligibilityForm.reason,
+      ineligibilityType: eligibilityForm.ineligibilityType,
+      untilDate: eligibilityForm.untilDate || null
+    };
+    
+    console.log('Data being sent:', dataToSend);
+    console.log('API endpoint:', `/api/users/${editingTrooper.user.id}/eligibility`);
+    
     updateEligibilityMutation.mutate({
       userId: editingTrooper.user.id,
-      data: {
-        isEligible: eligibilityForm.isEligible,
-        reason: eligibilityForm.reason,
-        ineligibilityType: eligibilityForm.ineligibilityType,
-        untilDate: eligibilityForm.untilDate || null
-      }
+      data: dataToSend
     });
   };
 
