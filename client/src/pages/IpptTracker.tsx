@@ -2233,65 +2233,46 @@ function IpptTracker() {
                   <div className="md:hidden space-y-4">
                     {filteredPersonnel.length > 0 ? (
                       filteredPersonnel.map((trooper) => (
-                        <Card key={trooper.user.id} className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => toggleUserDetail(trooper.user.id)}>
-                          <div className="p-3 sm:p-4">
-                            {/* Header */}
-                            <div className="flex items-start justify-between mb-3 gap-3 sm:p-4">
+                        <Card key={trooper.user.id} className="hover:shadow-xl transition-all duration-300 cursor-pointer bg-background border border-border shadow-2xl" onClick={() => toggleUserDetail(trooper.user.id)}>
+                          <div className="p-4 sm:p-6">
+                            {/* Header with better spacing */}
+                            <div className="flex items-start justify-between mb-4">
                               <div className="flex-1 min-w-0">
-                                <div className="font-semibold text-foreground text-base truncate">
+                                <div className="font-bold text-lg text-foreground mb-2">
                                   {trooper.user.fullName || 'Unknown'}
                                 </div>
-                                <div className="text-sm text-muted-foreground">
-                                  {trooper.user.rank || 'N/A'}
-                                </div>
-                                <div className="text-sm text-blue-600 font-medium">
-                                  {(trooper.user as any).mspName || 'N/A'}
+                                <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+                                  <span className="font-medium">{trooper.user.rank || 'N/A'}</span>
+                                  <span className="text-border">•</span>
+                                  <span className="text-blue-600 font-medium">{(trooper.user as any).mspName || 'N/A'}</span>
                                 </div>
                               </div>
-                              {trooper.bestAttempt && (
-                                <div className="text-right">
-                                  <div className={`text-lg font-bold leading-tight font-mono ${
-                                    trooper.bestAttempt.result === 'Gold' ? 'text-yellow-600' :
-                                    trooper.bestAttempt.result === 'Silver' ? 'text-gray-600' :
-                                    trooper.bestAttempt.result === 'Pass' ? 'text-green-600' :
-                                    'text-blue-600'
-                                  }`}>
-                                    {trooper.bestAttempt.totalScore}
-                                  </div>
-                                  <div className="text-xs text-muted-foreground leading-tight">
-                                    {trooper.bestAttempt.result}
-                                  </div>
-                                </div>
-                              )}
                             </div>
 
                             {/* Status Overview */}
-                            <div className="bg-muted/50 rounded-lg p-3 mb-3 relative">
-                              <div className="absolute top-2 right-2">
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-6 w-6 p-0 hover:bg-transparent"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    openEligibilityEditor(trooper);
-                                  }}
-                                >
-                                  <Edit2 className="w-3 h-3 text-muted-foreground" />
-                                </Button>
-                              </div>
-                              <div className="text-xs text-muted-foreground mb-2">Status</div>
-                                <div className="space-y-2">
+                            <div className="bg-muted rounded-xl p-4 mb-4 border border-border shadow-inner">
+                              <div className="text-xs text-muted-foreground mb-3 font-semibold uppercase tracking-wide">Status</div>
+                                <div className="space-y-3">
                                   {/* Eligibility Status */}
-                                  <div className="flex items-center gap-2">
-                                    <div className={`w-2 h-2 rounded-full ${
-                                      trooper.isEligible !== false ? 'bg-green-500' : 'bg-red-500'
+                                  <div className="flex items-center gap-3">
+                                    <div className={`w-3 h-3 rounded-full ${
+                                      trooper.isEligible !== false ? 'bg-green-500 shadow-green' : 'bg-red-500 shadow-red'
                                     }`}></div>
                                     <span className="text-sm font-medium text-foreground">
                                       {trooper.isEligible !== false ? 'Eligible' : 'Not Eligible'}
                                     </span>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-6 w-6 p-0 hover:bg-transparent"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        openEligibilityEditor(trooper);
+                                      }}
+                                    >
+                                      <Edit2 className="w-3 h-3 text-muted-foreground" />
+                                    </Button>
                                   </div>
-                                  
                                   {/* Service Status */}
                                   {(() => {
                                     const days = trooper.user.doe ? Math.floor((new Date().getTime() - new Date(trooper.user.doe).getTime()) / (1000 * 60 * 60 * 24)) : 0;
@@ -2336,19 +2317,6 @@ function IpptTracker() {
                                   })()}
                                 </div>
                               </div>
-                            </div>
-
-                            {/* Actions */}
-                            <div className="pt-3 border-t border-border">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  toggleUserDetail(trooper.user.id);
-                                }}
-                                className="w-full px-4 py-2 text-sm font-medium bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-200 shadow-sm hover:shadow-md transform hover:scale-[1.02]"
-                              >
-                                View Details
-                              </button>
                             </div>
 
                           {/* Expanded Details */}
