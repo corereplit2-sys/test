@@ -1,11 +1,15 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useLocation } from "wouter";
-import { type IpptAttempt, type IpptSession, type IpptSessionWithAttempts, type IpptCommanderStats, type TrooperIpptSummary, type SafeUser } from "@shared/schema";
+import { Search, X, Plus, Filter, Edit2, Save, Calendar } from "lucide-react";
+import { type IpptAttempt, type IpptSession, type IpptSessionWithAttempts, type IpptCommanderStats, type TrooperIpptSummary, type SafeUser, type UserEligibility } from "@shared/schema";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Navbar } from "@/components/Navbar";
 
 interface GroupStatistics {
@@ -38,6 +42,13 @@ interface GroupStatistics {
     score: number;
   };
 }
+
+type FilterTag = {
+  id: string;
+  type: "msp" | "rank" | "status";
+  label: string;
+  value: string;
+};
 
 function IpptTracker() {
   const [themeKey, setThemeKey] = useState(0);
@@ -90,10 +101,23 @@ function IpptTracker() {
     "MSP 5"
   ];
 
-  const [selectedConduct, setSelectedConduct] = useState('');
-  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedConduct, setSelectedConduct] = useState<string>('');
+  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [conductSearchTerm, setConductSearchTerm] = useState<string>('');
+  const [filterTags, setFilterTags] = useState<Array<{id: string, type: string, label: string, value: string}>>([]);
+  const [showFilterPopover, setShowFilterPopover] = useState<boolean>(false);
   const [expandedUsers, setExpandedUsers] = useState<{[key: string]: boolean}>({});
   const [debugTrooperId, setDebugTrooperId] = useState<string | null>(null);
+  
+  // Eligibility Editor State
+  const [eligibilityEditorOpen, setEligibilityEditorOpen] = useState<boolean>(false);
+  const [editingTrooper, setEditingTrooper] = useState<TrooperIpptSummary | null>(null);
+  const [eligibilityForm, setEligibilityForm] = useState({
+    isEligible: true,
+    reason: '',
+    ineligibilityType: 'indefinite' as 'indefinite' | 'until_date',
+    untilDate: ''
+  });
 
   // API queries
   const { data: commanderStats, isLoading, error } = useQuery<IpptCommanderStats>({
@@ -113,11 +137,23 @@ function IpptTracker() {
   // Get current conduct session data
   const currentConductSession = conductSessions?.find((session: IpptSession) => session.name === selectedConduct);
 
-  // Fetch IPPT attempts for the current session
+  // Fetch IPPT attempts for current session
   const { data: sessionAttempts, isLoading: attemptsLoading } = useQuery<IpptSessionWithAttempts>({
     queryKey: ["/api/ippt/sessions", currentConductSession?.id, "details"],
     enabled: !!user && !!currentConductSession?.id,
   });
+
+  // Filter conduct attempts based on search term
+  const filteredConductAttempts = useMemo(() => {
+    if (!conductSearchTerm || !sessionAttempts?.attempts) return sessionAttempts?.attempts || [];
+    
+    const lowerSearchTerm = conductSearchTerm.toLowerCase();
+    return sessionAttempts.attempts.filter(attempt => 
+      attempt.user?.fullName?.toLowerCase().includes(lowerSearchTerm) ||
+      attempt.user?.rank?.toLowerCase().includes(lowerSearchTerm) ||
+      (attempt.user as any).mspName?.toLowerCase().includes(lowerSearchTerm)
+    );
+  }, [conductSearchTerm, sessionAttempts?.attempts]);
 
   // Set default conduct session when data loads
   useEffect(() => {
@@ -129,6 +165,92 @@ function IpptTracker() {
   // Toggle debug panel for a trooper
   const toggleDebugPanel = (trooperId: string) => {
     setDebugTrooperId(debugTrooperId === trooperId ? null : trooperId);
+  };
+
+  // Filter management functions
+  const addFilterTag = (type: "msp" | "rank" | "status", value: string, label: string) => {
+    const id = `${type}-${value}`;
+    if (!filterTags.find(tag => tag.id === id)) {
+      setFilterTags([...filterTags, { id, type, label, value }]);
+    }
+    setShowFilterPopover(false);
+  };
+
+  const removeFilterTag = (id: string) => {
+    setFilterTags(filterTags.filter(tag => tag.id !== id));
+  };
+
+  const handleSearchChange = (value: string) => {
+    setSearchTerm(value);
+  };
+
+  const queryClient = useQueryClient();
+
+  // Eligibility mutations
+  const updateEligibilityMutation = useMutation({
+    mutationFn: async ({ userId, data }: { userId: string; data: any }) => {
+      const response = await fetch(`/api/users/${userId}/eligibility`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      if (!response.ok) throw new Error('Failed to update eligibility');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/ippt/commander-stats"] });
+      setEligibilityEditorOpen(false);
+      setEditingTrooper(null);
+    }
+  });
+
+  // Eligibility Editor Handlers
+  const openEligibilityEditor = (trooper: TrooperIpptSummary) => {
+    setEditingTrooper(trooper);
+    setEligibilityForm({
+      isEligible: true, // Default to eligible
+      reason: '',
+      ineligibilityType: 'indefinite',
+      untilDate: ''
+    });
+    setEligibilityEditorOpen(true);
+  };
+
+  const closeEligibilityEditor = () => {
+    setEligibilityEditorOpen(false);
+    setEditingTrooper(null);
+    setEligibilityForm({
+      isEligible: true,
+      reason: '',
+      ineligibilityType: 'indefinite',
+      untilDate: ''
+    });
+  };
+
+  const saveEligibility = () => {
+    if (!editingTrooper) return;
+    
+    // Validation
+    if (!eligibilityForm.isEligible) {
+      if (!eligibilityForm.reason.trim()) {
+        alert('Reason is required when setting eligibility to Not Eligible');
+        return;
+      }
+      if (eligibilityForm.ineligibilityType === 'until_date' && !eligibilityForm.untilDate) {
+        alert('Until date is required when ineligibility type is Until Date');
+        return;
+      }
+    }
+    
+    updateEligibilityMutation.mutate({
+      userId: editingTrooper.user.id,
+      data: {
+        isEligible: eligibilityForm.isEligible,
+        reason: eligibilityForm.reason,
+        ineligibilityType: eligibilityForm.ineligibilityType,
+        untilDate: eligibilityForm.untilDate || null
+      }
+    });
   };
 
   // Calculate leaderboard data from actual database
@@ -344,13 +466,45 @@ function IpptTracker() {
     };
   };
 
-  // Filter personnel based on search term
-  const filteredPersonnel = commanderStats?.troopers?.filter(trooper => 
-    trooper.user.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    trooper.user.rank?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (trooper.user as any).mspName?.toLowerCase().includes(searchTerm.toLowerCase())
-  ).sort((a, b) => {
-    // Sort by MSP first (HQ comes first, then MSP 1-5)
+  // Filter personnel based on search term and filter tags
+  const filteredPersonnel = useMemo(() => {
+    if (!commanderStats?.troopers) return [];
+    
+    return commanderStats.troopers.filter(trooper => {
+      // Search term matching
+      const matchesSearch = searchTerm === "" || 
+        trooper.user.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        trooper.user.rank?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (trooper.user as any).mspName?.toLowerCase().includes(searchTerm.toLowerCase());
+
+      // Filter tag matching
+      const mspTags = filterTags.filter(t => t.type === "msp");
+      const rankTags = filterTags.filter(t => t.type === "rank");
+      const statusTags = filterTags.filter(t => t.type === "status");
+
+      const matchesMsp = mspTags.length === 0 || mspTags.some(tag => 
+        (trooper.user as any).mspName === tag.value
+      );
+
+      const matchesRank = rankTags.length === 0 || rankTags.some(tag => 
+        trooper.user.rank === tag.value
+      );
+
+      const matchesStatus = statusTags.length === 0 || statusTags.some(tag => {
+        if (tag.value === "Completed") {
+          return trooper.bestAttempt && ['Gold', 'Silver', 'Pass'].includes(trooper.bestAttempt.result);
+        } else if (tag.value === "Pending") {
+          return !trooper.bestAttempt;
+        } else if (tag.value === "Regular") {
+          const days = trooper.user.doe ? Math.floor((new Date().getTime() - new Date(trooper.user.doe).getTime()) / (1000 * 60 * 60 * 24)) : 0;
+          return days > 730;
+        }
+        return false;
+      });
+
+      return matchesSearch && matchesMsp && matchesRank && matchesStatus;
+    }).sort((a, b) => {
+      // Sort by MSP first (HQ comes first, then MSP 1-5)
     const aMsp = (a.user as any).mspName || '';
     const bMsp = (b.user as any).mspName || '';
     
@@ -384,7 +538,8 @@ function IpptTracker() {
     const bFinalRank = bRankIndex === -1 ? 999 : bRankIndex;
     
     return aFinalRank - bFinalRank;
-  }) || [];
+    });
+  }, [commanderStats?.troopers, searchTerm, filterTags]) || [];
 
   // Function to get group-specific statistics
   const getGroupStats = (groupName: string): GroupStatistics => {
@@ -540,25 +695,74 @@ function IpptTracker() {
             </p>
           </div>
 
-          {/* Group Selector */}
-          <Card className="mb-6 md:mb-8 shadow-sm border-0 bg-card/50 backdrop-blur-sm">
-            <CardContent className="p-3 sm:p-4 md:p-6">
-              {/* View Toggle - Always visible */}
-              <div className="flex flex-col sm:flex-row items-start gap-3 sm:p-4">
-                {/* View selector */}
-                <div className="w-full sm:w-auto">
-                  <Label htmlFor="view-select" className="font-medium whitespace-nowrap mb-2 block">View:</Label>
-                  <Select value={viewMode} onValueChange={(value) => setViewMode(value as 'stats' | 'leaderboard' | 'conduct' | 'scores')}>
-                    <SelectTrigger id="view-select" className="w-full sm:w-[180px]">
-                      <SelectValue placeholder="Select view" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="stats">Stats</SelectItem>
-                      <SelectItem value="leaderboard">Leaderboard</SelectItem>
-                      <SelectItem value="conduct">Conduct</SelectItem>
-                      <SelectItem value="scores">Individual</SelectItem>
-                    </SelectContent>
-                  </Select>
+          {/* Navigation Controls */}
+          <div className="mb-6 md:mb-8 md:max-w-none">
+            {/* View Toggle - Always visible */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-end gap-3">
+                {/* Tab Navigation */}
+                <div className="w-full">
+                  <div role="tablist" aria-orientation="horizontal" className="flex gap-1 border-b border-border w-full md:w-fit overflow-x-auto justify-center md:justify-start">
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={viewMode === 'stats'}
+                      aria-controls={`tabpanel-${viewMode}`}
+                      data-index="0"
+                      onClick={() => setViewMode('stats')}
+                      className={`flex-1 px-3 py-2 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap touch-manipulation text-center ${
+                        viewMode === 'stats'
+                          ? 'border-primary text-primary'
+                          : 'border-transparent text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      Statistics
+                    </button>
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={viewMode === 'leaderboard'}
+                      aria-controls={`tabpanel-${viewMode}`}
+                      data-index="1"
+                      onClick={() => setViewMode('leaderboard')}
+                      className={`flex-1 px-3 py-2 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap touch-manipulation text-center ${
+                        viewMode === 'leaderboard'
+                          ? 'border-primary text-primary'
+                          : 'border-transparent text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      Leaderboard
+                    </button>
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={viewMode === 'conduct'}
+                      aria-controls={`tabpanel-${viewMode}`}
+                      data-index="2"
+                      onClick={() => setViewMode('conduct')}
+                      className={`flex-1 px-3 py-2 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap touch-manipulation text-center ${
+                        viewMode === 'conduct'
+                          ? 'border-primary text-primary'
+                          : 'border-transparent text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      Conduct
+                    </button>
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={viewMode === 'scores'}
+                      aria-controls={`tabpanel-${viewMode}`}
+                      data-index="3"
+                      onClick={() => setViewMode('scores')}
+                      className={`flex-1 px-3 py-2 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap touch-manipulation text-center ${
+                        viewMode === 'scores'
+                          ? 'border-primary text-primary'
+                          : 'border-transparent text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      Individual
+                    </button>
+                  </div>
                 </div>
                 
                 {/* Additional controls */}
@@ -566,7 +770,6 @@ function IpptTracker() {
                   {/* Group Selector - Only show for stats and leaderboard views */}
                   {(viewMode === 'stats' || viewMode === 'leaderboard') && (
                     <>
-                      <Label htmlFor="group-select" className="font-medium whitespace-nowrap mb-2 block">Group:</Label>
                       <Select value={selectedGroup} onValueChange={setSelectedGroup}>
                         <SelectTrigger id="group-select" className="w-full sm:w-[180px]">
                           <SelectValue placeholder="Select group" />
@@ -585,7 +788,6 @@ function IpptTracker() {
                   {/* Conduct Selector - Only show for conduct view */}
                   {viewMode === 'conduct' && (
                     <>
-                      <Label htmlFor="conduct-select" className="font-medium whitespace-nowrap mb-2 block">Conduct:</Label>
                       <Select value={selectedConduct} onValueChange={setSelectedConduct}>
                         <SelectTrigger id="conduct-select" className="w-full sm:w-[180px]">
                           <SelectValue placeholder="Select conduct" />
@@ -603,39 +805,89 @@ function IpptTracker() {
                   
                   {/* Search - Only show for individual view */}
                   {viewMode === 'scores' && (
-                    <>
-                      <Label htmlFor="personnel-search" className="font-medium whitespace-nowrap mb-2 block">Search:</Label>
-                      <div className="relative w-full sm:w-[200px]">
-                        <input
-                          id="personnel-search"
-                          type="text"
-                          placeholder="Search personnel..."
-                          value={searchTerm}
-                          onChange={(e) => setSearchTerm(e.target.value)}
-                          className="w-full px-3 py-2 text-sm border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
-                        />
-                        {searchTerm && (
-                          <button
-                            type="button"
-                            onClick={() => setSearchTerm('')}
-                            className="absolute right-2 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                          </button>
-                        )}
+                    <div className="flex-1">
+                      <div className="flex gap-2">
+                        <div className="relative flex-1">
+                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                          <Input
+                            id="personnel-search"
+                            placeholder="Search by name or type filter (e.g., MSP 1, CPT, Completed)..."
+                            value={searchTerm}
+                            onChange={(e) => handleSearchChange(e.target.value)}
+                            className="pl-10"
+                          />
+                        </div>
+                        <Popover open={showFilterPopover} onOpenChange={setShowFilterPopover}>
+                          <PopoverTrigger asChild>
+                            <Button variant="outline" size="icon">
+                              <Filter className="w-4 h-4" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-64 p-3" align="end">
+                            <div className="space-y-3">
+                              <div>
+                                <p className="text-sm font-medium mb-2">Platoon</p>
+                                <div className="space-y-1">
+                                  {dashboardGroups.filter(group => group.startsWith("MSP")).map(msp => (
+                                    <Button
+                                      key={msp}
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => addFilterTag("msp", msp, msp)}
+                                      className="w-full justify-start"
+                                    >
+                                      {msp}
+                                    </Button>
+                                  ))}
+                                </div>
+                              </div>
+                              
+                              <div>
+                                <p className="text-sm font-medium mb-2">Rank</p>
+                                <div className="space-y-1">
+                                  {['CPT', '2LT', '1WO', '2WO', '3WO', '1SG', '2SG', '3SG', 'LCP', 'PTE'].map(rank => (
+                                    <Button
+                                      key={rank}
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => addFilterTag("rank", rank, rank)}
+                                      className="w-full justify-start"
+                                    >
+                                      {rank}
+                                    </Button>
+                                  ))}
+                                </div>
+                              </div>
+                              
+                              <div>
+                                <p className="text-sm font-medium mb-2">Status</p>
+                                <div className="space-y-1">
+                                  {['Completed', 'Pending', 'Regular'].map(status => (
+                                    <Button
+                                      key={status}
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => addFilterTag("status", status, status)}
+                                      className="w-full justify-start"
+                                    >
+                                      {status}
+                                    </Button>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          </PopoverContent>
+                        </Popover>
                       </div>
-                    </>
+                    </div>
                   )}
                 </div>
               </div>
-            </CardContent>
-          </Card>
+          </div>
 
           {/* Dashboard Content */}
           {viewMode === 'stats' ? (
-          <>
+            <>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 mb-6 md:mb-8">
             {/* Best Result Table */}
             <Card className="shadow-lg border-0 overflow-hidden h-full">
@@ -868,7 +1120,7 @@ function IpptTracker() {
               </div>
             </Card>
           </div>
-          </>
+            </>
           ) : viewMode === 'leaderboard' ? (
             <div className="space-y-6 md:space-y-8 mb-6 md:mb-8">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:p-4 md:gap-6">
@@ -1021,7 +1273,7 @@ function IpptTracker() {
                   </div>
                   <div className="p-3 md:p-3 sm:p-4 bg-card">
                     <div className="space-y-1">
-                      {calculateLeaderboardData()?.pushUpsImprovements?.length > 0 ? (
+                      {calculateLeaderboardData()?.pushUpsImprovements?.length ? (
                         calculateLeaderboardData()?.pushUpsImprovements?.map((person) => (
                         <div key={person.rank} className="flex items-center justify-between p-2 rounded-md bg-muted/30">
                           <div className="flex items-center gap-2">
@@ -1049,7 +1301,7 @@ function IpptTracker() {
                   </div>
                   <div className="p-3 md:p-3 sm:p-4 bg-card">
                     <div className="space-y-1">
-                      {calculateLeaderboardData()?.sitUpsImprovements?.length > 0 ? (
+                      {calculateLeaderboardData()?.sitUpsImprovements?.length ? (
                         calculateLeaderboardData()?.sitUpsImprovements?.map((person) => (
                         <div key={person.rank} className="flex items-center justify-between p-2 rounded-md bg-muted/30">
                           <div className="flex items-center gap-2">
@@ -1077,7 +1329,7 @@ function IpptTracker() {
                   </div>
                   <div className="p-3 md:p-3 sm:p-4 bg-card">
                     <div className="space-y-1">
-                      {calculateLeaderboardData()?.runImprovements?.length > 0 ? (
+                      {calculateLeaderboardData()?.runImprovements?.length ? (
                         calculateLeaderboardData()?.runImprovements?.map((person) => (
                         <div key={person.rank} className="flex items-center justify-between p-2 rounded-md bg-muted/30">
                           <div className="flex items-center gap-2">
@@ -1110,58 +1362,81 @@ function IpptTracker() {
                   <p className="text-muted-foreground text-center mt-2">{selectedConduct}</p>
                 </div>
                 <div className="p-3 sm:p-4 md:p-6">
-                  <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-6">
-                    <div className="bg-card border border-border p-3 rounded-lg shadow-sm">
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-yellow-600">{currentConductSession?.goldCount || 0}</div>
-                        <div className="text-xs text-muted-foreground font-medium">Gold</div>
-                        <div className="text-xs text-muted-foreground mt-1">
-                          {currentConductSession?.totalAttendees ? Math.round(((currentConductSession.goldCount || 0) / currentConductSession.totalAttendees) * 100) : 0}%
+                  {/* Search for Conduct View */}
+                  <div className="flex gap-2 mb-4">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        id="conduct-search"
+                        placeholder="Search by name or type filter (e.g., MSP 1, CPT, Completed)..."
+                        value={conductSearchTerm}
+                        onChange={(e) => setConductSearchTerm(e.target.value)}
+                        className="pl-10"
+                      />
+                    </div>
+                    <Popover open={showFilterPopover} onOpenChange={setShowFilterPopover}>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" size="icon">
+                          <Filter className="w-4 h-4" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-64 p-3" align="end">
+                        <div className="space-y-3">
+                          <div>
+                            <p className="text-sm font-medium mb-2">Platoon</p>
+                            <div className="space-y-1">
+                              {dashboardGroups.filter(group => group.startsWith("MSP")).map(msp => (
+                                <Button
+                                  key={msp}
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => addFilterTag("msp", msp, msp)}
+                                  className="w-full justify-start"
+                                >
+                                  {msp}
+                                </Button>
+                              ))}
+                            </div>
+                          </div>
+                          
+                          <div>
+                            <p className="text-sm font-medium mb-2">Rank</p>
+                            <div className="space-y-1">
+                              {['CPT', '2LT', '1WO', '2WO', '3WO', '1SG', '2SG', '3SG', 'LCP', 'PTE'].map(rank => (
+                                <Button
+                                  key={rank}
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => addFilterTag("rank", rank, rank)}
+                                  className="w-full justify-start"
+                                >
+                                  {rank}
+                                </Button>
+                              ))}
+                            </div>
+                          </div>
+                          
+                          <div>
+                            <p className="text-sm font-medium mb-2">Status</p>
+                            <div className="space-y-1">
+                              {['Completed', 'Pending', 'Regular'].map(status => (
+                                <Button
+                                  key={status}
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => addFilterTag("status", status, status)}
+                                  className="w-full justify-start"
+                                >
+                                  {status}
+                                </Button>
+                              ))}
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    </div>
-                    <div className="bg-card border border-border p-3 rounded-lg shadow-sm">
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-gray-600">{currentConductSession?.silverCount || 0}</div>
-                        <div className="text-xs text-muted-foreground font-medium">Silver</div>
-                        <div className="text-xs text-muted-foreground mt-1">
-                          {currentConductSession?.totalAttendees ? Math.round(((currentConductSession.silverCount || 0) / currentConductSession.totalAttendees) * 100) : 0}%
-                        </div>
-                      </div>
-                    </div>
-                    <div className="bg-card border border-border p-3 rounded-lg shadow-sm">
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-green-600">{currentConductSession?.passCount || 0}</div>
-                        <div className="text-xs text-muted-foreground font-medium">Pass</div>
-                        <div className="text-xs text-muted-foreground mt-1">
-                          {currentConductSession?.totalAttendees ? Math.round(((currentConductSession.passCount || 0) / currentConductSession.totalAttendees) * 100) : 0}%
-                        </div>
-                      </div>
-                    </div>
-                    <div className="bg-card border border-border p-3 rounded-lg shadow-sm">
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-red-600">{currentConductSession?.failCount || 0}</div>
-                        <div className="text-xs text-muted-foreground font-medium">Fail</div>
-                        <div className="text-xs text-muted-foreground mt-1">
-                          {currentConductSession?.totalAttendees ? Math.round(((currentConductSession.failCount || 0) / currentConductSession.totalAttendees) * 100) : 0}%
-                        </div>
-                      </div>
-                    </div>
-                    <div className="bg-card border border-border p-3 rounded-lg shadow-sm">
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-blue-600">{currentConductSession?.totalAttendees || 0}</div>
-                        <div className="text-xs text-muted-foreground font-medium">Total</div>
-                        <div className="text-xs text-muted-foreground mt-1">Personnel</div>
-                      </div>
-                    </div>
-                    <div className="bg-card border border-border p-3 rounded-lg shadow-sm">
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-purple-600">{currentConductSession?.avgScore ? currentConductSession.avgScore.toFixed(1) : '0.0'}</div>
-                        <div className="text-xs text-muted-foreground font-medium">Avg Score</div>
-                        <div className="text-xs text-muted-foreground mt-1">Points</div>
-                      </div>
-                    </div>
+                      </PopoverContent>
+                    </Popover>
                   </div>
+                  
                   <div className="overflow-x-auto">
                     <table className="w-full text-xs md:text-sm">
                       <thead>
@@ -1181,8 +1456,8 @@ function IpptTracker() {
                               Loading IPPT attempts...
                             </td>
                           </tr>
-                        ) : (sessionAttempts?.attempts?.length || 0) > 0 ? (
-                          sessionAttempts?.attempts?.map((attempt: IpptAttempt & { user?: SafeUser }, index: number) => (
+                        ) : (filteredConductAttempts?.length || 0) > 0 ? (
+                          filteredConductAttempts.map((attempt: IpptAttempt & { user?: SafeUser }, index: number) => (
                             <tr key={index} className="hover:bg-muted/30 transition-colors">
                               <td className="px-4 py-3 border-b border-border font-medium">{attempt.user?.fullName || 'Unknown'}</td>
                               <td className="px-4 py-3 border-b border-border">{attempt.totalScore}</td>
@@ -1226,45 +1501,42 @@ function IpptTracker() {
                   <p className="text-muted-foreground text-center mt-2">Search and manage individual IPPT records</p>
                 </div>
                 <div className="p-3 sm:p-4 md:p-6">
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-3 sm:p-4 mb-6">
-                    <div className="bg-card border border-border p-3 sm:p-4 rounded-lg shadow-sm">
-                      <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground font-medium">Total Eligible</span>
-                        <span className="text-2xl font-bold text-blue-600">{commanderStats?.troopers?.length || 0}</span>
-                      </div>
+                  {/* Filter Tags Display */}
+                  {filterTags.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {filterTags.map(tag => (
+                        <Badge key={tag.id} variant="secondary" className="gap-1">
+                          {tag.label}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-4 w-4 p-0 hover:bg-transparent"
+                            onClick={() => removeFilterTag(tag.id)}
+                          >
+                            <X className="w-3 h-3" />
+                          </Button>
+                        </Badge>
+                      ))}
                     </div>
-                    <div className="bg-card border border-border p-3 sm:p-4 rounded-lg shadow-sm">
-                      <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground font-medium">Completed</span>
-                        <span className="text-2xl font-bold text-green-600">{commanderStats?.troopers?.filter(t => t.bestAttempt && ['Gold', 'Silver', 'Pass'].includes(t.bestAttempt.result)).length || 0}</span>
-                      </div>
-                    </div>
-                    <div className="bg-card border border-border p-3 sm:p-4 rounded-lg shadow-sm">
-                      <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground font-medium">Pending</span>
-                        <span className="text-2xl font-bold text-yellow-600">{commanderStats?.troopers?.filter(t => !t.bestAttempt).length || 0}</span>
-                      </div>
-                    </div>
-                    <div className="bg-card border border-border p-3 sm:p-4 rounded-lg shadow-sm">
-                      <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground font-medium">YTT</span>
-                        <span className="text-2xl font-bold text-purple-600">{commanderStats?.troopers?.filter(t => t.bestAttempt?.result === 'YTT').length || 0}</span>
-                      </div>
-                    </div>
+                  )}
+
+                  {/* Search Results Count */}
+                  <div className="mb-4 text-sm text-muted-foreground">
+                    Showing <span className="font-semibold text-foreground">{filteredPersonnel.length}</span> of <span className="font-semibold text-foreground">{commanderStats?.troopers?.length || 0}</span> personnel
                   </div>
                   
                   {/* Desktop Table View */}
-                  <div className="hidden lg:block overflow-x-auto">
+                  <div className="hidden md:block overflow-x-auto">
                     <table className="w-full text-xs md:text-sm">
                       <thead>
                         <tr className="bg-muted/50">
                           <th className="px-4 py-3 text-left font-semibold text-foreground border-b">Platoon</th>
                           <th className="px-4 py-3 text-left font-semibold text-foreground border-b">Rank</th>
                           <th className="px-4 py-3 text-left font-semibold text-foreground border-b">Name</th>
-                          <th className="px-4 py-3 text-left font-semibold text-foreground border-b hidden sm:table-cell">DOE</th>
                           <th className="px-4 py-3 text-left font-semibold text-foreground border-b">Eligibility</th>
                           <th className="px-4 py-3 text-left font-semibold text-foreground border-b">Year 1 Status</th>
                           <th className="px-4 py-3 text-left font-semibold text-foreground border-b">Year 2 Status</th>
+                          <th className="px-4 py-3 text-center font-semibold text-foreground border-b"></th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1274,27 +1546,18 @@ function IpptTracker() {
                               <tr className="hover:bg-muted/30 transition-colors cursor-pointer" onClick={() => toggleUserDetail(trooper.user.id)}>
                                 <td className="px-4 py-3 border-b border-border font-medium">
                                   {(trooper.user as any).mspName || 'N/A'}
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      toggleDebugPanel(trooper.user.id);
-                                    }}
-                                    className="ml-2 px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded hover:bg-yellow-200"
-                                    title="Click to debug Year 1/2 status"
-                                  >
-                                    Debug
-                                  </button>
                                 </td>
                                 <td className="px-4 py-3 border-b border-border">{trooper.user.rank || 'N/A'}</td>
                                 <td className="px-4 py-3 border-b border-border font-medium">{trooper.user.fullName || 'Unknown'}</td>
-                                <td className="px-4 py-3 border-b border-border hidden sm:table-cell">{trooper.user.doe ? new Date(trooper.user.doe).toLocaleDateString() : 'N/A'}</td>
                                 <td className="px-4 py-3 border-b border-border">
-                                  <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                                    trooper.bestAttempt ? 'bg-green-100 text-green-800' :
-                                    'bg-red-100 text-red-800'
-                                  }`}>
-                                    {trooper.bestAttempt ? 'Yes' : 'No'}
-                                  </span>
+                                  <div className="flex items-center gap-2">
+                                    <div className={`w-2 h-2 rounded-full ${
+                                      trooper.isEligible !== false ? 'bg-green-500' : 'bg-red-500'
+                                    }`}></div>
+                                    <span className="text-xs font-medium">
+                                      {trooper.isEligible !== false ? 'Eligible' : 'Not Eligible'}
+                                    </span>
+                                  </div>
                                 </td>
                                 {(() => {
                                   const days = trooper.user.doe ? Math.floor((new Date().getTime() - new Date(trooper.user.doe).getTime()) / (1000 * 60 * 60 * 24)) : 0;
@@ -1302,37 +1565,60 @@ function IpptTracker() {
                                   
                                   if (isRegular) {
                                     return (
-                                      <td colSpan={2} className="px-4 py-3 border-b border-border text-center">
-                                        <span className="px-3 py-1 text-xs font-medium rounded-full bg-purple-100 text-purple-800">
-                                          Regular
-                                        </span>
+                                      <td colSpan={2} className="px-4 py-3 border-b border-border bg-slate-800/50 text-center dark:bg-slate-700/50">
+                                        <div className="flex items-center justify-center gap-2">
+                                          <span className="text-xs font-medium">Regular</span>
+                                        </div>
                                       </td>
                                     );
                                   } else {
                                     return (
                                       <>
                                         <td className="px-4 py-3 border-b border-border">
-                                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                                            trooper.yearOneStatus === 'Cleared' ? 'bg-green-100 text-green-800' :
-                                            trooper.yearOneStatus === 'Incomplete' ? 'bg-red-100 text-red-800' :
-                                            'bg-gray-100 text-gray-800'
-                                          }`}>
-                                            {trooper.yearOneStatus || 'NA'}
-                                          </span>
+                                          <div className="flex items-center gap-2">
+                                            <div className={`w-2 h-2 rounded-full ${
+                                              trooper.yearOneStatus === 'Cleared' ? 'bg-green-500' :
+                                              trooper.yearOneStatus === 'Incomplete' ? 'bg-red-500' :
+                                              'bg-gray-400'
+                                            }`}></div>
+                                            <span className="text-xs font-medium">
+                                              {trooper.yearOneStatus === 'Cleared' ? 'Cleared' :
+                                               trooper.yearOneStatus === 'Incomplete' ? 'Incomplete' :
+                                               trooper.yearOneStatus || 'N/A'}
+                                            </span>
+                                          </div>
                                         </td>
                                         <td className="px-4 py-3 border-b border-border">
-                                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                                            trooper.yearTwoStatus === 'Cleared' ? 'bg-green-100 text-green-800' :
-                                            trooper.yearTwoStatus === 'Incomplete' ? 'bg-red-100 text-red-800' :
-                                            'bg-gray-100 text-gray-800'
-                                          }`}>
-                                            {trooper.yearTwoStatus || 'NA'}
-                                          </span>
+                                          <div className="flex items-center gap-2">
+                                            <div className={`w-2 h-2 rounded-full ${
+                                              trooper.yearTwoStatus === 'Cleared' ? 'bg-green-500' :
+                                              trooper.yearTwoStatus === 'Incomplete' ? 'bg-red-500' :
+                                              'bg-gray-400'
+                                            }`}></div>
+                                            <span className="text-xs font-medium">
+                                              {trooper.yearTwoStatus === 'Cleared' ? 'Cleared' :
+                                               trooper.yearTwoStatus === 'Incomplete' ? 'Incomplete' :
+                                               trooper.yearTwoStatus || 'N/A'}
+                                            </span>
+                                          </div>
                                         </td>
                                       </>
                                     );
                                   }
                                 })()}
+                                <td className="px-4 py-3 border-b border-border text-center">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-6 w-6 p-0 hover:bg-transparent"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      openEligibilityEditor(trooper);
+                                    }}
+                                  >
+                                    <Edit2 className="w-3 h-3 text-muted-foreground" />
+                                  </Button>
+                                </td>
                               </tr>
                               {debugTrooperId === trooper.user.id && (
                                 <tr className="bg-yellow-50">
@@ -1877,7 +2163,7 @@ function IpptTracker() {
                   </div>
 
                   {/* Mobile Card View */}
-                  <div className="lg:hidden space-y-4">
+                  <div className="md:hidden space-y-4">
                     {filteredPersonnel.length > 0 ? (
                       filteredPersonnel.map((trooper) => (
                         <Card key={trooper.user.id} className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => toggleUserDetail(trooper.user.id)}>
@@ -1890,6 +2176,9 @@ function IpptTracker() {
                                 </div>
                                 <div className="text-sm text-muted-foreground">
                                   {trooper.user.rank || 'N/A'}
+                                </div>
+                                <div className="text-sm text-blue-600 font-medium">
+                                  {(trooper.user as any).mspName || 'N/A'}
                                 </div>
                               </div>
                               {trooper.bestAttempt && (
@@ -1909,26 +2198,30 @@ function IpptTracker() {
                               )}
                             </div>
 
-                            {/* Company */}
-                            <div className="mb-3">
-                              <div className="text-sm text-blue-600 font-medium">
-                                {(trooper.user as any).mspName || 'N/A'}
-                              </div>
-                            </div>
-
                             {/* Status Overview */}
-                            <div className="bg-muted/50 rounded-lg p-3 mb-3">
+                            <div className="bg-muted/50 rounded-lg p-3 mb-3 relative">
+                              <div className="absolute top-2 right-2">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6 p-0 hover:bg-transparent"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openEligibilityEditor(trooper);
+                                  }}
+                                >
+                                  <Edit2 className="w-3 h-3 text-muted-foreground" />
+                                </Button>
+                              </div>
                               <div className="text-xs text-muted-foreground mb-2">Status</div>
                                 <div className="space-y-2">
                                   {/* Eligibility Status */}
                                   <div className="flex items-center gap-2">
                                     <div className={`w-2 h-2 rounded-full ${
-                                      trooper.bestAttempt ? 'bg-green-500' : 'bg-red-500'
+                                      trooper.isEligible !== false ? 'bg-green-500' : 'bg-red-500'
                                     }`}></div>
-                                    <span className={`text-sm font-medium ${
-                                      trooper.bestAttempt ? 'text-green-600' : 'text-red-600'
-                                    }`}>
-                                      Eligible: {trooper.bestAttempt ? 'Yes' : 'No'}
+                                    <span className="text-sm font-medium text-foreground">
+                                      {trooper.isEligible !== false ? 'Eligible' : 'Not Eligible'}
                                     </span>
                                   </div>
                                   
@@ -1940,7 +2233,6 @@ function IpptTracker() {
                                     if (isRegular) {
                                       return (
                                         <div className="flex items-center gap-2">
-                                          <div className="w-2 h-2 rounded-full bg-purple-500"></div>
                                           <span className="text-sm font-medium text-foreground">Regular</span>
                                         </div>
                                       );
@@ -2257,9 +2549,118 @@ function IpptTracker() {
               </Card>
             </div>
           )}
-
         </div>
       </div>
+
+      {/* Eligibility Editor Modal */}
+      {eligibilityEditorOpen && editingTrooper && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-background rounded-lg shadow-lg w-full max-w-md mx-4">
+            <div className="flex items-center justify-between p-6 border-b border-border">
+              <h2 className="text-lg font-semibold">Edit Eligibility</h2>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={closeEligibilityEditor}
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+            
+            <div className="p-6 space-y-4">
+              <div className="text-sm text-muted-foreground mb-4">
+                Editing eligibility for: <span className="font-medium text-foreground">{editingTrooper.user.fullName}</span>
+              </div>
+              
+              {/* Eligibility Status */}
+              <div className="space-y-2">
+                <Label htmlFor="eligibility-status">Eligibility Status</Label>
+                <Select
+                  value={eligibilityForm.isEligible.toString()}
+                  onValueChange={(value) => setEligibilityForm(prev => ({ ...prev, isEligible: value === 'true' }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="true">Eligible</SelectItem>
+                    <SelectItem value="false">Not Eligible</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              {/* Conditional fields for Not Eligible */}
+              {!eligibilityForm.isEligible && (
+                <>
+                  {/* Reason */}
+                  <div className="space-y-2">
+                    <Label htmlFor="reason">Status / Reason *</Label>
+                    <Input
+                      id="reason"
+                      placeholder="Enter reason for ineligibility"
+                      value={eligibilityForm.reason}
+                      onChange={(e) => setEligibilityForm(prev => ({ ...prev, reason: e.target.value }))}
+                    />
+                  </div>
+                  
+                  {/* Ineligibility Type */}
+                  <div className="space-y-2">
+                    <Label htmlFor="ineligibility-type">Ineligibility Type *</Label>
+                    <Select
+                      value={eligibilityForm.ineligibilityType}
+                      onValueChange={(value: 'indefinite' | 'until_date') => setEligibilityForm(prev => ({ ...prev, ineligibilityType: value }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="indefinite">Indefinite</SelectItem>
+                        <SelectItem value="until_date">Until Date</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  {/* Until Date (conditional) */}
+                  {eligibilityForm.ineligibilityType === 'until_date' && (
+                    <div className="space-y-2">
+                      <Label htmlFor="until-date">Until Date *</Label>
+                      <Input
+                        id="until-date"
+                        type="date"
+                        value={eligibilityForm.untilDate}
+                        onChange={(e) => setEligibilityForm(prev => ({ ...prev, untilDate: e.target.value }))}
+                        min={new Date().toISOString().split('T')[0]}
+                      />
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+            
+            <div className="flex justify-end gap-2 p-6 border-t border-border">
+              <Button variant="outline" onClick={closeEligibilityEditor}>
+                Cancel
+              </Button>
+              <Button 
+                onClick={saveEligibility}
+                disabled={updateEligibilityMutation.isPending}
+              >
+                {updateEligibilityMutation.isPending ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4 mr-2" />
+                    Save Changes
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

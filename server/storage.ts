@@ -2,9 +2,9 @@ import {
   type User, type InsertUser, type Booking, type InsertBooking, type Config,
   type Msp, type InsertMsp, type DriverQualification, type InsertDriverQualification, 
   type DriveLog, type InsertDriveLog, type CurrencyDrive, type InsertCurrencyDrive, type CurrencyDriveScan,
-  type IpptAttempt, type IpptSession, type IpptCommanderStats, type TrooperIpptSummary, type SafeUser,
+  type IpptAttempt, type IpptSession, type IpptCommanderStats, type TrooperIpptSummary, type SafeUser, type UserEligibility,
   users, bookings, config, msps, driverQualifications, driveLogs, currencyDrives, currencyDriveScans,
-  ipptAttempts, ipptSessions, ipptScoringCompact
+  ipptAttempts, ipptSessions, ipptScoringCompact, userEligibility
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, lte, gte, lt, gt, ne, desc } from "drizzle-orm";
@@ -71,6 +71,12 @@ export interface IStorage {
   getIpptSessions(): Promise<IpptSession[]>;
   createIpptSession(session: any): Promise<IpptSession>;
   importIpptResults(data: any[]): Promise<{ attempts: number; sessions: number }>;
+  
+  // User Eligibility operations
+  getUserEligibility(userId: string): Promise<UserEligibility | undefined>;
+  createUserEligibility(eligibility: any): Promise<UserEligibility>;
+  updateUserEligibility(userId: string, data: any): Promise<UserEligibility>;
+  deleteUserEligibility(userId: string): Promise<void>;
 }
 
 // DatabaseStorage uses PostgreSQL via Drizzle ORM - blueprint:javascript_database
@@ -508,6 +514,15 @@ export class DatabaseStorage implements IStorage {
       .leftJoin(users, eq(ipptSessions.createdBy, users.id))
       .orderBy(desc(ipptSessions.date));
     
+    // Get all user eligibility records
+    const eligibilityRecords = await db
+      .select()
+      .from(userEligibility);
+    
+    const eligibilityMap = new Map(
+      eligibilityRecords.map(record => [record.userId, record])
+    );
+    
     // Calculate statistics
     const trooperSummaries: TrooperIpptSummary[] = soldiers.map(soldier => {
       const soldierAttempts = attempts.filter(a => a.ippt_attempts.userId === soldier.id);
@@ -531,8 +546,53 @@ export class DatabaseStorage implements IStorage {
         ? bestAttempt.totalScore - initialAttempt.totalScore 
         : undefined;
       
+      // Check for manual eligibility override
+      const eligibilityOverride = eligibilityMap.get(soldier.id);
+      const isManuallyIneligible = eligibilityOverride && eligibilityOverride.isEligible === "false" && (
+        (eligibilityOverride.ineligibilityType === "until_date" && eligibilityOverride.untilDate && new Date() <= new Date(eligibilityOverride.untilDate)) ||
+        eligibilityOverride.ineligibilityType === "indefinite"
+      );
+      
+      // Default to eligible unless manually overridden
+      const isEligible = !isManuallyIneligible;
+      
       // Calculate Year 1 and Year 2 status separately
       const calculateYearStatus = (yearNumber: 1 | 2) => {
+        // If manually ineligible, check if they've already cleared this year
+        if (isManuallyIneligible) {
+          // Check if they had any IPPT attempts within this specific year
+          const yearAttempts = soldierAttempts.filter(a => {
+            const attemptDays = Math.floor(
+              (new Date(a.ippt_attempts.date).getTime() - new Date(soldier.doe!).getTime()) / (1000 * 60 * 60 * 24)
+            );
+            const yearStartDays = yearNumber === 1 ? 0 : 365;
+            const yearEndDays = yearNumber === 1 ? 365 : 730;
+            return attemptDays >= yearStartDays && attemptDays <= yearEndDays;
+          });
+          
+          // If they have attempts in this year, show the actual status
+          if (yearAttempts.length > 0) {
+            return "Cleared";
+          }
+          // If no attempts in this year, show NA
+          return "NA";
+        }
+        
+        // Check for manual eligibility override for eligible users (for until date expiry)
+        const eligibilityOverride = eligibilityMap.get(soldier.id);
+        if (eligibilityOverride && eligibilityOverride.isEligible === "false") {
+          // Check if until date has passed
+          if (eligibilityOverride.ineligibilityType === "until_date" && eligibilityOverride.untilDate) {
+            const untilDate = new Date(eligibilityOverride.untilDate);
+            if (new Date() <= untilDate) {
+              return "Incomplete"; // Still within ineligibility period
+            }
+            // Until date has passed, fall through to normal calculation
+          } else if (eligibilityOverride.ineligibilityType === "indefinite") {
+            return "Incomplete"; // Indefinite ineligibility
+          }
+        }
+        
         // Check if ineligible (regulars or other criteria)
         if (soldier.role === "admin") return "NA";
         
@@ -607,7 +667,8 @@ export class DatabaseStorage implements IStorage {
         yearOneStatus,
         yearTwoStatus,
         yearOneAttempts,
-        yearTwoAttempts
+        yearTwoAttempts,
+        isEligible
       };
     });
     
@@ -1020,6 +1081,63 @@ export class DatabaseStorage implements IStorage {
     }
     
     return { attempts: attemptsCreated, sessions: sessionsCreated };
+  }
+
+  // User Eligibility operations
+  async getUserEligibility(userId: string): Promise<UserEligibility | undefined> {
+    const [eligibility] = await db
+      .select()
+      .from(userEligibility)
+      .where(eq(userEligibility.userId, userId));
+    return eligibility || undefined;
+  }
+
+  async createUserEligibility(eligibility: any): Promise<UserEligibility> {
+    const [newEligibility] = await db
+      .insert(userEligibility)
+      .values({
+        id: randomUUID(),
+        userId: eligibility.userId,
+        isEligible: eligibility.isEligible ? "true" : "false",
+        reason: eligibility.reason,
+        ineligibilityType: eligibility.ineligibilityType,
+        untilDate: eligibility.untilDate,
+        updatedAt: new Date()
+      })
+      .returning();
+    return newEligibility;
+  }
+
+  async updateUserEligibility(userId: string, data: any): Promise<UserEligibility> {
+    const existing = await this.getUserEligibility(userId);
+    
+    if (existing) {
+      // Update existing record
+      const [updated] = await db
+        .update(userEligibility)
+        .set({
+          isEligible: data.isEligible ? "true" : "false",
+          reason: data.reason,
+          ineligibilityType: data.ineligibilityType,
+          untilDate: data.untilDate,
+          updatedAt: new Date()
+        })
+        .where(eq(userEligibility.userId, userId))
+        .returning();
+      return updated;
+    } else {
+      // Create new record
+      return await this.createUserEligibility({
+        userId,
+        ...data
+      });
+    }
+  }
+
+  async deleteUserEligibility(userId: string): Promise<void> {
+    await db
+      .delete(userEligibility)
+      .where(eq(userEligibility.userId, userId));
   }
 }
 

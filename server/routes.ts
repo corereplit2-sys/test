@@ -1509,6 +1509,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // User Eligibility Routes
+  app.get("/api/users/:userId/eligibility", requireAuth, async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      const eligibility = await storage.getUserEligibility(userId);
+      res.json(eligibility);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.put("/api/users/:userId/eligibility", requireAuth, async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      const eligibilityData = req.body;
+      
+      // Validate required fields if setting as not eligible
+      if (!eligibilityData.isEligible) {
+        if (!eligibilityData.reason) {
+          return res.status(400).json({ message: "Reason is required when setting eligibility to false" });
+        }
+        if (!eligibilityData.ineligibilityType) {
+          return res.status(400).json({ message: "Ineligibility type is required when setting eligibility to false" });
+        }
+        if (eligibilityData.ineligibilityType === "until_date" && !eligibilityData.untilDate) {
+          return res.status(400).json({ message: "Until date is required when ineligibility type is 'until_date'" });
+        }
+      }
+      
+      const eligibility = await storage.updateUserEligibility(userId, eligibilityData);
+      res.json(eligibility);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.delete("/api/users/:userId/eligibility", requireAuth, async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      await storage.deleteUserEligibility(userId);
+      res.json({ message: "Eligibility record deleted successfully" });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

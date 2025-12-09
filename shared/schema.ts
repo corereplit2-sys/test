@@ -118,6 +118,19 @@ export const ipptSessions = pgTable("ippt_sessions", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const userEligibility = pgTable("user_eligibility", {
+  id: varchar("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  isEligible: text("is_eligible", { enum: ["true", "false"] }).notNull().default("true"),
+  reason: text("reason"),
+  ineligibilityType: text("ineligibility_type").$type<"indefinite" | "until_date">(),
+  untilDate: date("until_date"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  unq: unique().on(table.userId),
+}));
+
 // Insert schemas
 export const insertMspSchema = createInsertSchema(msps).omit({
   id: true,
@@ -278,6 +291,7 @@ export type QualificationWithStatus = DriverQualification & {
 // IPPT Types
 export type IpptAttempt = typeof ipptAttempts.$inferSelect;
 export type IpptSession = typeof ipptSessions.$inferSelect;
+export type UserEligibility = typeof userEligibility.$inferSelect;
 
 export type IpptSessionWithCreator = IpptSession & {
   creator?: SafeUser;
@@ -321,6 +335,7 @@ export type TrooperIpptSummary = {
   yearTwoStatus: string;
   yearOneAttempts?: IpptAttempt[];
   yearTwoAttempts?: IpptAttempt[];
+  isEligible?: boolean;
 };
 
 export type IpptCommanderStats = {
