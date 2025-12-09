@@ -209,6 +209,7 @@ export function AdminUsers({ showCreateDialog, setShowCreateDialog, showBatchImp
       credits: 10,
       rank: "",
       mspId: "",
+      doe: "",
     },
   });
 
@@ -223,6 +224,8 @@ export function AdminUsers({ showCreateDialog, setShowCreateDialog, showBatchImp
       password: "",
       rank: "",
       mspId: "",
+      dob: "",
+      doe: "",
     },
   });
 
@@ -349,6 +352,8 @@ export function AdminUsers({ showCreateDialog, setShowCreateDialog, showBatchImp
       password: "",
       rank: user.rank || "",
       mspId: user.mspId || "",
+      dob: user.dob || "",
+      doe: user.doe || "",
     });
   };
 
@@ -779,6 +784,34 @@ export function AdminUsers({ showCreateDialog, setShowCreateDialog, showBatchImp
 
                 <FormField
                   control={createForm.control}
+                  name="dob"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Date of Birth</FormLabel>
+                      <FormControl>
+                        <Input {...field} type="date" className="h-12" data-testid="input-create-dob" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={createForm.control}
+                  name="doe"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Date of Enlistment</FormLabel>
+                      <FormControl>
+                        <Input {...field} type="date" value={field.value || ""} className="h-12" data-testid="input-create-doe" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={createForm.control}
                   name="mspId"
                   render={({ field }) => (
                     <FormItem>
@@ -921,6 +954,34 @@ export function AdminUsers({ showCreateDialog, setShowCreateDialog, showBatchImp
                       <FormLabel>Rank</FormLabel>
                       <FormControl>
                         <Input {...field} value={field.value || ""} placeholder="e.g., CPL, 3SG" className="h-12" data-testid="input-edit-rank" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={editForm.control}
+                  name="dob"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Date of Birth</FormLabel>
+                      <FormControl>
+                        <Input {...field} type="date" value={field.value || ""} className="h-12" data-testid="input-edit-dob" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={editForm.control}
+                  name="doe"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Date of Enlistment</FormLabel>
+                      <FormControl>
+                        <Input {...field} type="date" value={field.value || ""} className="h-12" data-testid="input-edit-doe" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

@@ -7,7 +7,8 @@ import {
   loginSchema, changePasswordSchema, insertUserSchema, updateUserSchema, insertBookingSchema,
   insertDriverQualificationSchema, insertDriveLogSchema, insertCurrencyDriveSchema,
   type User, type SafeUser, type Booking, type BookingWithUser, type DashboardStats, type BookableWeekRange,
-  type DriverQualification, type DriveLog, type QualificationWithStatus, type CurrencyDrive
+  type DriverQualification, type DriveLog, type QualificationWithStatus, type CurrencyDrive,
+  type IpptAttempt, type IpptSession, type IpptCommanderStats, type TrooperIpptSummary
 } from "@shared/schema";
 import { differenceInHours, differenceInMinutes, startOfDay, endOfDay, addDays, parseISO, isAfter, format, differenceInDays } from "date-fns";
 import { getCurrentBookableWeek, DEFAULT_BOOKING_RELEASE_DAY } from "./utils/bookingSchedule";
@@ -15,7 +16,8 @@ import { calculateCurrency, getCurrencyStatus, recalculateCurrencyForQualificati
 import { toZonedTime } from "date-fns-tz";
 import { eq } from "drizzle-orm";
 import { 
-  users, bookings, driveLogs, driverQualifications, currencyDrives, currencyDriveScans, Msp, config
+  users, bookings, driveLogs, driverQualifications, currencyDrives, currencyDriveScans, Msp, config,
+  ipptAttempts, ipptSessions
 } from "@shared/schema";
 import * as schema from "@shared/schema";
 import { InsertDriveLog, InsertDriverQualification, InsertCurrencyDrive, InsertBooking } from "@shared/schema";
@@ -139,6 +141,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       password: "admin123",
       rank: "CPT",
       mspId: mspHQ.id,
+      dob: "1990-01-01",
     });
 
     // Create sample soldiers with different ranks
@@ -152,6 +155,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       password: "password123",
       rank: "3SG",
       mspId: msp1.id,
+      dob: "1992-05-15",
     });
 
     const soldier2 = await storage.createUser({
@@ -163,6 +167,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       password: "password123",
       rank: "2SG",
       mspId: msp2.id,
+      dob: "1993-08-22",
     });
 
     const soldier3 = await storage.createUser({
@@ -174,6 +179,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       password: "password123",
       rank: "LCP",
       mspId: msp3.id,
+      dob: "1994-12-10",
     });
 
     // Create sample bookings (tomorrow at different times)
@@ -734,6 +740,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             credits: 10,
             passwordHash,
             password: defaultPassword,
+            dob: "1990-01-01", // Default DOB for batch imports
           });
 
           results.success.push({
@@ -1367,6 +1374,136 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       await storage.updateCurrencyDrive(drive.id, { expiresAt: new Date() } as any);
       res.json({ message: "QR code deactivated" });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // IPPT Routes
+  app.get("/api/ippt/commander-stats", requireAuth, async (req: any, res) => {
+    try {
+      const user = req.user as SafeUser;
+      const stats = await storage.getIpptCommanderStats(user);
+      res.json(stats);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/ippt/attempts", requireAuth, async (req: any, res) => {
+    try {
+      const user = req.user as SafeUser;
+      const attempts = await storage.getIpptAttempts(user.id);
+      res.json(attempts);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/ippt/calculate-score", requireAuth, async (req: any, res) => {
+    try {
+      const { situps, pushups, runTimeSeconds, dob } = req.body;
+      
+      if (!situps || !pushups || !runTimeSeconds || !dob) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+
+      const storage = req.app.get("storage");
+      const score = await storage.calculateIpptScore(situps, pushups, runTimeSeconds, new Date(dob));
+      
+      res.json(score);
+    } catch (error) {
+      console.error("Error calculating IPPT score:", error);
+      res.status(500).json({ error: "Failed to calculate score" });
+    }
+  });
+
+  app.post("/api/ippt/attempts", requireAuth, async (req: any, res) => {
+    try {
+      const user = req.user as SafeUser;
+      const attemptData = {
+        ...req.body,
+        userId: user.id,
+        date: new Date(req.body.date),
+      };
+      
+      // Create attempt first (will auto-determine if initial)
+      const attempt = await storage.createIpptAttempt(attemptData);
+      
+      // Calculate score using user's DOB
+      if (user.dob) {
+        const score = await storage.calculateIpptScore(
+          attemptData.situps,
+          attemptData.pushups,
+          attemptData.runTimeSeconds,
+          new Date(user.dob)
+        );
+        
+        // Update the attempt with calculated score
+        await storage.updateIpptAttempt(attempt.id, {
+          totalScore: score.totalScore,
+          result: score.result
+        });
+        
+        // Return updated attempt
+        const updatedAttempt = await storage.getIpptAttempt(attempt.id);
+        res.json(updatedAttempt);
+      } else {
+        res.json(attempt);
+      }
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/ippt/sessions", requireAuth, async (req: any, res) => {
+    try {
+      const sessions = await storage.getIpptSessions();
+      res.json(sessions);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/ippt/sessions/:sessionId/details", requireAuth, async (req: any, res) => {
+    try {
+      const { sessionId } = req.params;
+      const sessionDetails = await storage.getIpptSessionDetails(sessionId);
+      res.json(sessionDetails);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/ippt/individual/:userId/history", requireAuth, async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      const individualHistory = await storage.getIndividualIpptHistory(userId);
+      res.json(individualHistory);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/ippt/sessions", requireAuth, requireAdmin, async (req: any, res) => {
+    try {
+      const user = req.user as SafeUser;
+      const sessionData = {
+        ...req.body,
+        createdBy: user.id,
+        date: new Date(req.body.date),
+      };
+      const session = await storage.createIpptSession(sessionData);
+      res.json(session);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/ippt/import", requireAuth, requireAdmin, async (req: any, res) => {
+    try {
+      const result = await storage.importIpptResults(req.body);
+      res.json(result);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }

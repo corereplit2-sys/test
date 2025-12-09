@@ -1,4 +1,4 @@
-import { pgTable, text, varchar, timestamp, integer, doublePrecision, date, unique } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, integer, doublePrecision, date, unique, serial } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -8,14 +8,16 @@ export const msps = pgTable("msps", {
 });
 
 export const users = pgTable("users", {
-  id: varchar("id").primaryKey(),
+  id: text("id").primaryKey(),
   username: text("username").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
   fullName: text("full_name").notNull(),
   role: text("role").notNull().$type<"admin" | "soldier" | "commander">(),
-  credits: doublePrecision("credits").notNull().default(10),
+  credits: doublePrecision("credits").notNull().default(0),
   rank: text("rank"),
-  mspId: varchar("msp_id").references(() => msps.id, { onDelete: "set null" }),
+  mspId: text("msp_id").references(() => msps.id, { onDelete: "set null" }),
+  dob: date("dob").notNull(),
+  doe: date("doe"), // Date of Enlistment
 });
 
 export const bookings = pgTable("bookings", {
@@ -77,6 +79,44 @@ export const currencyDriveScans = pgTable("currency_drive_scans", {
 }, (table) => ({
   unq: unique().on(table.driveId, table.userId),
 }));
+
+// IPPT Tables
+export const ipptAttempts = pgTable("ippt_attempts", {
+  id: varchar("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  sessionId: varchar("session_id").references(() => ipptSessions.id, { onDelete: "set null" }),
+  date: date("date").notNull(),
+  situps: integer("situps").notNull(),
+  pushups: integer("pushups").notNull(),
+  runTimeSeconds: integer("run_time_seconds").notNull(),
+  totalScore: integer("total_score").notNull(),
+  result: text("result").notNull().$type<"Gold" | "Silver" | "Pass" | "Fail" | "YTT">(),
+  isInitial: text("is_initial").notNull().default("false").$type<"true" | "false">(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const ipptScoringCompact = pgTable("ippt_scoring_compact", {
+  id: serial("id").primaryKey(),
+  ageGroup: text("age_group").unique().notNull(),
+  situpsScoring: text("situps_scoring").notNull().$type<string>(), // JSON string
+  pushupsScoring: text("pushups_scoring").notNull().$type<string>(), // JSON string
+  runScoring: text("run_scoring").notNull().$type<string>(), // JSON string
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const ipptSessions = pgTable("ippt_sessions", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  date: date("date").notNull(),
+  totalAttendees: integer("total_attendees").notNull().default(0),
+  avgScore: doublePrecision("avg_score").notNull().default(0),
+  goldCount: integer("gold_count").notNull().default(0),
+  silverCount: integer("silver_count").notNull().default(0),
+  passCount: integer("pass_count").notNull().default(0),
+  failCount: integer("fail_count").notNull().default(0),
+  createdBy: text("created_by"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
 
 // Insert schemas
 export const insertMspSchema = createInsertSchema(msps).omit({
@@ -233,4 +273,97 @@ export type QualificationWithStatus = DriverQualification & {
   status: CurrencyStatus;
   daysRemaining: number;
   user?: SafeUser;
+};
+
+// IPPT Types
+export type IpptAttempt = typeof ipptAttempts.$inferSelect;
+export type IpptSession = typeof ipptSessions.$inferSelect;
+
+export type IpptSessionWithCreator = IpptSession & {
+  creator?: SafeUser;
+};
+
+export type IpptSessionWithAttempts = IpptSession & {
+  attempts?: (IpptAttempt & { user?: SafeUser })[];
+  statistics?: {
+    totalAttendees: number;
+    averageScore: number;
+    goldCount: number;
+    silverCount: number;
+    passCount: number;
+    failCount: number;
+    yttCount: number;
+  };
+};
+
+export type IndividualIpptHistory = SafeUser & {
+  attempts: IpptAttempt[];
+  sessions: (IpptSession & { score?: number; result?: string })[];
+  statistics: {
+    totalAttempts: number;
+    averageScore: number;
+    bestScore?: number;
+    bestResult?: string;
+    latestScore?: number;
+    latestResult?: string;
+    scoreChange?: number;
+  };
+};
+
+export type TrooperIpptSummary = {
+  user: SafeUser;
+  bestAttempt?: IpptAttempt;
+  latestAttempt?: IpptAttempt;
+  initialAttempt?: IpptAttempt;
+  totalAttempts: number;
+  scoreChange?: number;
+  yearOneStatus: string;
+  yearTwoStatus: string;
+  yearOneAttempts?: IpptAttempt[];
+  yearTwoAttempts?: IpptAttempt[];
+};
+
+export type IpptCommanderStats = {
+  totalEligible: number;
+  bestResultBreakdown: {
+    gold: number;
+    silver: number;
+    pass: number;
+    fail: number;
+    ytt: number;
+  };
+  initialResultBreakdown: {
+    gold: number;
+    silver: number;
+    pass: number;
+    fail: number;
+    ytt: number;
+  };
+  improvementRates: {
+    gold: number;
+    goldPercent: number;
+    silver: number;
+    silverPercent: number;
+    pass: number;
+    passPercent: number;
+    fail: number;
+    failPercent: number;
+  };
+  averageBestStations: {
+    situps: number;
+    pushups: number;
+    runTime: string;
+  };
+  averageBestScore: number;
+  passPlusRate: number;
+  overallImprovementRate: number;
+  troopers: TrooperIpptSummary[];
+  topBestScores: TrooperIpptSummary[];
+  topImprovements: TrooperIpptSummary[];
+  stationLeaders: {
+    topSitups: { user: SafeUser; value: number };
+    topPushups: { user: SafeUser; value: number };
+    fastestRun: { user: SafeUser; value: string };
+  };
+  sessions: IpptSessionWithCreator[];
 };

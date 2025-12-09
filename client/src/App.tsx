@@ -17,6 +17,7 @@ import Credits from "@/pages/Credits";
 import { SafeUser } from "@shared/schema";
 import IPPT from "./pages/Ippt";
 import IpptTracker from "./pages/IpptTracker";
+import IpptResultInputPage from "./pages/IpptResultInput";
 import DriveQR from "./pages/DriveQR";
 
 function ProtectedRoute({ component: Component, allowedRoles }: { component: any; allowedRoles?: string[] }) {
@@ -104,6 +105,9 @@ function Router() {
       </Route>
       <Route path="/ippt-tracker">
         {() => <ProtectedRoute component={IpptTracker} allowedRoles={["admin", "commander"]} />}
+      </Route>
+      <Route path="/ippt-input">
+        {() => <ProtectedRoute component={IpptResultInputPage} allowedRoles={["admin", "commander"]} />}
       </Route>
 
       <Route path="/drive-qr">

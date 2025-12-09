@@ -85,7 +85,13 @@ export function Navbar({ user, pageTitle }: NavbarProps) {
         { name: "Drive QR", path: "/drive-qr" },
       ]
     },
-    { name: "IPPT Tracker", path: "/ippt-tracker", icon: LayoutDashboard },
+    {
+      name: "IPPT",
+      icon: CalendarIcon,
+      submenu: [
+        { name: "IPPT Tracker", path: "/ippt-tracker" },
+      ]
+    },
     { name: "Mess Booking", path: "/mess-booking", icon: Gamepad2 },
     { name: "Users", path: "/users", icon: Users },
   ];
