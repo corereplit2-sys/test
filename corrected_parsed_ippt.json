@@ -1,0 +1,28 @@
+{
+  "test_metadata": {
+    "session": "AM", 
+    "detail": "3", 
+    "test_date": "5/9/2025"
+  }, 
+  "officers": [], 
+  "soldiers": [
+    {
+      "tag_number": 150, 
+      "push_up_reps": 1011, 
+      "nric": "302C", 
+      "name": "ALLOYSIUS GOH WEI JIE", 
+      "grade": "F", 
+      "sit_up_reps": 10, 
+      "rank": "PTE", 
+      "training_level": 1, 
+      "push_up_points": 25, 
+      "run_time": "10:20", 
+      "run_points": 21, 
+      "total_points": 47, 
+      "serial_number": 1, 
+      "sit_up_points": 1, 
+      "age_group": 1, 
+      "unit": "1 SIR"
+    }
+  ]
+}

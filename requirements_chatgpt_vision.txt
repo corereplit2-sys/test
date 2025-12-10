@@ -1,0 +1,4 @@
+# ChatGPT Vision OCR Requirements (Python 2.7 compatible)
+flask==1.1.4
+requests==2.25.1
+python-dotenv==0.19.2

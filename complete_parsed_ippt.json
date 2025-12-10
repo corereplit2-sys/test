@@ -1,0 +1,13 @@
+{
+  "soldiers": [
+    {
+      "push_up_reps": 1, 
+      "nric": "302C", 
+      "name": "ALLOYSIUS GOH WEI JIE", 
+      "run_time": "10:20", 
+      "serial_number": 1, 
+      "sit_up_reps": 1, 
+      "unit": "1 SIR"
+    }
+  ]
+}

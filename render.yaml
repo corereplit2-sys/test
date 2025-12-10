@@ -1,0 +1,12 @@
+services:
+  # Web Service
+  - type: web
+    name: ippt-dashboard
+    env: node
+    plan: free
+    buildCommand: "npm run build"
+    startCommand: "npm start"
+    envVars:
+      - key: NODE_ENV
+        value: production
+    healthCheckPath: /

@@ -1,0 +1,64 @@
+{
+  "soldiers": [
+    {
+      "push_up_reps": 1011, 
+      "sit_up_reps": 10, 
+      "name": "ALLOYSIUS GOH WEI JIE", 
+      "run_time": "10:20"
+    }, 
+    {
+      "push_up_reps": 12, 
+      "sit_up_reps": 21, 
+      "name": "KOAY XUKANG 1 SIR", 
+      "run_time": "10:21"
+    }, 
+    {
+      "push_up_reps": 13, 
+      "sit_up_reps": 24, 
+      "name": "BRANDON LIM TJIN WEN 1 SIR", 
+      "run_time": "11:20"
+    }, 
+    {
+      "push_up_reps": 14, 
+      "sit_up_reps": 30, 
+      "name": "LIM JIE EN JAYENN 1 SIR", 
+      "run_time": "11:27"
+    }, 
+    {
+      "push_up_reps": 15, 
+      "sit_up_reps": 42, 
+      "name": "MIKA OWAIS SHAYAN BIN MUHAMMAD 1 SIR IESA", 
+      "run_time": "12:20"
+    }, 
+    {
+      "push_up_reps": 16, 
+      "sit_up_reps": 50, 
+      "name": "TAN HONG KAI DAYLEN 1 SIR", 
+      "run_time": "12:27"
+    }, 
+    {
+      "push_up_reps": 17, 
+      "sit_up_reps": 78, 
+      "name": "CALEB TAN JIA LE 1 SIR", 
+      "run_time": "12:22"
+    }, 
+    {
+      "push_up_reps": 18, 
+      "sit_up_reps": 61, 
+      "name": "TAN KUAN YAN, ANDREAS 1 SIR", 
+      "run_time": "12:23"
+    }, 
+    {
+      "push_up_reps": 19, 
+      "sit_up_reps": 22, 
+      "name": "GUNASEKAR KAVIN 1 SIR", 
+      "run_time": "12:24"
+    }, 
+    {
+      "push_up_reps": 20, 
+      "sit_up_reps": 23, 
+      "name": "SHELDON GOH JUN EN 1 SIR", 
+      "run_time": "12:50"
+    }
+  ]
+}

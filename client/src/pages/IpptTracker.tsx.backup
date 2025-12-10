@@ -1,0 +1,1928 @@
+import React, { useState } from "react";
+import { Navbar } from "@/components/Navbar";
+import { useQuery } from "@tanstack/react-query";
+import { Redirect } from "wouter";
+import { SafeUser, type IpptCommanderStats } from "@shared/schema";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Search, Filter, Download, RefreshCw, X, Plus, Users, BarChart3, Activity, Target, Trophy, TrendingUp, Calendar, Eye, ChevronDown, ChevronUp, Info, MoreHorizontal, User, Clock, Award, AlertCircle, PieChart } from "lucide-react";
+import { useLocation } from "wouter";
+
+export default function IpptTracker() {
+  const { data: user, isLoading } = useQuery<SafeUser>({
+    queryKey: ["/api/auth/me"],
+    retry: false,
+  });
+  const [, setLocation] = useLocation();
+
+  const [view, setView] = useState("commander");
+  const [selectedGroup, setSelectedGroup] = useState("ALL");
+  const [detailView, setDetailView] = useState<"none" | "session" | "individual">("none");
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
+  const [resultFilter, setResultFilter] = useState<string>("all");
+  const [sortBy, setSortBy] = useState<string>("name");
+  const [selectedTrooper, setSelectedTrooper] = useState<any>(null);
+  const [showComparisonModal, setShowComparisonModal] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [showChartModal, setShowChartModal] = useState(false);
+  const [hoveredTrooper, setHoveredTrooper] = useState<string | null>(null);
+
+  // Define the exact groups as specified
+  const dashboardGroups = [
+    "MSC Overall",
+    "MSC Commanders", 
+    "MSC Troopers",
+    "MSP 1",
+    "MSP 2", 
+    "MSP 3",
+    "MSP 4",
+    "MSP 5"
+  ];
+
+  // Function to get group-specific statistics
+  const getGroupStats = (groupName: string) => {
+    let groupTroopers = commanderStats?.troopers || [];
+    
+    if (groupName === "MSC Overall") {
+      // All personnel
+    } else if (groupName === "MSC Commanders") {
+      // Only commanders
+      groupTroopers = groupTroopers.filter(t => t.user.role === "commander");
+    } else if (groupName === "MSC Troopers") {
+      // Only soldiers (non-commanders)
+      groupTroopers = groupTroopers.filter(t => t.user.role !== "commander");
+    } else if (groupName.startsWith("MSP ")) {
+      // Specific MSP
+      const mspName = groupName;
+      groupTroopers = groupTroopers.filter(t => (t.user as any).mspName === mspName);
+    }
+
+    // Calculate breakdowns
+    const bestBreakdown = {
+      total: groupTroopers.length,
+      gold: 0,
+      silver: 0,
+      pass: 0,
+      fail: 0,
+      ytt: 0
+    };
+
+    const initialBreakdown = {
+      total: groupTroopers.length,
+      gold: 0,
+      silver: 0,
+      pass: 0,
+      fail: 0,
+      ytt: 0
+    };
+
+    let totalSitups = 0;
+    let totalPushups = 0;
+    let totalRunSeconds = 0;
+    let totalScore = 0;
+    let countWithScores = 0;
+
+    groupTroopers.forEach(trooper => {
+      // Best results
+      const bestResult = trooper.bestAttempt?.result || "YTT";
+      if (bestResult === "Gold") bestBreakdown.gold++;
+      else if (bestResult === "Silver") bestBreakdown.silver++;
+      else if (bestResult === "Pass") bestBreakdown.pass++;
+      else if (bestResult === "Fail") bestBreakdown.fail++;
+      else bestBreakdown.ytt++;
+
+      // Initial results
+      const initialResult = trooper.initialAttempt?.result || "YTT";
+      if (initialResult === "Gold") initialBreakdown.gold++;
+      else if (initialResult === "Silver") initialBreakdown.silver++;
+      else if (initialResult === "Pass") initialBreakdown.pass++;
+      else if (initialResult === "Fail") initialBreakdown.fail++;
+      else initialBreakdown.ytt++;
+
+      // Average scores
+      if (trooper.bestAttempt) {
+        totalSitups += trooper.bestAttempt.situps || 0;
+        totalPushups += trooper.bestAttempt.pushups || 0;
+        totalRunSeconds += trooper.bestAttempt.runTimeSeconds || 0;
+        totalScore += trooper.bestAttempt.totalScore || 0;
+        countWithScores++;
+      }
+    });
+
+    // Calculate improvement rates
+    const improvementRates = {
+      gold: initialBreakdown.gold > 0 ? Math.round(((bestBreakdown.gold - initialBreakdown.gold) / initialBreakdown.gold) * 100) : 0,
+      silver: initialBreakdown.silver > 0 ? Math.round(((bestBreakdown.silver - initialBreakdown.silver) / initialBreakdown.silver) * 100) : 0,
+      pass: initialBreakdown.pass > 0 ? Math.round(((bestBreakdown.pass - initialBreakdown.pass) / initialBreakdown.pass) * 100) : 0,
+      fail: initialBreakdown.fail > 0 ? Math.round(((bestBreakdown.fail - initialBreakdown.fail) / initialBreakdown.fail) * 100) : 0
+    };
+
+    // Average scores
+    const avgSitups = countWithScores > 0 ? Math.round(totalSitups / countWithScores) : 0;
+    const avgPushups = countWithScores > 0 ? Math.round(totalPushups / countWithScores) : 0;
+    const avgRunSeconds = countWithScores > 0 ? Math.round(totalRunSeconds / countWithScores) : 0;
+    const avgScore = countWithScores > 0 ? Math.round(totalScore / countWithScores) : 0;
+    
+    // Format run time
+    const minutes = Math.floor(avgRunSeconds / 60);
+    const seconds = avgRunSeconds % 60;
+    const formattedRunTime = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+
+    return {
+      bestBreakdown,
+      initialBreakdown,
+      improvementRates,
+      averageScores: {
+        situps: avgSitups,
+        pushups: avgPushups,
+        runTime: formattedRunTime,
+        score: avgScore
+      }
+    };
+  };
+
+  // Get current group stats
+  const currentGroupStats = getGroupStats(selectedGroup);
+
+  // Function to generate and download chart image
+  const generateChartImage = async (groupName: string) => {
+    const stats = getGroupStats(groupName);
+    
+    // Create canvas element
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = 800;
+    canvas.height = 600;
+
+    if (!ctx) return;
+
+    // Set background
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Add title
+    ctx.fillStyle = '#000000';
+    ctx.font = 'bold 24px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(`IPPT Results - ${groupName}`, canvas.width / 2, 40);
+
+    // Draw pie chart
+    const centerX = 200;
+    const centerY = 300;
+    const radius = 120;
+    const total = stats.total || 1;
+
+    const segments = [
+      { label: 'Gold', value: stats.gold, color: '#fbbf24' },
+      { label: 'Silver', value: stats.silver, color: '#9ca3af' },
+      { label: 'Pass', value: stats.pass, color: '#3b82f6' },
+      { label: 'Fail', value: stats.fail, color: '#ef4444' },
+      { label: 'YTT', value: stats.ytt, color: '#a855f7' }
+    ];
+
+    let currentAngle = -Math.PI / 2;
+
+    segments.forEach(segment => {
+      if (segment.value > 0) {
+        const sliceAngle = (segment.value / total) * 2 * Math.PI;
+        
+        // Draw pie slice
+        ctx.beginPath();
+        ctx.moveTo(centerX, centerY);
+        ctx.arc(centerX, centerY, radius, currentAngle, currentAngle + sliceAngle);
+        ctx.closePath();
+        ctx.fillStyle = segment.color;
+        ctx.fill();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Draw percentage label
+        const labelAngle = currentAngle + sliceAngle / 2;
+        const labelX = centerX + Math.cos(labelAngle) * (radius * 0.7);
+        const labelY = centerY + Math.sin(labelAngle) * (radius * 0.7);
+        
+        ctx.fillStyle = '#000000';
+        ctx.font = 'bold 14px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(`${Math.round((segment.value / total) * 100)}%`, labelX, labelY);
+
+        currentAngle += sliceAngle;
+      }
+    });
+
+    // Draw legend and table
+    ctx.font = '16px Arial';
+    ctx.textAlign = 'left';
+    
+    let tableY = 100;
+    const tableX = 450;
+    const colWidth = 100;
+    const rowHeight = 30;
+
+    // Table headers
+    ctx.fillStyle = '#000000';
+    ctx.font = 'bold 14px Arial';
+    ctx.fillText('Category', tableX, tableY);
+    ctx.fillText('Count', tableX + colWidth, tableY);
+    ctx.fillText('Percent', tableX + colWidth * 2, tableY);
+
+    // Table data
+    tableY += rowHeight;
+    ctx.font = '14px Arial';
+    
+    const tableData = [
+      ['Total Eligible', stats.total.toString(), '100%'],
+      ['Gold', stats.gold.toString(), `${Math.round((stats.gold / total) * 100)}%`],
+      ['Silver', stats.silver.toString(), `${Math.round((stats.silver / total) * 100)}%`],
+      ['Pass', stats.pass.toString(), `${Math.round((stats.pass / total) * 100)}%`],
+      ['Fail', stats.fail.toString(), `${Math.round((stats.fail / total) * 100)}%`],
+      ['YTT', stats.ytt.toString(), `${Math.round((stats.ytt / total) * 100)}%`]
+    ];
+
+    tableData.forEach((row, index) => {
+      ctx.fillStyle = index === 0 ? '#000000' : '#666666';
+      ctx.fillText(row[0], tableX, tableY);
+      ctx.fillText(row[1], tableX + colWidth, tableY);
+      ctx.fillText(row[2], tableX + colWidth * 2, tableY);
+      tableY += rowHeight;
+    });
+
+    // Draw legend
+    let legendY = 400;
+    segments.forEach(segment => {
+      if (segment.value > 0) {
+        // Color box
+        ctx.fillStyle = segment.color;
+        ctx.fillRect(tableX, legendY - 10, 15, 15);
+        
+        // Label
+        ctx.fillStyle = '#000000';
+        ctx.font = '12px Arial';
+        ctx.fillText(`${segment.label} (${segment.value})`, tableX + 25, legendY);
+        
+        legendY += 25;
+      }
+    });
+
+    // Add timestamp
+    ctx.fillStyle = '#999999';
+    ctx.font = '10px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(`Generated: ${new Date().toLocaleString()}`, canvas.width / 2, canvas.height - 20);
+
+    // Convert canvas to blob and download
+    canvas.toBlob((blob) => {
+      if (blob) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `IPPT-Results-${groupName.replace(/\s+/g, '-')}-${new Date().toISOString().split('T')[0]}.png`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+    });
+  };
+
+  const { data: commanderStats } = useQuery<IpptCommanderStats>({
+    queryKey: ["/api/ippt/commander-stats"],
+    enabled: !!user,
+  });
+
+  const { data: sessionDetails } = useQuery({
+    queryKey: ["/api/ippt/sessions", selectedSessionId, "details"],
+    queryFn: () => fetch(`/api/ippt/sessions/${selectedSessionId}/details`).then(res => res.json()),
+    enabled: detailView === "session" && !!selectedSessionId,
+  });
+
+  const { data: individualHistory } = useQuery({
+    queryKey: ["/api/ippt/individual", selectedUserId, "history"],
+    queryFn: () => fetch(`/api/ippt/individual/${selectedUserId}/history`).then(res => res.json()),
+    enabled: detailView === "individual" && !!selectedUserId,
+  });
+
+  // Filter troopers based on selected group
+  const getFilteredTroopers = () => {
+    if (!commanderStats?.troopers) return [];
+    
+    let troopers = commanderStats.troopers;
+    
+    // Filter by group
+    switch (selectedGroup) {
+      case "ALL":
+        break;
+      case "COMD":
+        troopers = troopers.filter(t => t.user.role === "commander");
+        break;
+      default:
+        // Handle PLT:MSP X format - include both commanders and soldiers in that MSP
+        if (selectedGroup.startsWith("PLT:")) {
+          const mspName = selectedGroup.replace("PLT:", "");
+          troopers = troopers.filter(t => (t.user as any).mspName === mspName);
+        }
+        break;
+    }
+    
+    // Filter by search term
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
+      troopers = troopers.filter(t => 
+        t.user.fullName.toLowerCase().includes(searchLower) ||
+        t.user.rank?.toLowerCase().includes(searchLower) ||
+        (t.user as any).mspName?.toLowerCase().includes(searchLower)
+      );
+    }
+    
+    // Filter by result
+    if (resultFilter !== "all") {
+      troopers = troopers.filter(t => {
+        const bestResult = t.bestAttempt?.result || "Fail";
+        switch (resultFilter) {
+          case "gold":
+            return bestResult === "Gold";
+          case "silver":
+            return bestResult === "Silver";
+          case "pass":
+            return bestResult === "Pass";
+          case "fail":
+            return bestResult === "Fail";
+          case "ytt":
+            return bestResult === "YTT";
+          default:
+            return true;
+        }
+      });
+    }
+    
+    // Sort
+    switch (sortBy) {
+      case "name":
+        troopers.sort((a, b) => a.user.fullName.localeCompare(b.user.fullName));
+        break;
+      case "score":
+        troopers.sort((a, b) => (b.bestAttempt?.totalScore || 0) - (a.bestAttempt?.totalScore || 0));
+        break;
+      case "improvement":
+        troopers.sort((a, b) => (b.scoreChange || 0) - (a.scoreChange || 0));
+        break;
+      case "attempts":
+        troopers.sort((a, b) => b.totalAttempts - a.totalAttempts);
+        break;
+      default:
+        break;
+    }
+    
+    return troopers;
+  };
+
+  const filteredTroopers = getFilteredTroopers();
+
+  // Calculate breakdowns for filtered troopers
+  const getFilteredBreakdown = (type: 'best' | 'initial') => {
+    const results = filteredTroopers.map(t => {
+      if (type === 'best') {
+        return t.bestAttempt?.result || "Fail";
+      } else {
+        return t.initialAttempt?.result || "Fail";
+      }
+    }).filter(Boolean);
+    
+    return {
+      gold: results.filter(r => r === "Gold").length,
+      silver: results.filter(r => r === "Silver").length,
+      pass: results.filter(r => r === "Pass").length,
+      fail: results.filter(r => r === "Fail").length,
+      ytt: results.filter(r => r === "YTT").length
+    };
+  };
+
+  const filteredBestBreakdown = getFilteredBreakdown('best');
+  const filteredInitialBreakdown = getFilteredBreakdown('initial');
+
+  // Calculate improvement rates for filtered troopers
+  const filteredImprovementRates = {
+    gold: filteredBestBreakdown.gold - filteredInitialBreakdown.gold,
+    goldPercent: filteredInitialBreakdown.gold > 0 ? ((filteredBestBreakdown.gold - filteredInitialBreakdown.gold) / filteredInitialBreakdown.gold) * 100 : 0,
+    silver: filteredBestBreakdown.silver - filteredInitialBreakdown.silver,
+    silverPercent: filteredInitialBreakdown.silver > 0 ? ((filteredBestBreakdown.silver - filteredInitialBreakdown.silver) / filteredInitialBreakdown.silver) * 100 : 0,
+    pass: (filteredBestBreakdown.gold + filteredBestBreakdown.silver + filteredBestBreakdown.pass) - (filteredInitialBreakdown.gold + filteredInitialBreakdown.silver + filteredInitialBreakdown.pass),
+    passPercent: (filteredInitialBreakdown.gold + filteredInitialBreakdown.silver + filteredInitialBreakdown.pass) > 0 
+      ? (((filteredBestBreakdown.gold + filteredBestBreakdown.silver + filteredBestBreakdown.pass) - (filteredInitialBreakdown.gold + filteredInitialBreakdown.silver + filteredInitialBreakdown.pass)) / (filteredInitialBreakdown.gold + filteredInitialBreakdown.silver + filteredInitialBreakdown.pass)) * 100 
+      : 0,
+    fail: filteredBestBreakdown.fail - filteredInitialBreakdown.fail,
+    failPercent: filteredInitialBreakdown.fail > 0 ? ((filteredBestBreakdown.fail - filteredInitialBreakdown.fail) / filteredInitialBreakdown.fail) * 100 : 0
+  };
+
+  // Calculate average best score for filtered troopers
+  // Calculate filtered leaderboards and stats
+  const getFilteredLeaderboards = () => {
+    // Top best scores
+    const topBestScores = [...filteredTroopers]
+      .filter(t => t.bestAttempt)
+      .sort((a, b) => (b.bestAttempt?.totalScore || 0) - (a.bestAttempt?.totalScore || 0))
+      .slice(0, 5);
+
+    // Top improvements
+    const topImprovements = [...filteredTroopers]
+      .filter(t => t.scoreChange !== undefined && t.scoreChange > 0)
+      .sort((a, b) => (b.scoreChange || 0) - (a.scoreChange || 0))
+      .slice(0, 5);
+
+    // Station leaders
+    const stationLeaders = {
+      topSitups: filteredTroopers
+        .filter(t => t.bestAttempt?.situps)
+        .sort((a, b) => (b.bestAttempt?.situps || 0) - (a.bestAttempt?.situps || 0))[0],
+      topPushups: filteredTroopers
+        .filter(t => t.bestAttempt?.pushups)
+        .sort((a, b) => (b.bestAttempt?.pushups || 0) - (a.bestAttempt?.pushups || 0))[0],
+      fastestRun: filteredTroopers
+        .filter(t => t.bestAttempt?.runTimeSeconds)
+        .sort((a, b) => (a.bestAttempt?.runTimeSeconds || Infinity) - (b.bestAttempt?.runTimeSeconds || Infinity))[0]
+    };
+
+    // Calculate pass+ rate for filtered group
+    const passPlusCount = filteredTroopers.filter(t => 
+      t.bestAttempt && (t.bestAttempt.result === "Gold" || t.bestAttempt.result === "Silver")
+    ).length;
+    const passPlusRate = filteredTroopers.length > 0 ? Math.round((passPlusCount / filteredTroopers.length) * 100) : 0;
+
+    // Calculate overall improvement rate for filtered group
+    const improvedCount = filteredTroopers.filter(t => 
+      t.scoreChange !== undefined && t.scoreChange > 0
+    ).length;
+    const overallImprovementRate = filteredTroopers.filter(t => t.scoreChange !== undefined).length > 0 
+      ? Math.round((improvedCount / filteredTroopers.filter(t => t.scoreChange !== undefined).length) * 100) 
+      : 0;
+
+    return {
+      topBestScores,
+      topImprovements,
+      stationLeaders,
+      passPlusRate,
+      overallImprovementRate
+    };
+  };
+
+  const filteredStats = getFilteredLeaderboards();
+
+  // Calculate average best score for filtered troopers
+  const filteredAverageBestScore = filteredTroopers.length > 0 
+    ? Math.round(filteredTroopers.reduce((sum, t) => sum + (t.bestAttempt?.totalScore || 0), 0) / filteredTroopers.length)
+    : 0;
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-muted-foreground">Loading...</div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Redirect to="/login" />;
+  }
+
+  return (
+    <div className="min-h-screen bg-background">
+      <Navbar user={user} pageTitle="IPPT Commander Dashboard" />
+      
+      <div className="pt-16">
+        <div className="max-w-7xl mx-auto px-4 md:px-6 py-6 md:py-8">
+          {/* Header Section */}
+          <div className="mb-8">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+              <div>
+                <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-2">
+                  IPPT Commander Dashboard
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger>
+                        <Info className="w-5 h-5 text-muted-foreground cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p className="text-sm max-w-xs">
+                          Real-time IPPT performance tracking and analytics for MSC personnel
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </h1>
+                <p className="text-muted-foreground mt-1">
+                  Comprehensive IPPT statistics and personnel performance tracking
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button 
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-2"
+                  onClick={() => setShowChartModal(true)}
+                >
+                  <PieChart className="w-4 h-4" />
+                  Generate Charts
+                </Button>
+                <Button 
+                  onClick={() => setLocation("/ippt-input")}
+                  className="flex items-center gap-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  Input IPPT Results
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          {/* View Toggle and Filters */}
+          <Card className="mb-8">
+            <CardContent className="p-6">
+              <div className="flex flex-col gap-6">
+                {/* Top Row - View Toggle and Search */}
+                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                    {/* View Toggle */}
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">View Mode</label>
+                      <div className="inline-flex rounded-lg bg-muted p-1">
+                        <Button
+                          variant={view === "trooper" ? "default" : "ghost"}
+                          size="sm"
+                          onClick={() => setView("trooper")}
+                          className="rounded-md px-4"
+                        >
+                          <Users className="w-4 h-4 mr-2" />
+                          Individual View
+                        </Button>
+                        <Button
+                          variant={view === "commander" ? "default" : "ghost"}
+                          size="sm"
+                          onClick={() => setView("commander")}
+                          className="rounded-md px-4"
+                        >
+                          <BarChart3 className="w-4 h-4 mr-2" />
+                          Commander View
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Group Selection */}
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-2">
+                        <label className="text-sm font-medium">Group:</label>
+                        <Select value={selectedGroup} onValueChange={setSelectedGroup}>
+                          <SelectTrigger className="w-40">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {dashboardGroups.map(group => (
+                              <SelectItem key={group} value={group}>
+                                {group}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    {/* Search Bar */}
+                    <div className="flex-1 max-w-md">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                      <Input
+                        placeholder="Search by name, rank, or platoon..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="pl-10 pr-4"
+                      />
+                      {searchTerm && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setSearchTerm("")}
+                          className="absolute right-1 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0"
+                        >
+                          <X className="w-3 h-3" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowFilters(!showFilters)}
+                      className="flex items-center gap-2"
+                    >
+                      <Filter className="w-4 h-4" />
+                      Filters
+                      {showFilters ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => window.location.reload()}
+                      className="flex items-center gap-2"
+                    >
+                      <RefreshCw className="w-4 h-4" />
+                      Refresh
+                    </Button>
+                    <Badge variant="secondary" className="px-3 py-1">
+                      {filteredTroopers.length} Results
+                    </Badge>
+                  </div>
+                </div>
+
+                {/* Advanced Filters Panel */}
+                {showFilters && (
+                  <div className="border-t pt-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {/* Result Filter */}
+                      <div>
+                        <label className="text-sm font-medium mb-2 block">Result Filter</label>
+                        <Select value={resultFilter} onValueChange={setResultFilter}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Filter by result" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Results</SelectItem>
+                            <SelectItem value="gold">Gold Only</SelectItem>
+                            <SelectItem value="silver">Silver Only</SelectItem>
+                            <SelectItem value="pass">Pass Only</SelectItem>
+                            <SelectItem value="fail">Fail Only</SelectItem>
+                            <SelectItem value="ytt">YTT Only</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {/* Sort By */}
+                      <div>
+                        <label className="text-sm font-medium mb-2 block">Sort By</label>
+                        <Select value={sortBy} onValueChange={setSortBy}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Sort by" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="name">Name (A-Z)</SelectItem>
+                            <SelectItem value="score">Best Score (High-Low)</SelectItem>
+                            <SelectItem value="improvement">Improvement (High-Low)</SelectItem>
+                            <SelectItem value="attempts">Attempts (High-Low)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {/* Quick Actions */}
+                      <div>
+                        <label className="text-sm font-medium mb-2 block">Quick Actions</label>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setSearchTerm("");
+                              setResultFilter("all");
+                              setSortBy("name");
+                              setSelectedGroup("ALL");
+                            }}
+                          >
+                            Clear All
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setResultFilter("gold");
+                              setSortBy("score");
+                            }}
+                          >
+                            Top Performers
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </Card>
+
+          {/* IPPT Dashboard View */}
+          {view === "commander" && (
+            <div className="space-y-8">
+              {/* A. SUMMARY TABLE */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-xl font-bold text-center">
+                    {selectedGroup} - Best Result
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-6 gap-4 text-center">
+                    <div>
+                      <div className="text-2xl font-bold text-blue-600">{currentGroupStats.bestBreakdown.total}</div>
+                      <div className="text-sm text-muted-foreground">Total Eligible</div>
+                    </div>
+                    <div>
+                      <div className="text-2xl font-bold text-yellow-600">{currentGroupStats.bestBreakdown.gold}</div>
+                      <div className="text-sm text-muted-foreground">Gold</div>
+                    </div>
+                    <div>
+                      <div className="text-2xl font-bold text-gray-600">{currentGroupStats.bestBreakdown.silver}</div>
+                      <div className="text-sm text-muted-foreground">Silver</div>
+                    </div>
+                    <div>
+                      <div className="text-2xl font-bold text-blue-500">{currentGroupStats.bestBreakdown.pass}</div>
+                      <div className="text-sm text-muted-foreground">Pass</div>
+                    </div>
+                    <div>
+                      <div className="text-2xl font-bold text-red-600">{currentGroupStats.bestBreakdown.fail}</div>
+                      <div className="text-sm text-muted-foreground">Fail</div>
+                    </div>
+                    <div>
+                      <div className="text-2xl font-bold text-purple-600">{currentGroupStats.bestBreakdown.ytt}</div>
+                      <div className="text-sm text-muted-foreground">YTT</div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* B. PIE CHART */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-xl font-bold text-center">
+                    Best Result Distribution
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex justify-center">
+                    <div className="w-80 h-80">
+                      <canvas 
+                        ref={(canvas) => {
+                          if (canvas) {
+                            const ctx = canvas.getContext('2d');
+                            if (ctx) {
+                              // Clear canvas
+                              ctx.clearRect(0, 0, 320, 320);
+                              
+                              // Draw pie chart
+                              const centerX = 160;
+                              const centerY = 160;
+                              const radius = 120;
+                              const total = currentGroupStats.bestBreakdown.total || 1;
+
+                              const segments = [
+                                { label: 'Gold', value: currentGroupStats.bestBreakdown.gold, color: '#fbbf24' },
+                                { label: 'Silver', value: currentGroupStats.bestBreakdown.silver, color: '#9ca3af' },
+                                { label: 'Pass', value: currentGroupStats.bestBreakdown.pass, color: '#3b82f6' },
+                                { label: 'Fail', value: currentGroupStats.bestBreakdown.fail, color: '#ef4444' },
+                                { label: 'YTT', value: currentGroupStats.bestBreakdown.ytt, color: '#a855f7' }
+                              ];
+
+                              let currentAngle = -Math.PI / 2;
+
+                              segments.forEach(segment => {
+                                if (segment.value > 0) {
+                                  const sliceAngle = (segment.value / total) * 2 * Math.PI;
+                                  
+                                  // Draw pie slice
+                                  ctx.beginPath();
+                                  ctx.moveTo(centerX, centerY);
+                                  ctx.arc(centerX, centerY, radius, currentAngle, currentAngle + sliceAngle);
+                                  ctx.closePath();
+                                  ctx.fillStyle = segment.color;
+                                  ctx.fill();
+                                  ctx.strokeStyle = '#ffffff';
+                                  ctx.lineWidth = 2;
+                                  ctx.stroke();
+
+                                  // Draw percentage label
+                                  const labelAngle = currentAngle + sliceAngle / 2;
+                                  const labelX = centerX + Math.cos(labelAngle) * (radius * 0.7);
+                                  const labelY = centerY + Math.sin(labelAngle) * (radius * 0.7);
+                                  
+                                  ctx.fillStyle = '#000000';
+                                  ctx.font = 'bold 14px Arial';
+                                  ctx.textAlign = 'center';
+                                  ctx.fillText(`${Math.round((segment.value / total) * 100)}%`, labelX, labelY);
+
+                                  currentAngle += sliceAngle;
+                                }
+                              });
+                            }
+                          }
+                        }}
+                        width={320}
+                        height={320}
+                      />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* C. TABLES BELOW PIE CHART */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* 1) INITIAL RESULT TABLE */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg font-bold text-center">
+                      {selectedGroup} - Initial Result
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      <div className="flex justify-between">
+                        <span className="text-sm font-medium">Total Eligible:</span>
+                        <span className="font-bold">{currentGroupStats.initialBreakdown.total}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm font-medium">Gold:</span>
+                        <span className="font-bold text-yellow-600">{currentGroupStats.initialBreakdown.gold}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm font-medium">Silver:</span>
+                        <span className="font-bold text-gray-600">{currentGroupStats.initialBreakdown.silver}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm font-medium">Pass:</span>
+                        <span className="font-bold text-blue-500">{currentGroupStats.initialBreakdown.pass}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm font-medium">Fail:</span>
+                        <span className="font-bold text-red-600">{currentGroupStats.initialBreakdown.fail}</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* 2) IMPROVEMENT RATE TABLE */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg font-bold text-center">
+                      {selectedGroup} - Improvement Rate
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      <div className="flex justify-between">
+                        <span className="text-sm font-medium">Gold:</span>
+                        <span className={`font-bold ${currentGroupStats.improvementRates.gold >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {currentGroupStats.improvementRates.gold}%
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm font-medium">Silver:</span>
+                        <span className={`font-bold ${currentGroupStats.improvementRates.silver >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {currentGroupStats.improvementRates.silver}%
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm font-medium">Pass:</span>
+                        <span className={`font-bold ${currentGroupStats.improvementRates.pass >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {currentGroupStats.improvementRates.pass}%
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm font-medium">Fail:</span>
+                        <span className={`font-bold ${currentGroupStats.improvementRates.fail >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {currentGroupStats.improvementRates.fail}%
+                        </span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* 3) AVERAGE SCORES TABLE */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg font-bold text-center">
+                      {selectedGroup} - Average Scores
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      <div className="flex justify-between">
+                        <span className="text-sm font-medium">Sit-Up Reps:</span>
+                        <span className="font-bold">{currentGroupStats.averageScores.situps}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm font-medium">Push-Up Reps:</span>
+                        <span className="font-bold">{currentGroupStats.averageScores.pushups}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm font-medium">Run Timing:</span>
+                        <span className="font-bold">{currentGroupStats.averageScores.runTime}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm font-medium">Score:</span>
+                        <span className="font-bold">{currentGroupStats.averageScores.score}</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          )}
+
+          {/* Trooper View */}
+          {view === "trooper" && (
+            <div>
+              <div className="text-center py-16">
+                <div className="space-y-4">
+                  <h2 className="text-3xl font-bold">Trooper View</h2>
+                  <p className="text-muted-foreground max-w-md">
+                    Individual trooper IPPT tracking and progress monitoring.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+                    {/* Modal Dialogs */}
+          <TooltipProvider>
+            {/* Chart Generation Modal */}
+            <Dialog open={showChartModal} onOpenChange={setShowChartModal}>
+                            <td className="p-2 font-medium text-xs">{(trooper.user as any).mspName?.replace('MSP ', '') || trooper.user.mspId || 'N/A'}</td>
+                            <td className="p-2 text-xs">{trooper.user.rank || 'N/A'}</td>
+                            <td className="p-2 font-medium text-xs">{trooper.user.fullName}</td>
+                            <td className="p-2">
+                              {trooper.bestAttempt ? (
+                                <span className={`px-1 py-0.5 rounded text-xs font-medium ${
+                                  trooper.bestAttempt.result === 'Gold' ? 'bg-yellow-100 text-yellow-800' :
+                                  trooper.bestAttempt.result === 'Silver' ? 'bg-gray-100 text-gray-800' :
+                                  trooper.bestAttempt.result === 'Pass' ? 'bg-blue-100 text-blue-800' :
+                                  trooper.bestAttempt.result === 'Fail' ? 'bg-red-100 text-red-800' :
+                                  'bg-purple-100 text-purple-800'
+                                }`}>
+                                  {trooper.bestAttempt.totalScore}
+                                </span>
+                              ) : '-'}
+                            </td>
+                            <td className="p-2">
+                              {trooper.latestAttempt ? (
+                                <span className={`px-1 py-0.5 rounded text-xs font-medium ${
+                                  trooper.latestAttempt.result === 'Gold' ? 'bg-yellow-100 text-yellow-800' :
+                                  trooper.latestAttempt.result === 'Silver' ? 'bg-gray-100 text-gray-800' :
+                                  trooper.latestAttempt.result === 'Pass' ? 'bg-blue-100 text-blue-800' :
+                                  trooper.latestAttempt.result === 'Fail' ? 'bg-red-100 text-red-800' :
+                                  'bg-purple-100 text-purple-800'
+                                }`}>
+                                  {trooper.latestAttempt.totalScore}
+                                </span>
+                              ) : '-'}
+                            </td>
+                            <td className="p-2">
+                              {trooper.initialAttempt ? (
+                                <span className={`px-1 py-0.5 rounded text-xs font-medium ${
+                                  trooper.initialAttempt.result === 'Gold' ? 'bg-yellow-100 text-yellow-800' :
+                                  trooper.initialAttempt.result === 'Silver' ? 'bg-gray-100 text-gray-800' :
+                                  trooper.initialAttempt.result === 'Pass' ? 'bg-blue-100 text-blue-800' :
+                                  trooper.initialAttempt.result === 'Fail' ? 'bg-red-100 text-red-800' :
+                                  'bg-purple-100 text-purple-800'
+                                }`}>
+                                  {trooper.initialAttempt.totalScore}
+                                </span>
+                              ) : '-'}
+                            </td>
+                            <td className="p-2">
+                              {trooper.scoreChange !== undefined ? (
+                                <span className={`font-medium text-xs ${
+                                  trooper.scoreChange >= 0 ? 'text-green-600' : 'text-red-600'
+                                }`}>
+                                  {trooper.scoreChange >= 0 ? '+' : ''}{trooper.scoreChange}
+                                </span>
+                              ) : '-'}
+                            </td>
+                            <td className="p-2 text-xs">{trooper.totalAttempts}</td>
+                            <td className="p-2">
+                              <div className="flex items-center gap-1">
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button 
+                                        size="sm" 
+                                        variant="outline"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setSelectedUserId(trooper.user.id);
+                                          setDetailView("individual");
+                                        }}
+                                        className="h-5 px-1 text-xs"
+                                      >
+                                        <Eye className="w-3 h-3" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p>View full history</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                                
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button 
+                                        size="sm" 
+                                        variant="ghost"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setSelectedTrooper(trooper);
+                                          setShowComparisonModal(true);
+                                        }}
+                                        className="h-5 px-1 text-xs"
+                                      >
+                                        <BarChart3 className="w-3 h-3" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p>Compare performance</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+
+              {/* Leaderboards and Sessions */}
+          <div className="space-y-6 mb-8">
+            <div>
+              <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                <Trophy className="w-5 h-5" />
+                Performance Highlights
+              </h2>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                {/* Top Performers */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base font-semibold flex items-center">
+                      <Trophy className="w-4 h-4 mr-2 text-yellow-500" />
+                      Top 5 Best Scores
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {filteredStats.topBestScores.map((trooper, index) => (
+                        <div key={trooper.user.id} className="flex items-center justify-between p-2 bg-muted rounded">
+                          <div className="flex items-center space-x-2">
+                            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                              index === 0 ? 'bg-yellow-500 text-white' :
+                              index === 1 ? 'bg-gray-400 text-white' :
+                              index === 2 ? 'bg-orange-600 text-white' :
+                              'bg-muted-foreground text-white'
+                            }`}>
+                              {index + 1}
+                            </div>
+                            <div className="min-w-0">
+                              <div className="text-sm font-medium truncate">{trooper.user.fullName}</div>
+                              <div className="text-xs text-muted-foreground truncate">{(trooper.user as any).mspName || 'N/A'}</div>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-sm font-bold">{trooper.bestAttempt?.totalScore}</div>
+                            <div className="text-xs text-muted-foreground">{trooper.bestAttempt?.result}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Most Improved */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base font-semibold flex items-center">
+                      <TrendingUp className="w-4 h-4 mr-2 text-green-500" />
+                      Top 5 Improvements
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {filteredStats.topImprovements.map((trooper, index) => (
+                        <div key={trooper.user.id} className="flex items-center justify-between p-2 bg-muted rounded">
+                          <div className="flex items-center space-x-2">
+                            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                              index === 0 ? 'bg-green-500 text-white' :
+                              index === 1 ? 'bg-emerald-500 text-white' :
+                              index === 2 ? 'bg-teal-500 text-white' :
+                              'bg-muted-foreground text-white'
+                            }`}>
+                              {index + 1}
+                            </div>
+                            <div className="min-w-0">
+                              <div className="text-sm font-medium truncate">{trooper.user.fullName}</div>
+                              <div className="text-xs text-muted-foreground truncate">{(trooper.user as any).mspName || 'N/A'}</div>
+                            </div>
+                          </div>
+                          <div className="text-green-600 text-sm font-bold">+{trooper.scoreChange}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Station Leaders */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base font-semibold flex items-center">
+                      <Target className="w-4 h-4 mr-2 text-blue-500" />
+                      Station Leaders
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between p-2 bg-muted rounded">
+                        <div className="text-sm font-medium">Top Sit-ups</div>
+                        <div className="text-right">
+                          <div className="text-sm text-muted-foreground">{filteredStats.stationLeaders.topSitups?.user.fullName || 'N/A'}</div>
+                          <div className="text-sm font-bold">{filteredStats.stationLeaders.topSitups?.bestAttempt?.situps || 0} reps</div>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between p-2 bg-muted rounded">
+                        <div className="text-sm font-medium">Top Push-ups</div>
+                        <div className="text-right">
+                          <div className="text-sm text-muted-foreground">{filteredStats.stationLeaders.topPushups?.user.fullName || 'N/A'}</div>
+                          <div className="text-sm font-bold">{filteredStats.stationLeaders.topPushups?.bestAttempt?.pushups || 0} reps</div>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between p-2 bg-muted rounded">
+                        <div className="text-sm font-medium">Fastest 2.4km</div>
+                        <div className="text-right">
+                          <div className="text-sm text-muted-foreground">{filteredStats.stationLeaders.fastestRun?.user.fullName || 'N/A'}</div>
+                          <div className="text-sm font-bold">
+                            {filteredStats.stationLeaders.fastestRun?.bestAttempt?.runTimeSeconds ? 
+                              `${Math.floor(filteredStats.stationLeaders.fastestRun.bestAttempt.runTimeSeconds / 60)}:${(filteredStats.stationLeaders.fastestRun.bestAttempt.runTimeSeconds % 60).toString().padStart(2, '0')}` 
+                              : '0:00'}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          </div>
+
+              {/* IPPT Sessions */}
+          <div className="space-y-6 mb-8">
+            <div>
+              <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                <Calendar className="w-5 h-5" />
+                IPPT Conduct Sessions
+              </h2>
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base font-semibold">Session History ({commanderStats?.sessions.length || 0})</CardTitle>
+                  <CardDescription className="text-xs">Recent IPPT conduct sessions and results</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead className="bg-muted border-b">
+                        <tr>
+                          <th className="text-left p-2 font-semibold">Session</th>
+                          <th className="text-left p-2 font-semibold">Date</th>
+                          <th className="text-left p-2 font-semibold">Attendees</th>
+                          <th className="text-left p-2 font-semibold">Avg</th>
+                          <th className="text-left p-2 font-semibold">G</th>
+                          <th className="text-left p-2 font-semibold">S</th>
+                          <th className="text-left p-2 font-semibold">P</th>
+                          <th className="text-left p-2 font-semibold">F</th>
+                          <th className="text-left p-2 font-semibold">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {commanderStats?.sessions.map((session, index) => (
+                          <tr key={session.id} className={`border-b ${index % 2 === 1 ? 'bg-muted/50' : ''} hover:bg-muted transition-colors`}>
+                            <td className="p-2 font-medium text-xs">{session.name}</td>
+                            <td className="p-2 text-xs">{new Date(session.date).toLocaleDateString()}</td>
+                            <td className="p-2 text-xs">{session.totalAttendees}</td>
+                            <td className="p-2 text-xs font-medium">{session.avgScore}</td>
+                            <td className="p-2 text-xs">{session.goldCount}</td>
+                            <td className="p-2 text-xs">{session.silverCount}</td>
+                            <td className="p-2 text-xs">{session.passCount}</td>
+                            <td className="p-2 text-xs">{session.failCount}</td>
+                            <td className="p-2">
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                onClick={() => {
+                                  setSelectedSessionId(session.id);
+                                  setDetailView("session");
+                                }}
+                                className="h-6 px-2 text-xs"
+                              >
+                                <Eye className="w-3 h-3 mr-1" />
+                                View
+                              </Button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+
+              {/* Session Details Modal */}
+              {detailView === "session" && sessionDetails && (
+                <Card className="mt-6">
+                  <CardHeader className="pb-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle className="text-xl font-bold flex items-center">
+                          <Calendar className="w-6 h-6 mr-2 text-purple-500" />
+                          Session Details: {sessionDetails.name}
+                        </CardTitle>
+                        <CardDescription className="text-muted-foreground mt-1">
+                          {new Date(sessionDetails.date).toLocaleDateString()} · {sessionDetails.statistics.totalAttendees} participants
+                        </CardDescription>
+                      </div>
+                      <Button 
+                        variant="outline" 
+                        onClick={() => setDetailView("none")}
+                      >
+                        <X className="w-4 h-4 mr-1" />
+                        Close
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    {/* Session Statistics */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                      <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
+                        <div className="text-2xl font-bold text-blue-600">{sessionDetails.statistics.averageScore}</div>
+                        <div className="text-sm text-blue-700 font-medium">Average Score</div>
+                      </div>
+                      <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-100">
+                        <div className="text-2xl font-bold text-yellow-600">{sessionDetails.statistics.goldCount}</div>
+                        <div className="text-sm text-yellow-700 font-medium">Gold Awards</div>
+                      </div>
+                      <div className="bg-gray-50 p-4 rounded-lg border border-gray-100">
+                        <div className="text-2xl font-bold text-gray-600">{sessionDetails.statistics.silverCount}</div>
+                        <div className="text-sm text-gray-700 font-medium">Silver Awards</div>
+                      </div>
+                      <div className="bg-green-50 p-4 rounded-lg border border-green-100">
+                        <div className="text-2xl font-bold text-green-600">
+                          {sessionDetails.statistics.goldCount + sessionDetails.statistics.silverCount + sessionDetails.statistics.passCount}
+                        </div>
+                        <div className="text-sm text-green-700 font-medium">Passed</div>
+                      </div>
+                    </div>
+
+                    {/* All Participants */}
+                    <div>
+                      <h3 className="text-lg font-semibold mb-4">All Participants</h3>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead className="bg-muted border-b">
+                            <tr>
+                              <th className="text-left p-3 font-semibold">Name</th>
+                              <th className="text-left p-3 font-semibold">Rank</th>
+                              <th className="text-left p-3 font-semibold">Platoon</th>
+                              <th className="text-left p-3 font-semibold">Score</th>
+                              <th className="text-left p-3 font-semibold">Result</th>
+                              <th className="text-left p-3 font-semibold">Sit-ups</th>
+                              <th className="text-left p-3 font-semibold">Push-ups</th>
+                              <th className="text-left p-3 font-semibold">2.4km</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {sessionDetails.attempts.map((attempt: any, index: number) => (
+                              <tr key={attempt.id} className={`border-b ${index % 2 === 1 ? 'bg-muted/50' : ''} hover:bg-muted transition-colors`}>
+                                <td className="p-3 font-medium">{attempt.user?.fullName || 'N/A'}</td>
+                                <td className="p-3">{attempt.user?.rank || 'N/A'}</td>
+                                <td className="p-3">{attempt.user?.mspName || 'N/A'}</td>
+                                <td className="p-3 font-bold">{attempt.totalScore || 'N/A'}</td>
+                                <td className="p-3">
+                                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                                    attempt.result === 'Gold' ? 'bg-yellow-100 text-yellow-800' :
+                                    attempt.result === 'Silver' ? 'bg-gray-100 text-gray-800' :
+                                    attempt.result === 'Pass' ? 'bg-blue-100 text-blue-800' :
+                                    attempt.result === 'Fail' ? 'bg-red-100 text-red-800' :
+                                    'bg-purple-100 text-purple-800'
+                                  }`}>
+                                    {attempt.result || 'YTT'}
+                                  </span>
+                                </td>
+                                <td className="p-3">{attempt.situps || '-'}</td>
+                                <td className="p-3">{attempt.pushups || '-'}</td>
+                                <td className="p-3">
+                                  {attempt.runTimeSeconds ? 
+                                    `${Math.floor(attempt.runTimeSeconds / 60)}:${(attempt.runTimeSeconds % 60).toString().padStart(2, '0')}` 
+                                    : '-'}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+          )}
+
+          {/* IPPT Dashboard View */}
+          {view === "commander" && (
+            <div className="space-y-8">
+              {/* A. SUMMARY TABLE */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-xl font-bold text-center">
+                    {selectedGroup} - Best Result
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-6 gap-4 text-center">
+                    <div>
+                      <div className="text-2xl font-bold text-blue-600">{currentGroupStats.bestBreakdown.total}</div>
+                      <div className="text-sm text-muted-foreground">Total Eligible</div>
+                    </div>
+                    <div>
+                      <div className="text-2xl font-bold text-yellow-600">{currentGroupStats.bestBreakdown.gold}</div>
+                      <div className="text-sm text-muted-foreground">Gold</div>
+                    </div>
+                    <div>
+                      <div className="text-2xl font-bold text-gray-600">{currentGroupStats.bestBreakdown.silver}</div>
+                      <div className="text-sm text-muted-foreground">Silver</div>
+                    </div>
+                    <div>
+                      <div className="text-2xl font-bold text-blue-500">{currentGroupStats.bestBreakdown.pass}</div>
+                      <div className="text-sm text-muted-foreground">Pass</div>
+                    </div>
+                    <div>
+                      <div className="text-2xl font-bold text-red-600">{currentGroupStats.bestBreakdown.fail}</div>
+                      <div className="text-sm text-muted-foreground">Fail</div>
+                    </div>
+                    <div>
+                      <div className="text-2xl font-bold text-purple-600">{currentGroupStats.bestBreakdown.ytt}</div>
+                      <div className="text-sm text-muted-foreground">YTT</div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* B. PIE CHART */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-xl font-bold text-center">
+                    Best Result Distribution
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex justify-center">
+                    <div className="w-80 h-80">
+                      <canvas 
+                        ref={(canvas) => {
+                          if (canvas) {
+                            const ctx = canvas.getContext('2d');
+                            if (ctx) {
+                              // Clear canvas
+                              ctx.clearRect(0, 0, 320, 320);
+                              
+                              // Draw pie chart
+                              const centerX = 160;
+                              const centerY = 160;
+                              const radius = 120;
+                              const total = currentGroupStats.bestBreakdown.total || 1;
+
+                              const segments = [
+                                { label: 'Gold', value: currentGroupStats.bestBreakdown.gold, color: '#fbbf24' },
+                                { label: 'Silver', value: currentGroupStats.bestBreakdown.silver, color: '#9ca3af' },
+                                { label: 'Pass', value: currentGroupStats.bestBreakdown.pass, color: '#3b82f6' },
+                                { label: 'Fail', value: currentGroupStats.bestBreakdown.fail, color: '#ef4444' },
+                                { label: 'YTT', value: currentGroupStats.bestBreakdown.ytt, color: '#a855f7' }
+                              ];
+
+                              let currentAngle = -Math.PI / 2;
+
+                              segments.forEach(segment => {
+                                if (segment.value > 0) {
+                                  const sliceAngle = (segment.value / total) * 2 * Math.PI;
+                                  
+                                  // Draw pie slice
+                                  ctx.beginPath();
+                                  ctx.moveTo(centerX, centerY);
+                                  ctx.arc(centerX, centerY, radius, currentAngle, currentAngle + sliceAngle);
+                                  ctx.closePath();
+                                  ctx.fillStyle = segment.color;
+                                  ctx.fill();
+                                  ctx.strokeStyle = '#ffffff';
+                                  ctx.lineWidth = 2;
+                                  ctx.stroke();
+
+                                  // Draw percentage label
+                                  const labelAngle = currentAngle + sliceAngle / 2;
+                                  const labelX = centerX + Math.cos(labelAngle) * (radius * 0.7);
+                                  const labelY = centerY + Math.sin(labelAngle) * (radius * 0.7);
+                                  
+                                  ctx.fillStyle = '#000000';
+                                  ctx.font = 'bold 14px Arial';
+                                  ctx.textAlign = 'center';
+                                  ctx.fillText(`${Math.round((segment.value / total) * 100)}%`, labelX, labelY);
+
+                                  currentAngle += sliceAngle;
+                                }
+                              });
+                            }
+                          }
+                        }}
+                        width={320}
+                        height={320}
+                      />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* C. TABLES BELOW PIE CHART */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* 1) INITIAL RESULT TABLE */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg font-bold text-center">
+                      {selectedGroup} - Initial Result
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      <div className="flex justify-between">
+                        <span className="text-sm font-medium">Total Eligible:</span>
+                        <span className="font-bold">{currentGroupStats.initialBreakdown.total}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm font-medium">Gold:</span>
+                        <span className="font-bold text-yellow-600">{currentGroupStats.initialBreakdown.gold}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm font-medium">Silver:</span>
+                        <span className="font-bold text-gray-600">{currentGroupStats.initialBreakdown.silver}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm font-medium">Pass:</span>
+                        <span className="font-bold text-blue-500">{currentGroupStats.initialBreakdown.pass}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm font-medium">Fail:</span>
+                        <span className="font-bold text-red-600">{currentGroupStats.initialBreakdown.fail}</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* 2) IMPROVEMENT RATE TABLE */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg font-bold text-center">
+                      {selectedGroup} - Improvement Rate
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      <div className="flex justify-between">
+                        <span className="text-sm font-medium">Gold:</span>
+                        <span className={`font-bold ${currentGroupStats.improvementRates.gold >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {currentGroupStats.improvementRates.gold}%
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm font-medium">Silver:</span>
+                        <span className={`font-bold ${currentGroupStats.improvementRates.silver >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {currentGroupStats.improvementRates.silver}%
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm font-medium">Pass:</span>
+                        <span className={`font-bold ${currentGroupStats.improvementRates.pass >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {currentGroupStats.improvementRates.pass}%
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm font-medium">Fail:</span>
+                        <span className={`font-bold ${currentGroupStats.improvementRates.fail >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {currentGroupStats.improvementRates.fail}%
+                        </span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* 3) AVERAGE SCORES TABLE */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg font-bold text-center">
+                      {selectedGroup} - Average Scores
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      <div className="flex justify-between">
+                        <span className="text-sm font-medium">Sit-Up Reps:</span>
+                        <span className="font-bold">{currentGroupStats.averageScores.situps}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm font-medium">Push-Up Reps:</span>
+                        <span className="font-bold">{currentGroupStats.averageScores.pushups}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm font-medium">Run Timing:</span>
+                        <span className="font-bold">{currentGroupStats.averageScores.runTime}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm font-medium">Score:</span>
+                        <span className="font-bold">{currentGroupStats.averageScores.score}</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          )}
+
+          {/* Trooper View */}
+          {view === "trooper" && (
+            <div>
+              <div className="text-center py-16">
+                <div className="space-y-4">
+                  <h2 className="text-3xl font-bold">Trooper View</h2>
+                  <p className="text-muted-foreground max-w-md">
+                    Individual trooper IPPT tracking and progress monitoring.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Individual History Modal */}
+          {detailView === "individual" && individualHistory && (
+            <Card className="mt-6">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-lg">Individual IPPT History: {individualHistory.fullName}</CardTitle>
+                    <CardDescription>
+                      {individualHistory.rank} · {individualHistory.mspName} · {individualHistory.totalAttempts} attempts
+                    </CardDescription>
+                  </div>
+                  <Button variant="outline" onClick={() => setDetailView("none")}>
+                    Close
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {/* Individual history content */}
+                <div className="space-y-4">
+                  {individualHistory.attempts?.map((attempt: any, index: number) => (
+                    <div key={attempt.id} className="border rounded-lg p-4">
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <h4 className="font-semibold">Attempt #{index + 1}</h4>
+                          <p className="text-sm text-muted-foreground">
+                            {new Date(attempt.date).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <span className={`px-2 py-1 rounded text-xs font-medium ${
+                          attempt.result === 'Gold' ? 'bg-yellow-100 text-yellow-800' :
+                          attempt.result === 'Silver' ? 'bg-gray-100 text-gray-800' :
+                          attempt.result === 'Pass' ? 'bg-blue-100 text-blue-800' :
+                          attempt.result === 'Fail' ? 'bg-red-100 text-red-800' :
+                          'bg-purple-100 text-purple-800'
+                        }`}>
+                          {attempt.result}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-4 text-sm">
+                        <div>
+                          <span className="text-muted-foreground">Sit-ups:</span>
+                          <span className="ml-2 font-medium">{attempt.situps || 0}</span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Push-ups:</span>
+                          <span className="ml-2 font-medium">{attempt.pushups || 0}</span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">2.4km:</span>
+                          <span className="ml-2 font-medium">
+                            {attempt.runTimeSeconds ? 
+                              `${Math.floor(attempt.runTimeSeconds / 60)}:${(attempt.runTimeSeconds % 60).toString().padStart(2, '0')}` 
+                              : 'N/A'}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="mt-2 text-sm">
+                        <span className="text-muted-foreground">Total Score:</span>
+                        <span className="ml-2 font-bold text-lg">{attempt.totalScore || 0}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Modal Dialogs */}
+          <TooltipProvider>
+            {/* Chart Generation Modal */}
+            <Dialog open={showChartModal} onOpenChange={setShowChartModal}>
+              <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <PieChart className="w-5 h-5" />
+                    Generate IPPT Charts
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="space-y-6">
+                  <p className="text-sm text-muted-foreground">
+                    Generate downloadable pie charts with statistics for each group. Each chart includes a pie chart and table with total eligible, gold, silver, pass, fail, and YTT counts.
+                  </p>
+                  
+                  {/* MSC Groups Section */}
+                  <div>
+                    <h4 className="font-semibold mb-3 text-lg">MSC Groups</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      {/* MSC Overall */}
+                      <Card className="cursor-pointer hover:shadow-md transition-shadow">
+                        <CardContent className="p-4">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h4 className="font-semibold">MSC Overall</h4>
+                              <p className="text-sm text-muted-foreground">All personnel</p>
+                            </div>
+                            <Button 
+                              size="sm"
+                              onClick={() => generateChartImage("MSC Overall")}
+                              className="flex items-center gap-1"
+                            >
+                              <Download className="w-3 h-3" />
+                              Download
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      {/* MSC Comds */}
+                      <Card className="cursor-pointer hover:shadow-md transition-shadow">
+                        <CardContent className="p-4">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h4 className="font-semibold">MSC Comds</h4>
+                              <p className="text-sm text-muted-foreground">Commanders only</p>
+                            </div>
+                            <Button 
+                              size="sm"
+                              onClick={() => generateChartImage("MSC Comds")}
+                              className="flex items-center gap-1"
+                            >
+                              <Download className="w-3 h-3" />
+                              Download
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      {/* MSC Troopers */}
+                      <Card className="cursor-pointer hover:shadow-md transition-shadow">
+                        <CardContent className="p-4">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h4 className="font-semibold">MSC Troopers</h4>
+                              <p className="text-sm text-muted-foreground">Soldiers only</p>
+                            </div>
+                            <Button 
+                              size="sm"
+                              onClick={() => generateChartImage("MSC Troopers")}
+                              className="flex items-center gap-1"
+                            >
+                              <Download className="w-3 h-3" />
+                              Download
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  </div>
+
+                  {/* MSP Groups Section */}
+                  <div>
+                    <h4 className="font-semibold mb-3 text-lg">Medical Service Platoons (MSP)</h4>
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+                      {["MSP 1", "MSP 2", "MSP 3", "MSP 4", "MSP 5"].map(msp => (
+                        <Card key={msp} className="cursor-pointer hover:shadow-md transition-shadow">
+                          <CardContent className="p-4">
+                            <div className="flex flex-col items-center text-center space-y-2">
+                              <h4 className="font-semibold">{msp}</h4>
+                              <p className="text-xs text-muted-foreground">
+                                {getGroupStats(msp).total} personnel
+                              </p>
+                              <Button 
+                                size="sm"
+                                onClick={() => generateChartImage(msp)}
+                                className="flex items-center gap-1 w-full"
+                              >
+                                <Download className="w-3 h-3" />
+                                Download
+                              </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="flex justify-center pt-4 border-t">
+                    <Button 
+                      variant="outline"
+                      onClick={() => {
+                        // Generate all charts at once
+                        const groups = ["MSC Overall", "MSC Comds", "MSC Troopers", "MSP 1", "MSP 2", "MSP 3", "MSP 4", "MSP 5"];
+                        groups.forEach((group, index) => {
+                          setTimeout(() => generateChartImage(group), index * 500); // Stagger downloads
+                        });
+                      }}
+                    >
+                      <Download className="w-4 h-4 mr-2" />
+                      Download All Charts
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+
+            {/* Comparison Modal */}
+            <Dialog open={showComparisonModal} onOpenChange={setShowComparisonModal}>
+              <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <BarChart3 className="w-5 h-5" />
+                    Performance Comparison
+                  </DialogTitle>
+                </DialogHeader>
+                {selectedTrooper && (
+                  <div className="space-y-4">
+                    <div className="text-center">
+                      <h3 className="font-semibold">{selectedTrooper.user.fullName}</h3>
+                      <p className="text-sm text-muted-foreground">
+                        {selectedTrooper.user.rank} · {(selectedTrooper.user as any).mspName}
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-3 gap-4 text-center">
+                      <div>
+                        <div className="text-lg font-bold text-blue-600">
+                          {selectedTrooper.initialAttempt?.totalScore || 'N/A'}
+                        </div>
+                        <div className="text-xs text-muted-foreground">Initial</div>
+                      </div>
+                      <div>
+                        <div className="text-lg font-bold text-green-600">
+                          {selectedTrooper.bestAttempt?.totalScore || 'N/A'}
+                        </div>
+                        <div className="text-xs text-muted-foreground">Best</div>
+                      </div>
+                      <div>
+                        <div className="text-lg font-bold text-purple-600">
+                          {selectedTrooper.scoreChange !== undefined ? 
+                            `${selectedTrooper.scoreChange >= 0 ? '+' : ''}${selectedTrooper.scoreChange}` : 
+                            'N/A'
+                          }
+                        </div>
+                        <div className="text-xs text-muted-foreground">Change</div>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-4 text-center">
+                      <div>
+                        <div className="text-sm font-medium">
+                          {selectedTrooper.initialAttempt?.result || 'N/A'}
+                        </div>
+                        <div className="text-xs text-muted-foreground">Initial Result</div>
+                      </div>
+                      <div>
+                        <div className="text-sm font-medium">
+                          {selectedTrooper.bestAttempt?.result || 'N/A'}
+                        </div>
+                        <div className="text-xs text-muted-foreground">Best Result</div>
+                      </div>
+                      <div>
+                        <div className="text-sm font-medium">
+                          {selectedTrooper.totalAttempts}
+                        </div>
+                        <div className="text-xs text-muted-foreground">Total Attempts</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </DialogContent>
+            </Dialog>
+
+            {/* Export Modal */}
+            <Dialog open={showExportModal} onOpenChange={setShowExportModal}>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <Download className="w-5 h-5" />
+                    Export Options
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Button 
+                      variant="outline" 
+                      className="w-full justify-start"
+                      onClick={() => {
+                        const csvData = [
+                          ['Name', 'Rank', 'Platoon', 'Best Score', 'Best Result', 'Latest Score', 'Latest Result', 'Improvement', 'Attempts'],
+                          ...filteredTroopers.map(t => [
+                            t.user.fullName,
+                            t.user.rank || '',
+                            (t.user as any).mspName || '',
+                            t.bestAttempt?.totalScore || '',
+                            t.bestAttempt?.result || '',
+                            t.latestAttempt?.totalScore || '',
+                            t.latestAttempt?.result || '',
+                            t.scoreChange !== undefined ? t.scoreChange : '',
+                            t.totalAttempts
+                          ])
+                        ].map(row => row.join(',')).join('\n');
+                        
+                        const dataUri = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csvData);
+                        const exportFileDefaultName = `ippt-data-${new Date().toISOString().split('T')[0]}.csv`;
+                        const linkElement = document.createElement('a');
+                        linkElement.setAttribute('href', dataUri);
+                        linkElement.setAttribute('download', exportFileDefaultName);
+                        linkElement.click();
+                        setShowExportModal(false);
+                      }}
+                    >
+                      <Download className="w-4 h-4 mr-2" />
+                      Export as CSV
+                    </Button>
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    Export includes {filteredTroopers.length} personnel records with current filters applied.
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </TooltipProvider>
+
+          {/* Simplified Floating Action Buttons */}
+          <div className="fixed bottom-6 right-6 flex flex-col gap-3">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="shadow-lg rounded-full w-12 h-12 bg-white"
+                    onClick={() => setShowExportModal(true)}
+                  >
+                    <Download className="w-5 h-5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Export data</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="default"
+                    size="sm"
+                    className="shadow-lg rounded-full w-12 h-12"
+                    onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                  >
+                    <Award className="w-5 h-5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Back to top</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
