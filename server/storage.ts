@@ -2,7 +2,8 @@ import {
   type User, type InsertUser, type Booking, type InsertBooking, type Config,
   type Msp, type InsertMsp, type DriverQualification, type InsertDriverQualification, 
   type DriveLog, type InsertDriveLog, type CurrencyDrive, type InsertCurrencyDrive, type CurrencyDriveScan,
-  users, bookings, config, msps, driverQualifications, driveLogs, currencyDrives, currencyDriveScans
+  type OnboardingRequest, type InsertOnboardingRequest,
+  users, bookings, config, msps, driverQualifications, driveLogs, currencyDrives, currencyDriveScans, onboardingRequests
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, lte, gte, lt, gt, ne, desc } from "drizzle-orm";
@@ -59,6 +60,14 @@ export interface IStorage {
   getAllCurrencyDrives(): Promise<CurrencyDrive[]>;
   createCurrencyDrive(drive: InsertCurrencyDrive): Promise<CurrencyDrive>;
   updateCurrencyDrive(id: string, updates: Partial<CurrencyDrive>): Promise<CurrencyDrive | undefined>;
+  
+  // Onboarding operations
+  getAllOnboardingRequests(): Promise<OnboardingRequest[]>;
+  getOnboardingRequestById(id: string): Promise<OnboardingRequest | undefined>;
+  getOnboardingRequestByUsername(username: string): Promise<OnboardingRequest | undefined>;
+  createOnboardingRequest(request: InsertOnboardingRequest): Promise<OnboardingRequest>;
+  updateOnboardingRequestStatus(id: string, status: "pending" | "approved" | "rejected"): Promise<OnboardingRequest | undefined>;
+  createUserWithHashedPassword(user: InsertUser & { passwordHash: string }): Promise<User>;
 }
 
 // DatabaseStorage uses PostgreSQL via Drizzle ORM - blueprint:javascript_database
@@ -387,6 +396,51 @@ export class DatabaseStorage implements IStorage {
       .from(currencyDriveScans)
       .where(eq(currencyDriveScans.driveId, driveId));
     return scans.length;
+  }
+
+  // Onboarding operations
+  async getAllOnboardingRequests(): Promise<OnboardingRequest[]> {
+    return await db.select().from(onboardingRequests).orderBy(desc(onboardingRequests.createdAt));
+  }
+
+  async getOnboardingRequestById(id: string): Promise<OnboardingRequest | undefined> {
+    const [request] = await db.select().from(onboardingRequests).where(eq(onboardingRequests.id, id));
+    return request || undefined;
+  }
+
+  async getOnboardingRequestByUsername(username: string): Promise<OnboardingRequest | undefined> {
+    const [request] = await db.select().from(onboardingRequests).where(eq(onboardingRequests.username, username));
+    return request || undefined;
+  }
+
+  async createOnboardingRequest(request: InsertOnboardingRequest): Promise<OnboardingRequest> {
+    const [onboardingRequest] = await db
+      .insert(onboardingRequests)
+      .values(request)
+      .returning();
+    return onboardingRequest;
+  }
+
+  async updateOnboardingRequestStatus(id: string, status: "pending" | "approved" | "rejected"): Promise<OnboardingRequest | undefined> {
+    const [request] = await db
+      .update(onboardingRequests)
+      .set({ status, updatedAt: new Date() })
+      .where(eq(onboardingRequests.id, id))
+      .returning();
+    return request || undefined;
+  }
+
+  async createUserWithHashedPassword(user: InsertUser & { passwordHash: string }): Promise<User> {
+    const { passwordHash, password, ...userFields } = user;
+    const [newUser] = await db
+      .insert(users)
+      .values({
+        ...userFields,
+        passwordHash,
+        id: randomUUID()
+      } as any)
+      .returning();
+    return newUser;
   }
 }
 

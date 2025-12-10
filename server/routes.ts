@@ -15,7 +15,7 @@ import { calculateCurrency, getCurrencyStatus, recalculateCurrencyForQualificati
 import { toZonedTime } from "date-fns-tz";
 import { eq } from "drizzle-orm";
 import { 
-  users, bookings, driveLogs, driverQualifications, currencyDrives, currencyDriveScans, Msp, config
+  users, bookings, driveLogs, driverQualifications, currencyDrives, currencyDriveScans, Msp, config, onboardingRequests
 } from "@shared/schema";
 import * as schema from "@shared/schema";
 import { InsertDriveLog, InsertDriverQualification, InsertCurrencyDrive, InsertBooking } from "@shared/schema";
@@ -1369,6 +1369,102 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ message: "QR code deactivated" });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Onboarding routes
+  app.post("/api/auth/onboarding", async (req, res) => {
+    try {
+      const { fullName, username, rank, dob, doe, mspId, password } = req.body;
+      
+      // Check if user already exists
+      const existingUser = await storage.getUserByUsername(username);
+      if (existingUser) {
+        return res.status(400).json({ message: "Username already exists" });
+      }
+
+      // Check if there's already a pending onboarding request
+      const existingRequest = await storage.getOnboardingRequestByUsername(username);
+      if (existingRequest) {
+        return res.status(400).json({ message: "Onboarding request already submitted" });
+      }
+
+      // Hash password
+      const passwordHash = await bcrypt.hash(password, 10);
+
+      // Create onboarding request
+      await storage.createOnboardingRequest({
+        fullName,
+        username,
+        rank,
+        dob,
+        doe,
+        mspId,
+        passwordHash
+      });
+
+      res.json({ message: "Onboarding request submitted successfully" });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || "Failed to submit onboarding request" });
+    }
+  });
+
+  app.get("/api/admin/onboarding-requests", async (req: any, res) => {
+    try {
+      const requests = await storage.getAllOnboardingRequests();
+      res.json(requests);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || "Failed to fetch onboarding requests" });
+    }
+  });
+
+  app.post("/api/admin/onboarding-requests/:id/approve", async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { accountType } = req.body;
+      
+      const request = await storage.getOnboardingRequestById(id);
+      if (!request) {
+        return res.status(404).json({ message: "Onboarding request not found" });
+      }
+
+      // Create user from onboarding request
+      const user = await storage.createUserWithHashedPassword({
+        fullName: request.fullName,
+        username: request.username,
+        passwordHash: request.passwordHash,
+        rank: request.rank,
+        dob: request.dob,
+        doe: request.doe,
+        mspId: request.mspId,
+        role: accountType || "soldier",
+        credits: 0
+      });
+
+      // Update request status
+      await storage.updateOnboardingRequestStatus(id, "approved");
+
+      res.json({ message: "Request approved successfully", user: sanitizeUser(user) });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || "Failed to approve request" });
+    }
+  });
+
+  app.post("/api/admin/onboarding-requests/:id/reject", async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      
+      const request = await storage.getOnboardingRequestById(id);
+      if (!request) {
+        return res.status(404).json({ message: "Onboarding request not found" });
+      }
+
+      // Update request status
+      await storage.updateOnboardingRequestStatus(id, "rejected");
+
+      res.json({ message: "Request rejected successfully" });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || "Failed to reject request" });
     }
   });
 

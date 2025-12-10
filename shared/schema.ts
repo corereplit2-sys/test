@@ -35,6 +35,20 @@ export const config = pgTable("config", {
   value: text("value").notNull(),
 });
 
+export const onboardingRequests = pgTable("onboarding_requests", {
+  id: varchar("id").primaryKey(),
+  fullName: text("full_name").notNull(),
+  username: text("username").notNull(),
+  rank: text("rank").notNull(),
+  dob: date("dob").notNull(),
+  doe: date("doe").notNull(),
+  mspId: text("msp_id").notNull().references(() => msps.id),
+  passwordHash: text("password_hash").notNull(),
+  status: text("status").notNull().$type<"pending" | "approved" | "rejected">().default("pending"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const driverQualifications = pgTable("driver_qualifications", {
   id: varchar("id").primaryKey(),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
@@ -224,8 +238,10 @@ export type CapacityInfo = {
 export type BookableWeekRange = {
   start: string;
   end: string;
-  releaseDay: number;
 };
+
+export type OnboardingRequest = typeof onboardingRequests.$inferSelect;
+export type InsertOnboardingRequest = typeof onboardingRequests.$inferInsert;
 
 export type CurrencyStatus = "CURRENT" | "EXPIRING_SOON" | "EXPIRED";
 
