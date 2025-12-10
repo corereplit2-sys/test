@@ -17,6 +17,9 @@ import Credits from "@/pages/Credits";
 import { SafeUser } from "@shared/schema";
 import IPPT from "@/pages/Ippt";
 import DriveQR from "./pages/DriveQR";
+import Onboarding from "./pages/Onboarding";
+import OnboardingSuccess from "./pages/OnboardingSuccess";
+import AdminOnboarding from "./pages/AdminOnboarding";
 
 function ProtectedRoute({ component: Component, allowedRoles }: { component: any; allowedRoles?: string[] }) {
   const { data: user, isLoading } = useQuery<SafeUser>({
@@ -74,6 +77,8 @@ function Router() {
     <Switch>
       <Route path="/" component={RootRedirect} />
       <Route path="/login" component={Login} />
+      <Route path="/onboarding" component={Onboarding} />
+      <Route path="/onboarding-success" component={OnboardingSuccess} />
       <Route path="/dashboard">
         {() => <ProtectedRoute component={SoldierDashboard} allowedRoles={["soldier", "commander"]} />}
       </Route>
@@ -106,6 +111,9 @@ function Router() {
       </Route>
       <Route path="/drive-qr">
         {() => <ProtectedRoute component={DriveQR} allowedRoles={["admin"]} />}
+      </Route>
+      <Route path="/admin-onboarding">
+        {() => <ProtectedRoute component={AdminOnboarding} allowedRoles={["admin"]} />}
       </Route>
       <Route component={NotFound} />
     </Switch>
