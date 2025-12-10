@@ -238,6 +238,7 @@ export type CapacityInfo = {
 export type BookableWeekRange = {
   start: string;
   end: string;
+  releaseDay?: number;
 };
 
 export type OnboardingRequest = typeof onboardingRequests.$inferSelect;

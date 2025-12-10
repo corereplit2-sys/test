@@ -21,6 +21,7 @@ import * as schema from "@shared/schema";
 import { InsertDriveLog, InsertDriverQualification, InsertCurrencyDrive, InsertBooking } from "@shared/schema";
 import { DatabaseStorage } from "./storage";
 import { WebSocketServer, WebSocket } from "ws";
+import { randomUUID } from "crypto";
 
 // Helper function to compute expiry date consistently
 const getComputedExpiry = (qualification: DriverQualification) => {
@@ -885,6 +886,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/public/msps", async (req, res) => {
+    try {
+      const msps = await storage.getAllMsps();
+      res.json(msps);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || "Failed to fetch MSPs" });
+    }
+  });
+
   // Driver Qualification routes
   app.get("/api/qualifications", requireAuth, async (req: any, res) => {
     try {
@@ -1394,6 +1404,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Create onboarding request
       await storage.createOnboardingRequest({
+        id: randomUUID(),
         fullName,
         username,
         rank,
@@ -1434,12 +1445,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         username: request.username,
         passwordHash: request.passwordHash,
         rank: request.rank,
-        dob: request.dob,
-        doe: request.doe,
         mspId: request.mspId,
         role: accountType || "soldier",
-        credits: 0
-      });
+        credits: 0,
+        password: "dummy" // This will be ignored, we use passwordHash
+      } as any);
 
       // Update request status
       await storage.updateOnboardingRequestStatus(id, "approved");

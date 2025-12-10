@@ -38,7 +38,7 @@ export default function Onboarding() {
   useEffect(() => {
     const fetchMsps = async () => {
       try {
-        const response = await fetch('/api/msps');
+        const response = await fetch('/api/public/msps');
         if (response.ok) {
           const mspsData = await response.json();
           setMsps(mspsData);
