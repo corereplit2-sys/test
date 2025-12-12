@@ -30,24 +30,6 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
-    rollupOptions: {
-      external: [
-        "@azure/ai-form-recognizer",
-        "@azure/ai-form-recognizer/*",
-        "@azure/*",
-        "@azure/ai-form-recognizer/dist/*",
-        "@azure/core-auth",
-        "@azure/core-client",
-        "@azure/core-rest-pipeline",
-        "@azure/core-tracing",
-        "@azure/core-lro",
-        "@azure/abort-controller",
-        "@azure/keyvault",
-        "@azure/msal",
-        "@azure/msal-browser",
-        "@azure/msal-react"
-      ],
-    },
   },
   server: {
     fs: {

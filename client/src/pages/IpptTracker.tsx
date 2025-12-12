@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useLocation } from "wouter";
 import { Search, X, Plus, Filter, Edit2, Save, Calendar, Camera, Trash2, Trash } from "lucide-react";
-import { DocumentAnalysisClient, AzureKeyCredential } from "@azure/ai-form-recognizer";
 import { type IpptAttempt, type IpptSession, type IpptSessionWithAttempts, type IpptCommanderStats, type TrooperIpptSummary, type SafeUser, type UserEligibility } from "@shared/schema";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -579,6 +578,9 @@ function IpptTracker() {
       });
       
       setScanProgress(60);
+      
+      // Dynamically load Azure Document Intelligence
+      const { DocumentAnalysisClient, AzureKeyCredential } = await import("@azure/ai-form-recognizer");
       
       // Initialize Azure Document Intelligence client
       const client = new DocumentAnalysisClient(
