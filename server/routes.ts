@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import session from "express-session";
 import * as bcrypt from "bcryptjs";
+import multer from "multer";
 import { 
   loginSchema, changePasswordSchema, insertUserSchema, updateUserSchema, insertBookingSchema,
   insertDriverQualificationSchema, insertDriveLogSchema, insertCurrencyDriveSchema,
@@ -22,6 +23,21 @@ import { InsertDriveLog, InsertDriverQualification, InsertCurrencyDrive, InsertB
 import { DatabaseStorage } from "./storage";
 import { WebSocketServer, WebSocket } from "ws";
 import { randomUUID } from "crypto";
+
+// Configure multer for file uploads
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed'));
+    }
+  }
+});
 
 // Helper function to compute expiry date consistently
 const getComputedExpiry = (qualification: DriverQualification) => {
@@ -1475,6 +1491,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ message: "Request rejected successfully" });
     } catch (error: any) {
       res.status(500).json({ message: error.message || "Failed to reject request" });
+    }
+  });
+
+  // Azure OCR endpoint for IPPT scanning
+  app.post("/api/azure-ocr", upload.single('image'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No image file provided" });
+      }
+
+      const { DocumentAnalysisClient, AzureKeyCredential } = await import("@azure/ai-form-recognizer");
+      
+      const AZURE_ENDPOINT = process.env.AZURE_ENDPOINT || 'https://ipptocr.cognitiveservices.azure.com/';
+      const AZURE_API_KEY = process.env.AZURE_API_KEY;
+
+      if (!AZURE_API_KEY) {
+        return res.status(500).json({ error: "Azure API key not configured" });
+      }
+
+      // Convert buffer to base64 string
+      const base64Image = req.file.buffer.toString('base64');
+      const imageBuffer = Buffer.from(base64Image, 'base64');
+
+      // Initialize Azure Document Intelligence client
+      const client = new DocumentAnalysisClient(
+        AZURE_ENDPOINT,
+        new AzureKeyCredential(AZURE_API_KEY)
+      );
+
+      // Analyze document
+      const poller = await client.beginAnalyzeDocument(
+        "prebuilt-layout",
+        imageBuffer
+      );
+
+      const result = await poller.pollUntilDone();
+      
+      res.json({ 
+        success: true, 
+        result: {
+          content: result.content,
+          tables: result.tables,
+          pages: result.pages
+        }
+      });
+    } catch (error) {
+      console.error("Azure OCR Error:", error);
+      res.status(500).json({ 
+        error: "Azure OCR processing failed",
+        details: error instanceof Error ? error.message : "Unknown error"
+      });
     }
   });
 

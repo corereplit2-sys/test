@@ -579,8 +579,52 @@ function IpptTracker() {
       
       setScanProgress(60);
       
-      // Azure SDK not available - use manual data entry
-      throw new Error('IPPT scanning is temporarily unavailable. Please use the "Add Row" button to manually enter IPPT data.');
+      // Send image to server for Azure OCR processing
+      const formData = new FormData();
+      formData.append('image', blob, 'scan.jpg');
+      
+      const response = await fetch('/api/azure-ocr', {
+        method: 'POST',
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to process image');
+      }
+      
+      const { result } = await response.json();
+      setScanProgress(80);
+      
+      // Log raw Azure output for debugging
+      console.log('=== RAW AZURE OUTPUT ===');
+      console.log('Full result:', JSON.stringify(result, null, 2));
+      console.log('Content:', result.content);
+      console.log('Tables:', result.tables);
+      console.log('Number of tables:', result.tables?.length || 0);
+      console.log('Pages:', result.pages);
+      console.log('========================');
+      
+      const parsedData = await parseIpptResults(result);
+      
+      // Fallback: If no tables found, try text-based parsing
+      if (parsedData.length === 0 && result.content) {
+        console.log('No table data found, trying text-based fallback...');
+        const fallbackData = await parseTextBasedResults(result.content);
+        if (fallbackData.length > 0) {
+          showTableConfirmationPopup(fallbackData, result);
+        } else {
+          alert('No IPPT data found in image. Please try again with a clearer scoresheet.');
+          setIsScanning(false);
+          setScanProgress(0);
+        }
+      } else if (parsedData.length > 0) {
+        showTableConfirmationPopup(parsedData, result);
+      } else {
+        alert('No IPPT data found in image. Please try again with a clearer scoresheet.');
+        setIsScanning(false);
+        setScanProgress(0);
+      }
     } catch (error) {
       console.error('Scanning Error:', error);
       
@@ -3949,34 +3993,6 @@ function IpptTracker() {
             <div className="p-6">
               <h2 className="text-lg font-semibold text-foreground mb-4">Scan IPPT Scoresheet</h2>
               <p className="text-sm text-muted-foreground mb-4">Use your phone camera to scan a standard IPPT scoresheet</p>
-              
-              <div className="mb-4">
-                <Button 
-                  onClick={() => {
-                    const sampleData = [
-                      {
-                        name: '',
-                        situpReps: 0,
-                        pushupReps: 0,
-                        runTime: '10:00',
-                        situpScore: 0,
-                        pushupScore: 0,
-                        runScore: 0,
-                        totalScore: 0,
-                        result: 'Fail',
-                        age: 0
-                      }
-                    ];
-                    showTableConfirmationPopup(sampleData, null);
-                    setScanModalOpen(false);
-                  }}
-                  variant="outline"
-                  className="w-full"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Enter Data Manually
-                </Button>
-              </div>
               
               {scanStep === 'scan' && (
                 <div className="space-y-4">
