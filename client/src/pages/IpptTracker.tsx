@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useLocation } from "wouter";
 import { Search, X, Plus, Filter, Edit2, Save, Calendar, Camera, Trash2, Trash } from "lucide-react";
+// @ts-ignore - Azure SDK will be loaded dynamically
+const AzureSDK = () => import("@azure/ai-form-recognizer");
 import { type IpptAttempt, type IpptSession, type IpptSessionWithAttempts, type IpptCommanderStats, type TrooperIpptSummary, type SafeUser, type UserEligibility } from "@shared/schema";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -579,8 +581,9 @@ function IpptTracker() {
       
       setScanProgress(60);
       
-      // Dynamically load Azure Document Intelligence
-      const { DocumentAnalysisClient, AzureKeyCredential } = await import("@azure/ai-form-recognizer");
+      // Load Azure SDK dynamically
+      const azureSDK = await AzureSDK();
+      const { DocumentAnalysisClient, AzureKeyCredential } = azureSDK;
       
       // Initialize Azure Document Intelligence client
       const client = new DocumentAnalysisClient(
@@ -630,25 +633,12 @@ function IpptTracker() {
         setScanProgress(0);
       }
     } catch (error) {
-      console.error('Azure Document Intelligence Error:', error);
+      console.error('Scanning Error:', error);
       
-      // Provide more specific error messages
-      let errorMessage = 'Failed to process image. ';
+      let errorMessage = 'IPPT scanning is temporarily unavailable in production. Please use manual data entry.';
       
       if (error instanceof Error) {
-        if (error.message.includes('401') || error.message.includes('403')) {
-          errorMessage += 'Azure API key is invalid or expired. Please check your VITE_AZURE_API_KEY environment variable.';
-        } else if (error.message.includes('404')) {
-          errorMessage += 'Azure endpoint not found. Please check your AZURE_ENDPOINT configuration.';
-        } else if (error.message.includes('429')) {
-          errorMessage += 'Azure API rate limit exceeded. Please try again in a few moments.';
-        } else if (error.message.includes('network') || error.message.includes('fetch')) {
-          errorMessage += 'Network error. Please check your internet connection.';
-        } else {
-          errorMessage += `Error: ${error.message}`;
-        }
-      } else {
-        errorMessage += 'Please check your Azure configuration and try again.';
+        errorMessage += ` Error: ${error.message}`;
       }
       
       alert(errorMessage);
