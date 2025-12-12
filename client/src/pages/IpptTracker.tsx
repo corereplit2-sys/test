@@ -1569,7 +1569,7 @@ function IpptTracker() {
     const topScores = allAttempts
       .sort((a, b) => b.totalScore - a.totalScore)
       .slice(0, 3)
-      .map((attempt, index) => ({
+      .map((attempt: any, index: any) => ({
         rank: index + 1,
         name: filteredTroopers.find(t => 
           (t.yearOneAttempts?.some(a => a.id === attempt.id) || 
@@ -1582,7 +1582,7 @@ function IpptTracker() {
     const mostPushUps = allAttempts
       .sort((a, b) => b.pushupReps - a.pushupReps)
       .slice(0, 3)
-      .map((attempt, index) => ({
+      .map((attempt: any, index: any) => ({
         rank: index + 1,
         name: filteredTroopers.find(t => 
           (t.yearOneAttempts?.some(a => a.id === attempt.id) || 
@@ -1595,7 +1595,7 @@ function IpptTracker() {
     const mostSitUps = allAttempts
       .sort((a, b) => b.situpReps - a.situpReps)
       .slice(0, 3)
-      .map((attempt, index) => ({
+      .map((attempt: any, index: any) => ({
         rank: index + 1,
         name: filteredTroopers.find(t => 
           (t.yearOneAttempts?.some(a => a.id === attempt.id) || 
@@ -1621,7 +1621,7 @@ function IpptTracker() {
         return timeToSeconds(a.runTime) - timeToSeconds(b.runTime);
       })
       .slice(0, 3)
-      .map((attempt, index) => ({
+      .map((attempt: any, index: any) => ({
         rank: index + 1,
         name: filteredTroopers.find(t => 
           (t.yearOneAttempts?.some(a => a.id === attempt.id) || 

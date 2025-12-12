@@ -30,7 +30,7 @@ const upload = multer({
   limits: {
     fileSize: 10 * 1024 * 1024, // 10MB limit
   },
-  fileFilter: (req, file, cb) => {
+  fileFilter: (req: any, file: any, cb: any) => {
     if (file.mimetype.startsWith('image/')) {
       cb(null, true);
     } else {
@@ -1495,7 +1495,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Azure OCR endpoint for IPPT scanning
-  app.post("/api/azure-ocr", upload.single('image'), async (req, res) => {
+  app.post("/api/azure-ocr", upload.single('image'), async (req: any, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ error: "No image file provided" });
