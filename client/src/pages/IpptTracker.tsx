@@ -2,8 +2,6 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useLocation } from "wouter";
 import { Search, X, Plus, Filter, Edit2, Save, Calendar, Camera, Trash2, Trash } from "lucide-react";
-// @ts-ignore - Azure SDK will be loaded dynamically
-const AzureSDK = () => import("@azure/ai-form-recognizer");
 import { type IpptAttempt, type IpptSession, type IpptSessionWithAttempts, type IpptCommanderStats, type TrooperIpptSummary, type SafeUser, type UserEligibility } from "@shared/schema";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -581,9 +579,23 @@ function IpptTracker() {
       
       setScanProgress(60);
       
-      // Load Azure SDK dynamically
-      const azureSDK = await AzureSDK();
-      const { DocumentAnalysisClient, AzureKeyCredential } = azureSDK;
+      // Wait for Azure SDK to be available from CDN
+      let attempts = 0;
+      const maxAttempts = 50; // 5 seconds max wait
+      
+      while (attempts < maxAttempts && !(window as any).Azure) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+        attempts++;
+      }
+      
+      if (!(window as any).Azure) {
+        throw new Error('Azure SDK failed to load from CDN');
+      }
+      
+      // Use Azure SDK from global scope
+      const Azure = (window as any).Azure;
+      const DocumentAnalysisClient = Azure.AI.FormRecognizer.DocumentAnalysisClient;
+      const AzureKeyCredential = Azure.AI.FormRecognizer.AzureKeyCredential;
       
       // Initialize Azure Document Intelligence client
       const client = new DocumentAnalysisClient(
