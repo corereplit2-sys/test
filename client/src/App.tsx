@@ -16,12 +16,20 @@ import Users from "@/pages/Users";
 import Credits from "@/pages/Credits";
 import { SafeUser } from "@shared/schema";
 import IPPT from "@/pages/Ippt";
+import IpptTracker from "@/pages/IpptTracker";
 import DriveQR from "./pages/DriveQR";
 import Onboarding from "./pages/Onboarding";
 import OnboardingSuccess from "./pages/OnboardingSuccess";
 import AdminOnboarding from "./pages/AdminOnboarding";
+import CreateConduct from "./pages/CreateConduct";
 
-function ProtectedRoute({ component: Component, allowedRoles }: { component: any; allowedRoles?: string[] }) {
+function ProtectedRoute({
+  component: Component,
+  allowedRoles,
+}: {
+  component: any;
+  allowedRoles?: string[];
+}) {
   const { data: user, isLoading } = useQuery<SafeUser>({
     queryKey: ["/api/auth/me"],
     retry: false,
@@ -80,11 +88,11 @@ function Router() {
       <Route path="/onboarding" component={Onboarding} />
       <Route path="/onboarding-success" component={OnboardingSuccess} />
       <Route path="/dashboard">
-        {() => <ProtectedRoute component={SoldierDashboard} allowedRoles={["soldier", "commander"]} />}
+        {() => (
+          <ProtectedRoute component={SoldierDashboard} allowedRoles={["soldier", "commander"]} />
+        )}
       </Route>
-      <Route path="/calendar">
-        {() => <ProtectedRoute component={CalendarPage} />}
-      </Route>
+      <Route path="/calendar">{() => <ProtectedRoute component={CalendarPage} />}</Route>
       <Route path="/my-currency">
         {() => <ProtectedRoute component={MyCurrency} allowedRoles={["soldier", "commander"]} />}
       </Route>
@@ -100,21 +108,16 @@ function Router() {
       <Route path="/currency-tracker">
         {() => <ProtectedRoute component={CurrencyTracker} allowedRoles={["admin", "commander"]} />}
       </Route>
-      <Route path="/mess-booking">
-        {() => <ProtectedRoute component={MessBooking} />}
-      </Route>
-      <Route path="/ippt">
-        {() => <ProtectedRoute component={IPPT} />}
-      </Route>
-      <Route path="/ippt-tracker">
-        {() => <ProtectedRoute component={IPPT} />}
-      </Route>
+      <Route path="/mess-booking">{() => <ProtectedRoute component={MessBooking} />}</Route>
+      <Route path="/ippt">{() => <ProtectedRoute component={IpptTracker} />}</Route>
+      <Route path="/ippt-tracker">{() => <ProtectedRoute component={IpptTracker} />}</Route>
       <Route path="/drive-qr">
         {() => <ProtectedRoute component={DriveQR} allowedRoles={["admin"]} />}
       </Route>
       <Route path="/admin-onboarding">
         {() => <ProtectedRoute component={AdminOnboarding} allowedRoles={["admin"]} />}
       </Route>
+      <Route path="/create-conduct">{() => <ProtectedRoute component={CreateConduct} />}</Route>
       <Route component={NotFound} />
     </Switch>
   );

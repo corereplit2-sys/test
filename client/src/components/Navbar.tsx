@@ -8,11 +8,17 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
 } from "@/components/ui/dropdown-menu";
-import { LogOut, User as UserIcon, LayoutDashboard, Calendar as CalendarIcon, Car, Gamepad2, Users, ChevronDown, QrCode } from "lucide-react";
+import {
+  LogOut,
+  User as UserIcon,
+  LayoutDashboard,
+  Calendar as CalendarIcon,
+  Car,
+  Gamepad2,
+  Users,
+  ChevronDown,
+} from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation, Link } from "wouter";
@@ -38,7 +44,7 @@ export function Navbar({ user, pageTitle }: NavbarProps) {
         title: "Logged out",
         description: "You have been successfully logged out.",
       });
-    } catch (error) {
+    } catch (_error) {
       toast({
         variant: "destructive",
         title: "Error",
@@ -56,13 +62,13 @@ export function Navbar({ user, pageTitle }: NavbarProps) {
 
   const commanderNavItems = [
     { name: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
-    { 
-      name: "Currency", 
+    {
+      name: "Currency",
       icon: Car,
       submenu: [
         { name: "My Currency", path: "/my-currency" },
         { name: "Currency Tracker", path: "/currency-tracker" },
-      ]
+      ],
     },
     {
       name: "IPPT",
@@ -70,38 +76,45 @@ export function Navbar({ user, pageTitle }: NavbarProps) {
       submenu: [
         { name: "My IPPT", path: "/ippt" },
         { name: "IPPT Tracker", path: "/ippt-tracker" },
-      ]
+      ],
     },
     { name: "Mess Booking", path: "/mess-booking", icon: Gamepad2 },
   ];
 
   const adminNavItems = [
     { name: "Dashboard", path: "/admin", icon: LayoutDashboard },
-    { 
-      name: "Currency", 
+    {
+      name: "Currency",
       icon: Car,
       submenu: [
         { name: "Tracker", path: "/currency-tracker" },
         { name: "Drive QR", path: "/drive-qr" },
-      ]
+      ],
     },
     { name: "IPPT Tracker", path: "/ippt-tracker", icon: LayoutDashboard },
     { name: "Mess Booking", path: "/mess-booking", icon: Gamepad2 },
     { name: "Users", path: "/users", icon: Users },
   ];
 
-  const navItems = user.role === "admin" ? adminNavItems : (user.role === "commander" ? commanderNavItems : soldierNavItems);
+  const navItems =
+    user.role === "admin"
+      ? adminNavItems
+      : user.role === "commander"
+        ? commanderNavItems
+        : soldierNavItems;
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-background border-b border-border">
       <div className="px-6 py-3 flex items-center justify-between">
         <div className="flex items-center gap-6">
-          <h1 className="text-lg font-bold" data-testid="text-app-title">MSC DRIVr v2</h1>
+          <h1 className="text-lg font-bold" data-testid="text-app-title">
+            MSC DRIVr v2
+          </h1>
           <div className="hidden md:flex items-center gap-1">
             {navItems.map((item, idx) => {
               const Icon = item.icon;
               const hasSubmenu = "submenu" in item && item.submenu;
-              
+
               if (hasSubmenu) {
                 return (
                   <DropdownMenu key={`${item.name}-${idx}`}>
@@ -109,7 +122,7 @@ export function Navbar({ user, pageTitle }: NavbarProps) {
                       <Button
                         variant="ghost"
                         className="gap-2"
-                        data-testid={`nav-link-${item.name.toLowerCase().replace(/ /g, '-')}`}
+                        data-testid={`nav-link-${item.name.toLowerCase().replace(/ /g, "-")}`}
                       >
                         <Icon className="w-4 h-4" />
                         <span>{item.name}</span>
@@ -117,36 +130,34 @@ export function Navbar({ user, pageTitle }: NavbarProps) {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="start">
-                      {hasSubmenu && item.submenu!.map((subitem, subidx) => (
-                        <DropdownMenuItem key={`${subitem.path}-${subidx}`} asChild>
-                          <Link href={subitem.path}>
-                            <span>{subitem.name}</span>
-                          </Link>
-                        </DropdownMenuItem>
-                      ))}
+                      {hasSubmenu &&
+                        item.submenu!.map((subitem, subidx) => (
+                          <DropdownMenuItem key={`${subitem.path}-${subidx}`} asChild>
+                            <Link href={subitem.path}>
+                              <span>{subitem.name}</span>
+                            </Link>
+                          </DropdownMenuItem>
+                        ))}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 );
               }
-              
+
               // Only render as link if item has a path
               if (!("path" in item) || !item.path) {
                 return null;
               }
-              
+
               const isActive = location === item.path;
               const itemPath = item.path;
               const itemName = item.name;
-              
+
               return (
                 <Link key={`${itemPath}-${idx}`} href={itemPath}>
                   <Button
                     variant={isActive ? "secondary" : "ghost"}
-                    className={cn(
-                      "gap-2",
-                      isActive && "bg-muted"
-                    )}
-                    data-testid={`nav-link-${itemName.toLowerCase().replace(/ /g, '-')}`}
+                    className={cn("gap-2", isActive && "bg-muted")}
+                    data-testid={`nav-link-${itemName.toLowerCase().replace(/ /g, "-")}`}
                   >
                     <Icon className="w-4 h-4" />
                     <span>{itemName}</span>
@@ -172,21 +183,28 @@ export function Navbar({ user, pageTitle }: NavbarProps) {
                   <div className="text-sm font-medium">{user.fullName}</div>
                   <div className="text-xs text-muted-foreground">@{user.username}</div>
                   <div className="flex items-center gap-2 mt-1">
-                    <Badge 
+                    <Badge
                       variant={user.role === "admin" ? "default" : "secondary"}
                       className={
-                        user.role === "admin" 
-                          ? "bg-yellow-500 text-yellow-950" 
+                        user.role === "admin"
+                          ? "bg-yellow-500 text-yellow-950"
                           : user.role === "commander"
-                          ? "bg-purple-500 text-purple-950"
-                          : "bg-blue-500 text-blue-950"
+                            ? "bg-purple-500 text-purple-950"
+                            : "bg-blue-500 text-blue-950"
                       }
                       data-testid="badge-user-role"
                     >
-                      {user.role === "admin" ? "Admin" : user.role === "commander" ? "Commander" : "Soldier"}
+                      {user.role === "admin"
+                        ? "Admin"
+                        : user.role === "commander"
+                          ? "Commander"
+                          : "Soldier"}
                     </Badge>
                     {user.role === "soldier" && (
-                      <span className="text-xs font-mono font-semibold" data-testid="text-nav-credits">
+                      <span
+                        className="text-xs font-mono font-semibold"
+                        data-testid="text-nav-credits"
+                      >
                         {user.credits.toFixed(1)} Credits
                       </span>
                     )}
@@ -198,7 +216,7 @@ export function Navbar({ user, pageTitle }: NavbarProps) {
                 {navItems.map((item, idx) => {
                   const Icon = item.icon;
                   const hasSubmenu = "submenu" in item && item.submenu;
-                  
+
                   if (hasSubmenu) {
                     return (
                       <div key={`${item.name}-${idx}`}>
@@ -206,25 +224,30 @@ export function Navbar({ user, pageTitle }: NavbarProps) {
                           <Icon className="w-4 h-4" />
                           <span>{item.name}</span>
                         </div>
-                        {hasSubmenu && item.submenu!.map((subitem, subidx) => (
-                          <DropdownMenuItem key={`${subitem.path}-${subidx}`} asChild className="pl-8">
-                            <Link href={subitem.path}>
-                              <span>{subitem.name}</span>
-                            </Link>
-                          </DropdownMenuItem>
-                        ))}
+                        {hasSubmenu &&
+                          item.submenu!.map((subitem, subidx) => (
+                            <DropdownMenuItem
+                              key={`${subitem.path}-${subidx}`}
+                              asChild
+                              className="pl-8"
+                            >
+                              <Link href={subitem.path}>
+                                <span>{subitem.name}</span>
+                              </Link>
+                            </DropdownMenuItem>
+                          ))}
                       </div>
                     );
                   }
-                  
+
                   // Only render as link if item has a path
                   if (!("path" in item) || !item.path) {
                     return null;
                   }
-                  
+
                   const itemPath = item.path;
                   const itemName = item.name;
-                  
+
                   return (
                     <DropdownMenuItem key={`${itemPath}-${idx}`} asChild>
                       <Link href={itemPath}>

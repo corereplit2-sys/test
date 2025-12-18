@@ -13,8 +13,23 @@ import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { format, differenceInHours, differenceInMinutes, addHours, addDays, startOfDay, eachHourOfInterval } from "date-fns";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  format,
+  differenceInHours,
+  differenceInMinutes,
+  addHours,
+  addDays,
+  startOfDay,
+  eachHourOfInterval,
+} from "date-fns";
 import { toZonedTime, format as formatTz } from "date-fns-tz";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -33,7 +48,10 @@ export default function MessBooking() {
     end: Date;
   } | null>(null);
   const [eventModal, setEventModal] = useState<BookingWithUser | null>(null);
-  const [timeslotDetailsModal, setTimeslotDetailsModal] = useState<{ startTime: Date; endTime: Date } | null>(null);
+  const [timeslotDetailsModal, setTimeslotDetailsModal] = useState<{
+    startTime: Date;
+    endTime: Date;
+  } | null>(null);
   const [timeslotBookings, setTimeslotBookings] = useState<BookingWithUser[]>([]);
   const [loadingTimeslotDetails, setLoadingTimeslotDetails] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
@@ -43,12 +61,12 @@ export default function MessBooking() {
   const [capacityBackgrounds, setCapacityBackgrounds] = useState<any[]>([]);
 
   const getTimeInSingapore = (date: Date | string) => {
-    const utcDate = typeof date === 'string' ? new Date(date) : date;
-    return toZonedTime(utcDate, 'Asia/Singapore');
+    const utcDate = typeof date === "string" ? new Date(date) : date;
+    return toZonedTime(utcDate, "Asia/Singapore");
   };
 
   const formatSingapore = (date: Date | string, fmtStr: string) => {
-    return formatTz(getTimeInSingapore(date), fmtStr, { timeZone: 'Asia/Singapore' });
+    return formatTz(getTimeInSingapore(date), fmtStr, { timeZone: "Asia/Singapore" });
   };
 
   const { data: user, isLoading: userLoading } = useQuery<SafeUser>({
@@ -84,21 +102,24 @@ export default function MessBooking() {
     return null;
   }
 
-  const events = useMemo(() => [
-    ...calendarEvents.map(event => ({
-      id: event.id,
-      title: event.title,
-      start: event.start,
-      end: event.end,
-      backgroundColor: user.role === "admin" || user.role === "commander" ? "#a855f7" : "#3b82f6",
-      borderColor: user.role === "admin" || user.role === "commander" ? "#9333ea" : "#2563eb",
-      extendedProps: {
-        calendarEvent: event,
-        isAdmin: user.role === "admin" || user.role === "commander",
-      },
-    })),
-    ...capacityBackgrounds
-  ], [calendarEvents, capacityBackgrounds, user]);
+  const events = useMemo(
+    () => [
+      ...calendarEvents.map((event) => ({
+        id: event.id,
+        title: event.title,
+        start: event.start,
+        end: event.end,
+        backgroundColor: user.role === "admin" || user.role === "commander" ? "#a855f7" : "#3b82f6",
+        borderColor: user.role === "admin" || user.role === "commander" ? "#9333ea" : "#2563eb",
+        extendedProps: {
+          calendarEvent: event,
+          isAdmin: user.role === "admin" || user.role === "commander",
+        },
+      })),
+      ...capacityBackgrounds,
+    ],
+    [calendarEvents, capacityBackgrounds, user]
+  );
 
   const handleDateClick = (clickInfo: any) => {
     // Create a proper Date object and round down to the nearest hour
@@ -124,11 +145,31 @@ export default function MessBooking() {
     : 0;
   const hasEnoughCredits = creditsNeeded <= user.credits;
 
+  // Helper function to get actual booking status (checks if time has passed)
+  const getBookingStatus = (booking: BookingWithUser) => {
+    // If already cancelled, always show as cancelled
+    if (booking.status === "cancelled") {
+      return { status: "Cancelled", variant: "secondary" as const, canCancel: false };
+    }
+
+    const now = new Date();
+    const endTime = new Date(booking.endTime);
+
+    if (endTime < now) {
+      return { status: "Completed", variant: "default" as const, canCancel: false };
+    }
+    return {
+      status: "Active",
+      variant: "default" as const,
+      canCancel: booking.status === "active",
+    };
+  };
+
   // Check if user already has a booking for this time slot
   const userAlreadyBooked = bookingModal
     ? allBookings
-        .filter(b => b.status === "active" && b.userId === user.id)
-        .some(booking => {
+        .filter((b) => b.status === "active" && b.userId === user.id)
+        .some((booking) => {
           const bookingStart = new Date(booking.startTime);
           const bookingEnd = new Date(booking.endTime);
           // Check overlap: booking.start < new.end AND booking.end > new.start
@@ -136,55 +177,58 @@ export default function MessBooking() {
         })
     : false;
 
-  const generateCapacityBackgrounds = useCallback((start: Date, end: Date) => {
-    try {
-      const hours = eachHourOfInterval({ start, end });
-      
-      const backgroundEvents = hours
-        .filter(hourStart => {
-          const hourOfDay = hourStart.getHours();
-          return hourOfDay >= 6 && hourOfDay < 22;
-        })
-        .map(hourStart => {
-          const hourEnd = addHours(hourStart, 1);
-          
-          const currentBookings = allBookings.filter(booking => {
-            if (booking.status !== 'active') return false;
-            // Convert booking times to Singapore timezone for consistent comparison
-            const bookingStart = getTimeInSingapore(booking.startTime);
-            const bookingEnd = getTimeInSingapore(booking.endTime);
-            return bookingStart < hourEnd && bookingEnd > hourStart;
-          }).length;
+  const generateCapacityBackgrounds = useCallback(
+    (start: Date, end: Date) => {
+      try {
+        const hours = eachHourOfInterval({ start, end });
 
-          let backgroundColor = '';
-          let borderColor = '';
-          
-          if (currentBookings >= 20) {
-            backgroundColor = 'rgba(239, 68, 68, 0.6)';
-            borderColor = 'rgba(239, 68, 68, 0.9)';
-          } else if (currentBookings >= 15) {
-            backgroundColor = 'rgba(234, 179, 8, 0.6)';
-            borderColor = 'rgba(234, 179, 8, 0.9)';
-          } else {
-            backgroundColor = 'rgba(34, 197, 94, 0.6)';
-            borderColor = 'rgba(34, 197, 94, 0.9)';
-          }
+        const backgroundEvents = hours
+          .filter((hourStart) => {
+            const hourOfDay = hourStart.getHours();
+            return hourOfDay >= 6 && hourOfDay < 22;
+          })
+          .map((hourStart) => {
+            const hourEnd = addHours(hourStart, 1);
 
-          return {
-            id: `capacity-${hourStart.toISOString()}`,
-            start: hourStart,
-            end: hourEnd,
-            display: 'background',
-            backgroundColor,
-            borderColor,
-          };
-        });
+            const currentBookings = allBookings.filter((booking) => {
+              if (booking.status !== "active") return false;
+              // Convert booking times to Singapore timezone for consistent comparison
+              const bookingStart = getTimeInSingapore(booking.startTime);
+              const bookingEnd = getTimeInSingapore(booking.endTime);
+              return bookingStart < hourEnd && bookingEnd > hourStart;
+            }).length;
 
-      setCapacityBackgrounds(backgroundEvents);
-    } catch (error) {
-      console.error("Failed to generate capacity backgrounds:", error);
-    }
-  }, [allBookings]);
+            let backgroundColor = "";
+            let borderColor = "";
+
+            if (currentBookings >= 20) {
+              backgroundColor = "rgba(239, 68, 68, 0.6)";
+              borderColor = "rgba(239, 68, 68, 0.9)";
+            } else if (currentBookings >= 15) {
+              backgroundColor = "rgba(234, 179, 8, 0.6)";
+              borderColor = "rgba(234, 179, 8, 0.9)";
+            } else {
+              backgroundColor = "rgba(34, 197, 94, 0.6)";
+              borderColor = "rgba(34, 197, 94, 0.9)";
+            }
+
+            return {
+              id: `capacity-${hourStart.toISOString()}`,
+              start: hourStart,
+              end: hourEnd,
+              display: "background",
+              backgroundColor,
+              borderColor,
+            };
+          });
+
+        setCapacityBackgrounds(backgroundEvents);
+      } catch (error) {
+        console.error("Failed to generate capacity backgrounds:", error);
+      }
+    },
+    [allBookings]
+  );
 
   useEffect(() => {
     if (bookableWeek) {
@@ -202,7 +246,6 @@ export default function MessBooking() {
       setRulesAgreed(false);
     }
   }, [user?.id, user?.role]);
-
 
   useEffect(() => {
     if (bookingModal) {
@@ -231,7 +274,7 @@ export default function MessBooking() {
 
   const handleEventClick = (clickInfo: any) => {
     const { calendarEvent, isAdmin } = clickInfo.event.extendedProps || {};
-    
+
     if (isAdmin) {
       // Admin clicked an aggregated event - show timeslot details
       const start = new Date(clickInfo.event.start);
@@ -240,7 +283,7 @@ export default function MessBooking() {
     } else {
       // Soldier clicked their own booking - show individual booking details
       if (calendarEvent?.bookingId) {
-        const booking = allBookings.find(b => b.id === calendarEvent.bookingId);
+        const booking = allBookings.find((b) => b.id === calendarEvent.bookingId);
         if (booking) {
           setEventModal(booking);
         }
@@ -298,7 +341,7 @@ export default function MessBooking() {
     try {
       const startDate = new Date(bookingModal.start);
       const endDate = new Date(bookingModal.end);
-      
+
       await apiRequest("POST", "/api/bookings", {
         userId: user.id,
         startTime: startDate.toISOString(),
@@ -308,9 +351,9 @@ export default function MessBooking() {
 
       toast({
         title: "Booking created",
-        description: `Successfully booked for ${creditsNeeded} hour${creditsNeeded > 1 ? 's' : ''}`,
+        description: `Successfully booked for ${creditsNeeded} hour${creditsNeeded > 1 ? "s" : ""}`,
       });
-      
+
       queryClient.invalidateQueries({ queryKey: ["/api/bookings"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bookings/calendar-events"] });
       queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
@@ -344,7 +387,7 @@ export default function MessBooking() {
     setIsCancelling(true);
     try {
       await apiRequest("POST", `/api/bookings/${eventModal.id}/cancel`);
-      
+
       const hoursUntilStart = differenceInHours(new Date(eventModal.startTime), new Date());
       const willRefund = hoursUntilStart > 24;
 
@@ -380,9 +423,11 @@ export default function MessBooking() {
   return (
     <div className="min-h-screen bg-background">
       <Navbar user={user} pageTitle="Mess Booking" />
-      
-      {user.role === "soldier" && <MessRulesModal open={showRulesModal && !rulesAgreed} onAgree={handleRulesAgree} />}
-      
+
+      {user.role === "soldier" && (
+        <MessRulesModal open={showRulesModal && !rulesAgreed} onAgree={handleRulesAgree} />
+      )}
+
       <div className="pt-16">
         <div className="max-w-7xl mx-auto px-4 md:px-6 py-6 md:py-8">
           <div className="mb-6">
@@ -390,25 +435,45 @@ export default function MessBooking() {
               {user.role === "soldier" ? "Mess Booking" : "Mess Booking Management"}
             </h1>
             <p className="text-muted-foreground mt-1">
-              {user.role === "soldier" 
-                ? "Book your time slots at the Mess" 
+              {user.role === "soldier"
+                ? "Book your time slots at the Mess"
                 : "Manage bookings, credits, and schedule configuration"}
             </p>
           </div>
 
           <Tabs defaultValue="calendar" className="space-y-6">
-            <TabsList className={
-              user.role === "admin" 
-                ? "grid w-full grid-cols-4 max-w-3xl" 
-                : user.role === "commander"
-                ? "grid w-full grid-cols-3 max-w-2xl"
-                : "grid w-full grid-cols-2 max-w-lg"
-            }>
-              <TabsTrigger value="calendar" data-testid="tab-calendar">Calendar</TabsTrigger>
-              {(user.role === "admin" || user.role === "commander") && <TabsTrigger value="bookings" data-testid="tab-bookings">Bookings</TabsTrigger>}
-              {(user.role === "admin" || user.role === "commander") && <TabsTrigger value="credits" data-testid="tab-credits">Credits</TabsTrigger>}
-              {user.role === "admin" && <TabsTrigger value="settings" data-testid="tab-settings">Settings</TabsTrigger>}
-              {user.role === "soldier" && <TabsTrigger value="bookings" data-testid="tab-my-bookings">My Bookings</TabsTrigger>}
+            <TabsList
+              className={
+                user.role === "admin"
+                  ? "grid w-full grid-cols-4 max-w-3xl"
+                  : user.role === "commander"
+                    ? "grid w-full grid-cols-3 max-w-2xl"
+                    : "grid w-full grid-cols-2 max-w-lg"
+              }
+            >
+              <TabsTrigger value="calendar" data-testid="tab-calendar">
+                Calendar
+              </TabsTrigger>
+              {(user.role === "admin" || user.role === "commander") && (
+                <TabsTrigger value="bookings" data-testid="tab-bookings">
+                  Bookings
+                </TabsTrigger>
+              )}
+              {(user.role === "admin" || user.role === "commander") && (
+                <TabsTrigger value="credits" data-testid="tab-credits">
+                  Credits
+                </TabsTrigger>
+              )}
+              {user.role === "admin" && (
+                <TabsTrigger value="settings" data-testid="tab-settings">
+                  Settings
+                </TabsTrigger>
+              )}
+              {user.role === "soldier" && (
+                <TabsTrigger value="bookings" data-testid="tab-my-bookings">
+                  My Bookings
+                </TabsTrigger>
+              )}
             </TabsList>
 
             <TabsContent value="calendar">
@@ -420,7 +485,8 @@ export default function MessBooking() {
                       <div>
                         <p className="text-sm font-medium">How to book</p>
                         <p className="text-sm text-muted-foreground mt-1">
-                          Click on any 1-hour time slot to book it. Click on existing bookings to view details or cancel.
+                          Click on any 1-hour time slot to book it. Click on existing bookings to
+                          view details or cancel.
                         </p>
                       </div>
                     </div>
@@ -436,18 +502,39 @@ export default function MessBooking() {
                 )}
 
                 {user.role === "soldier" && (
-                  <div className="mb-4 flex items-center gap-6 text-sm" data-testid="capacity-legend">
+                  <div
+                    className="mb-4 flex items-center gap-6 text-sm"
+                    data-testid="capacity-legend"
+                  >
                     <span className="font-medium text-muted-foreground">Availability:</span>
                     <div className="flex items-center gap-2">
-                      <div className="w-4 h-4 rounded border-2" style={{ backgroundColor: 'rgba(34, 197, 94, 0.6)', borderColor: 'rgba(34, 197, 94, 0.9)' }}></div>
+                      <div
+                        className="w-4 h-4 rounded border-2"
+                        style={{
+                          backgroundColor: "rgba(34, 197, 94, 0.6)",
+                          borderColor: "rgba(34, 197, 94, 0.9)",
+                        }}
+                      ></div>
                       <span>Good (&lt;15)</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <div className="w-4 h-4 rounded border-2" style={{ backgroundColor: 'rgba(234, 179, 8, 0.6)', borderColor: 'rgba(234, 179, 8, 0.9)' }}></div>
+                      <div
+                        className="w-4 h-4 rounded border-2"
+                        style={{
+                          backgroundColor: "rgba(234, 179, 8, 0.6)",
+                          borderColor: "rgba(234, 179, 8, 0.9)",
+                        }}
+                      ></div>
                       <span>Limited (15-19)</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <div className="w-4 h-4 rounded border-2" style={{ backgroundColor: 'rgba(239, 68, 68, 0.6)', borderColor: 'rgba(239, 68, 68, 0.9)' }}></div>
+                      <div
+                        className="w-4 h-4 rounded border-2"
+                        style={{
+                          backgroundColor: "rgba(239, 68, 68, 0.6)",
+                          borderColor: "rgba(239, 68, 68, 0.9)",
+                        }}
+                      ></div>
                       <span>Full (20)</span>
                     </div>
                   </div>
@@ -465,13 +552,13 @@ export default function MessBooking() {
                       firstDay={0}
                       timeZone="local"
                       slotLabelFormat={(date) => {
-                        const hours = date.date.hour.toString().padStart(2, '0');
-                        const minutes = date.date.minute.toString().padStart(2, '0');
+                        const hours = date.date.hour.toString().padStart(2, "0");
+                        const minutes = date.date.minute.toString().padStart(2, "0");
                         return `${hours}${minutes}`;
                       }}
                       eventTimeFormat={(date) => {
-                        const hours = date.date.hour.toString().padStart(2, '0');
-                        const minutes = date.date.minute.toString().padStart(2, '0');
+                        const hours = date.date.hour.toString().padStart(2, "0");
+                        const minutes = date.date.minute.toString().padStart(2, "0");
                         return `${hours}${minutes}`;
                       }}
                       headerToolbar={{
@@ -564,28 +651,55 @@ export default function MessBooking() {
             {user.role === "soldier" && (
               <TabsContent value="bookings">
                 <div className="space-y-4">
-                  {allBookings.filter(b => b.userId === user.id && b.status === "active").length > 0 ? (
+                  {allBookings.filter((b) => b.userId === user.id && b.status !== "cancelled")
+                    .length > 0 ? (
                     allBookings
-                      .filter((b: BookingWithUser) => b.userId === user.id && b.status === "active")
-                      .sort((a: BookingWithUser, b: BookingWithUser) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
-                      .map((booking: BookingWithUser) => (
-                        <div 
-                          key={booking.id} 
-                          className="border rounded-md p-4 hover-elevate cursor-pointer"
-                          onClick={() => setEventModal(booking)}
-                          data-testid={`booking-card-${booking.id}`}
-                        >
-                          <div>
-                            <p className="font-medium">{formatSingapore(booking.startTime, "EEEE, MMMM d, yyyy")}</p>
-                            <p className="text-sm text-muted-foreground">
-                              {formatSingapore(booking.startTime, "h:mm a")} - {formatSingapore(booking.endTime, "h:mm a")}
-                            </p>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              {booking.creditsCharged} credit{booking.creditsCharged !== 1 ? 's' : ''} charged
-                            </p>
+                      .filter(
+                        (b: BookingWithUser) => b.userId === user.id && b.status !== "cancelled"
+                      )
+                      .sort(
+                        (a: BookingWithUser, b: BookingWithUser) =>
+                          new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+                      )
+                      .map((booking: BookingWithUser) => {
+                        const bookingStatus = getBookingStatus(booking);
+                        return (
+                          <div
+                            key={booking.id}
+                            className="border rounded-md p-4 hover-elevate cursor-pointer"
+                            onClick={() => setEventModal(booking)}
+                            data-testid={`booking-card-${booking.id}`}
+                          >
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <p className="font-medium">
+                                  {formatSingapore(booking.startTime, "EEEE, MMMM d, yyyy")}
+                                </p>
+                                <p className="text-sm text-muted-foreground">
+                                  {formatSingapore(booking.startTime, "h:mm a")} -{" "}
+                                  {formatSingapore(booking.endTime, "h:mm a")}
+                                </p>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  {booking.creditsCharged} credit
+                                  {booking.creditsCharged !== 1 ? "s" : ""} charged
+                                </p>
+                              </div>
+                              <Badge
+                                variant={bookingStatus.variant}
+                                className={
+                                  bookingStatus.status === "Active"
+                                    ? "bg-green-500 text-green-950"
+                                    : bookingStatus.status === "Completed"
+                                      ? "bg-blue-500 text-blue-950"
+                                      : "bg-gray-500 text-gray-950"
+                                }
+                              >
+                                {bookingStatus.status}
+                              </Badge>
+                            </div>
                           </div>
-                        </div>
-                      ))
+                        );
+                      })
                   ) : (
                     <div className="text-center py-12 text-muted-foreground">
                       <p>No active bookings</p>
@@ -599,13 +713,14 @@ export default function MessBooking() {
         </div>
       </div>
 
-      <Dialog open={!!bookingModal && user.role === "soldier"} onOpenChange={() => setBookingModal(null)}>
+      <Dialog
+        open={!!bookingModal && user.role === "soldier"}
+        onOpenChange={() => setBookingModal(null)}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Confirm Booking</DialogTitle>
-            <DialogDescription>
-              Review your reservation details
-            </DialogDescription>
+            <DialogDescription>Review your reservation details</DialogDescription>
           </DialogHeader>
 
           {bookingModal && (
@@ -616,18 +731,14 @@ export default function MessBooking() {
                   <p className="text-base font-semibold">
                     {format(bookingModal.start, "MMM d, yyyy")}
                   </p>
-                  <p className="text-base font-semibold">
-                    {format(bookingModal.start, "HH:mm")}
-                  </p>
+                  <p className="text-base font-semibold">{format(bookingModal.start, "HH:mm")}</p>
                 </div>
                 <div>
                   <p className="text-sm font-medium text-muted-foreground mb-1">End Time</p>
                   <p className="text-base font-semibold">
                     {format(bookingModal.end, "MMM d, yyyy")}
                   </p>
-                  <p className="text-base font-semibold">
-                    {format(bookingModal.end, "HH:mm")}
-                  </p>
+                  <p className="text-base font-semibold">{format(bookingModal.end, "HH:mm")}</p>
                 </div>
               </div>
 
@@ -655,61 +766,67 @@ export default function MessBooking() {
                     <Skeleton className="h-5 w-32" />
                   </div>
                 </div>
-              ) : capacityInfo && (
-                <div className={`border rounded-md p-4 ${
-                  capacityInfo.isFull 
-                    ? 'bg-destructive/5 border-destructive/50' 
-                    : capacityInfo.currentBookings >= 15
-                    ? 'bg-secondary/50 border-secondary'
-                    : 'bg-green-500/5 border-green-500/30'
-                }`}>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Users className={`w-5 h-5 ${
-                        capacityInfo.isFull 
-                          ? 'text-destructive' 
-                          : capacityInfo.currentBookings >= 15
-                          ? 'text-secondary-foreground'
-                          : 'text-green-600 dark:text-green-400'
-                      }`} />
-                      <p className="text-sm font-medium">
-                        Booking Capacity
-                      </p>
+              ) : (
+                capacityInfo && (
+                  <div
+                    className={`border rounded-md p-4 ${
+                      capacityInfo.isFull
+                        ? "bg-destructive/5 border-destructive/50"
+                        : capacityInfo.currentBookings >= 15
+                          ? "bg-secondary/50 border-secondary"
+                          : "bg-green-500/5 border-green-500/30"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Users
+                          className={`w-5 h-5 ${
+                            capacityInfo.isFull
+                              ? "text-destructive"
+                              : capacityInfo.currentBookings >= 15
+                                ? "text-secondary-foreground"
+                                : "text-green-600 dark:text-green-400"
+                          }`}
+                        />
+                        <p className="text-sm font-medium">Booking Capacity</p>
+                      </div>
+                      <Badge
+                        variant={
+                          capacityInfo.isFull
+                            ? "destructive"
+                            : capacityInfo.currentBookings >= 15
+                              ? "secondary"
+                              : "outline"
+                        }
+                        className={
+                          !capacityInfo.isFull && capacityInfo.currentBookings < 15
+                            ? "bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/30"
+                            : ""
+                        }
+                        data-testid="badge-capacity"
+                      >
+                        {capacityInfo.availableSpots} / {capacityInfo.maxCapacity} available
+                      </Badge>
                     </div>
-                    <Badge 
-                      variant={
-                        capacityInfo.isFull 
-                          ? 'destructive' 
-                          : capacityInfo.currentBookings >= 15
-                          ? 'secondary'
-                          : 'outline'
-                      }
-                      className={
-                        !capacityInfo.isFull && capacityInfo.currentBookings < 15
-                          ? 'bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/30'
-                          : ''
-                      }
-                      data-testid="badge-capacity"
-                    >
-                      {capacityInfo.availableSpots} / {capacityInfo.maxCapacity} available
-                    </Badge>
+                    {capacityInfo.isFull && (
+                      <p className="text-sm text-destructive mt-2 font-medium">
+                        This time slot is full. Please select a different time.
+                      </p>
+                    )}
+                    {!capacityInfo.isFull && capacityInfo.currentBookings >= 15 && (
+                      <p className="text-sm text-secondary-foreground mt-2 font-medium">
+                        Limited availability - only {capacityInfo.availableSpots} spot
+                        {capacityInfo.availableSpots !== 1 ? "s" : ""} remaining!
+                      </p>
+                    )}
+                    {!capacityInfo.isFull && capacityInfo.currentBookings < 15 && (
+                      <p className="text-sm text-green-700 dark:text-green-400 mt-2 font-medium">
+                        Good availability - {capacityInfo.availableSpots} spot
+                        {capacityInfo.availableSpots !== 1 ? "s" : ""} available
+                      </p>
+                    )}
                   </div>
-                  {capacityInfo.isFull && (
-                    <p className="text-sm text-destructive mt-2 font-medium">
-                      This time slot is full. Please select a different time.
-                    </p>
-                  )}
-                  {!capacityInfo.isFull && capacityInfo.currentBookings >= 15 && (
-                    <p className="text-sm text-secondary-foreground mt-2 font-medium">
-                      Limited availability - only {capacityInfo.availableSpots} spot{capacityInfo.availableSpots !== 1 ? 's' : ''} remaining!
-                    </p>
-                  )}
-                  {!capacityInfo.isFull && capacityInfo.currentBookings < 15 && (
-                    <p className="text-sm text-green-700 dark:text-green-400 mt-2 font-medium">
-                      Good availability - {capacityInfo.availableSpots} spot{capacityInfo.availableSpots !== 1 ? 's' : ''} available
-                    </p>
-                  )}
-                </div>
+                )
               )}
 
               {userAlreadyBooked && (
@@ -723,7 +840,8 @@ export default function MessBooking() {
               {!hasEnoughCredits && (
                 <div className="border border-destructive/50 rounded-md p-3 bg-destructive/5">
                   <p className="text-sm text-destructive font-medium">
-                    Insufficient credits. You need {creditsNeeded} credits but only have {user.credits.toFixed(1)}.
+                    Insufficient credits. You need {creditsNeeded} credits but only have{" "}
+                    {user.credits.toFixed(1)}.
                   </p>
                 </div>
               )}
@@ -731,17 +849,19 @@ export default function MessBooking() {
           )}
 
           <DialogFooter>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => setBookingModal(null)}
               disabled={isCreating}
               data-testid="button-cancel-booking-modal"
             >
               Cancel
             </Button>
-            <Button 
+            <Button
               onClick={handleCreateBooking}
-              disabled={isCreating || !hasEnoughCredits || (capacityInfo?.isFull) || userAlreadyBooked}
+              disabled={
+                isCreating || !hasEnoughCredits || capacityInfo?.isFull || userAlreadyBooked
+              }
               data-testid="button-confirm-booking"
             >
               {isCreating ? "Creating..." : "Confirm Booking"}
@@ -754,9 +874,7 @@ export default function MessBooking() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Booking Details</DialogTitle>
-            <DialogDescription>
-              View and manage your booking
-            </DialogDescription>
+            <DialogDescription>View and manage your booking</DialogDescription>
           </DialogHeader>
           {eventModal && (
             <div className="space-y-4">
@@ -772,7 +890,8 @@ export default function MessBooking() {
                   {formatSingapore(eventModal.startTime, "EEEE, MMMM d, yyyy")}
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  {formatSingapore(eventModal.startTime, "h:mm a")} - {formatSingapore(eventModal.endTime, "h:mm a")}
+                  {formatSingapore(eventModal.startTime, "h:mm a")} -{" "}
+                  {formatSingapore(eventModal.endTime, "h:mm a")}
                 </p>
               </div>
               <div>
@@ -781,9 +900,23 @@ export default function MessBooking() {
               </div>
               <div>
                 <p className="text-sm font-medium">Status</p>
-                <Badge variant={eventModal.status === "active" ? "default" : "secondary"}>
-                  {eventModal.status}
-                </Badge>
+                {(() => {
+                  const statusInfo = getBookingStatus(eventModal);
+                  return (
+                    <Badge
+                      variant={statusInfo.variant}
+                      className={
+                        statusInfo.status === "Active"
+                          ? "bg-green-500 text-green-950"
+                          : statusInfo.status === "Completed"
+                            ? "bg-blue-500 text-blue-950"
+                            : "bg-gray-500 text-gray-950"
+                      }
+                    >
+                      {statusInfo.status}
+                    </Badge>
+                  );
+                })()}
               </div>
             </div>
           )}
@@ -791,11 +924,16 @@ export default function MessBooking() {
             <Button variant="outline" onClick={() => setEventModal(null)}>
               Close
             </Button>
-            {eventModal && eventModal.userId === user.id && eventModal.status === "active" && (
-              <Button variant="destructive" onClick={handleCancelBooking} disabled={isCancelling}>
-                {isCancelling ? "Cancelling..." : "Cancel Booking"}
-              </Button>
-            )}
+            {eventModal &&
+              eventModal.userId === user.id &&
+              (() => {
+                const statusInfo = getBookingStatus(eventModal);
+                return statusInfo.canCancel;
+              })() && (
+                <Button variant="destructive" onClick={handleCancelBooking} disabled={isCancelling}>
+                  {isCancelling ? "Cancelling..." : "Cancel Booking"}
+                </Button>
+              )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -807,19 +945,23 @@ export default function MessBooking() {
             <DialogDescription>
               {timeslotDetailsModal && (
                 <>
-                  {formatSingapore(timeslotDetailsModal.startTime, "EEEE, MMMM d, yyyy")} • {" "}
-                  {formatSingapore(timeslotDetailsModal.startTime, "HHmm")} - {formatSingapore(timeslotDetailsModal.endTime, "HHmm")}
+                  {formatSingapore(timeslotDetailsModal.startTime, "EEEE, MMMM d, yyyy")} •{" "}
+                  {formatSingapore(timeslotDetailsModal.startTime, "HHmm")} -{" "}
+                  {formatSingapore(timeslotDetailsModal.endTime, "HHmm")}
                 </>
               )}
             </DialogDescription>
           </DialogHeader>
-          
+
           {loadingTimeslotDetails ? (
             <div className="py-8 text-center text-muted-foreground">Loading bookings...</div>
           ) : timeslotBookings.length > 0 ? (
             <div className="space-y-3 max-h-96 overflow-y-auto">
               {timeslotBookings.map((booking: BookingWithUser) => (
-                <div key={booking.id} className="border rounded-md p-3 flex items-center justify-between gap-3">
+                <div
+                  key={booking.id}
+                  className="border rounded-md p-3 flex items-center justify-between gap-3"
+                >
                   <div className="flex-1">
                     <p className="font-medium">{booking.user?.fullName || "Unknown"}</p>
                     {booking.user?.rank && (
@@ -838,10 +980,12 @@ export default function MessBooking() {
                             description: "The booking has been cancelled successfully",
                           });
                           queryClient.invalidateQueries({ queryKey: ["/api/bookings"] });
-                          queryClient.invalidateQueries({ queryKey: ["/api/bookings/calendar-events"] });
+                          queryClient.invalidateQueries({
+                            queryKey: ["/api/bookings/calendar-events"],
+                          });
                           refetchAllBookings();
                           refetchEvents();
-                          setTimeslotDetailsModal(prev => prev ? {...prev} : null);
+                          setTimeslotDetailsModal((prev) => (prev ? { ...prev } : null));
                         } catch (error: any) {
                           toast({
                             variant: "destructive",
@@ -858,9 +1002,11 @@ export default function MessBooking() {
               ))}
             </div>
           ) : (
-            <div className="py-8 text-center text-muted-foreground">No bookings for this timeslot</div>
+            <div className="py-8 text-center text-muted-foreground">
+              No bookings for this timeslot
+            </div>
           )}
-          
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setTimeslotDetailsModal(null)}>
               Close

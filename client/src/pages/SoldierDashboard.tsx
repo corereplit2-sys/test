@@ -4,7 +4,17 @@ import { Navbar } from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, Clock, AlertCircle, Car, Award, Plus, Users, BookOpen, CreditCard } from "lucide-react";
+import {
+  Calendar,
+  Clock,
+  AlertCircle,
+  Car,
+  Award,
+  Plus,
+  Users,
+  BookOpen,
+  CreditCard,
+} from "lucide-react";
 import { useLocation } from "wouter";
 import { format, differenceInHours, isPast, addDays, differenceInDays } from "date-fns";
 import { toZonedTime, format as formatTz } from "date-fns-tz";
@@ -30,28 +40,34 @@ export default function SoldierDashboard() {
   const [isCancelling, setIsCancelling] = useState(false);
 
   const getTimeInSingapore = (date: Date | string) => {
-    const utcDate = typeof date === 'string' ? new Date(date) : date;
-    return toZonedTime(utcDate, 'Asia/Singapore');
+    const utcDate = typeof date === "string" ? new Date(date) : date;
+    return toZonedTime(utcDate, "Asia/Singapore");
   };
 
   const formatSingapore = (date: Date | string, fmtStr: string) => {
-    return formatTz(getTimeInSingapore(date), fmtStr, { timeZone: 'Asia/Singapore' });
+    return formatTz(getTimeInSingapore(date), fmtStr, { timeZone: "Asia/Singapore" });
   };
 
   const { data: user, isLoading: userLoading } = useQuery<SafeUser>({
     queryKey: ["/api/auth/me"],
   });
 
-  const { data: bookings = [], isLoading: bookingsLoading, refetch } = useQuery<Booking[]>({
+  const {
+    data: bookings = [],
+    isLoading: bookingsLoading,
+    refetch,
+  } = useQuery<Booking[]>({
     queryKey: ["/api/bookings/my"],
   });
 
-  const { data: qualifications = [], isLoading: qualificationsLoading } = useQuery<QualificationWithStatus[]>({
+  const { data: qualifications = [], isLoading: qualificationsLoading } = useQuery<
+    QualificationWithStatus[]
+  >({
     queryKey: ["/api/qualifications/my"],
   });
 
   const upcomingBookings = bookings
-    .filter(b => b.status === "active" && !isPast(new Date(b.endTime)))
+    .filter((b) => b.status === "active" && !isPast(new Date(b.endTime)))
     .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
 
   const canCancelBooking = (booking: Booking) => {
@@ -79,13 +95,13 @@ export default function SoldierDashboard() {
 
   const handleCancelBooking = async () => {
     if (!bookingToCancel) return;
-    
+
     setIsCancelling(true);
     try {
       await apiRequest("POST", `/api/bookings/${bookingToCancel.id}/cancel`);
       toast({
         title: "Booking cancelled",
-        description: canCancelBooking(bookingToCancel) 
+        description: canCancelBooking(bookingToCancel)
           ? "Your credits have been refunded."
           : "Cancelled within 24 hours - no refund.",
       });
@@ -126,7 +142,7 @@ export default function SoldierDashboard() {
   return (
     <div className="min-h-screen bg-background">
       <Navbar user={user} pageTitle="Dashboard" />
-      
+
       <div className="pt-16">
         <div className="max-w-7xl mx-auto px-4 md:px-6 py-6 md:py-8">
           <Card className="mb-8">
@@ -184,9 +200,7 @@ export default function SoldierDashboard() {
                   <div className="flex gap-2">
                     <AlertCircle className="w-5 h-5 text-destructive flex-shrink-0" />
                     <div>
-                      <h4 className="text-sm font-medium text-destructive mb-1">
-                        Low Credits
-                      </h4>
+                      <h4 className="text-sm font-medium text-destructive mb-1">Low Credits</h4>
                       <p className="text-xs text-muted-foreground">
                         Contact your administrator for credit top-up
                       </p>
@@ -205,7 +219,10 @@ export default function SoldierDashboard() {
                     <p className="text-sm font-medium uppercase tracking-wide text-muted-foreground mb-2">
                       Mess Credits
                     </p>
-                    <p className="text-4xl font-mono font-semibold" data-testid="text-available-credits">
+                    <p
+                      className="text-4xl font-mono font-semibold"
+                      data-testid="text-available-credits"
+                    >
                       {user.credits.toFixed(1)}
                     </p>
                     <p className="text-xs text-muted-foreground mt-2">
@@ -236,7 +253,10 @@ export default function SoldierDashboard() {
                     {qualifications.map((qual) => {
                       const { status, daysRemaining } = getComputedStatusForQual(qual);
                       return (
-                        <div key={`${qual.id}-${qual.qualifiedOnDate}-${qual.lastDriveDate}`} className="flex items-center justify-between p-2 border rounded-md">
+                        <div
+                          key={`${qual.id}-${qual.qualifiedOnDate}-${qual.lastDriveDate}`}
+                          className="flex items-center justify-between p-2 border rounded-md"
+                        >
                           <div>
                             <p className="font-medium text-sm">{qual.vehicleType}</p>
                             <p className="text-xs text-muted-foreground">
@@ -244,16 +264,26 @@ export default function SoldierDashboard() {
                             </p>
                           </div>
                           <Badge
-                            variant={status === "CURRENT" ? "outline" : status === "EXPIRING_SOON" ? "secondary" : "destructive"}
+                            variant={
+                              status === "CURRENT"
+                                ? "outline"
+                                : status === "EXPIRING_SOON"
+                                  ? "secondary"
+                                  : "destructive"
+                            }
                             className={
                               status === "CURRENT"
                                 ? "bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/30"
                                 : status === "EXPIRING_SOON"
-                                ? "bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 border-yellow-500/30"
-                                : ""
+                                  ? "bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 border-yellow-500/30"
+                                  : ""
                             }
                           >
-                            {status === "CURRENT" ? "Current" : status === "EXPIRING_SOON" ? "Expiring" : "Expired"}
+                            {status === "CURRENT"
+                              ? "Current"
+                              : status === "EXPIRING_SOON"
+                                ? "Expiring"
+                                : "Expired"}
                           </Badge>
                         </div>
                       );
@@ -282,7 +312,9 @@ export default function SoldierDashboard() {
               <CardContent>
                 {bookingsLoading ? (
                   <div className="space-y-3">
-                    {[1, 2, 3].map(i => <Skeleton key={i} className="h-16 w-full" />)}
+                    {[1, 2, 3].map((i) => (
+                      <Skeleton key={i} className="h-16 w-full" />
+                    ))}
                   </div>
                 ) : upcomingBookings.length === 0 ? (
                   <div className="text-center py-12">
@@ -354,7 +386,10 @@ export default function SoldierDashboard() {
             <AlertDialogTitle>Cancel Booking</AlertDialogTitle>
             <AlertDialogDescription>
               {bookingToCancel && canCancelBooking(bookingToCancel) ? (
-                <>You will receive a full refund of {bookingToCancel.creditsCharged.toFixed(1)} credits.</>
+                <>
+                  You will receive a full refund of {bookingToCancel.creditsCharged.toFixed(1)}{" "}
+                  credits.
+                </>
               ) : (
                 <>Cancelling within 24 hours of start time. No credits will be refunded.</>
               )}

@@ -68,9 +68,9 @@ export function AdminUserCredits() {
   };
 
   const getMspName = (mspId: string | null): string => {
-    if (!mspId || !msps) return '-';
-    const msp = msps.find(m => m.id === mspId);
-    return msp ? msp.name : '-';
+    if (!mspId || !msps) return "-";
+    const msp = msps.find((m) => m.id === mspId);
+    return msp ? msp.name : "-";
   };
 
   if (isLoading) {
@@ -87,11 +87,12 @@ export function AdminUserCredits() {
     );
   }
 
-  const soldiers = users?.filter(u => u.role === "soldier") || [];
-  const filteredSoldiers = soldiers.filter(user =>
-    user.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (user.rank && user.rank.toLowerCase().includes(searchTerm.toLowerCase()))
+  const soldiers = users?.filter((u) => u.role === "soldier") || [];
+  const filteredSoldiers = soldiers.filter(
+    (user) =>
+      user.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (user.rank && user.rank.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   return (
@@ -102,9 +103,7 @@ export function AdminUserCredits() {
             <Coins className="w-5 h-5 text-primary" />
             <CardTitle>Individual Soldier Credits</CardTitle>
           </div>
-          <CardDescription>
-            View and adjust credits for individual soldiers
-          </CardDescription>
+          <CardDescription>View and adjust credits for individual soldiers</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Search Bar */}
@@ -120,7 +119,7 @@ export function AdminUserCredits() {
               />
             </div>
             <Badge variant="secondary" className="px-3 py-1.5">
-              {filteredSoldiers.length} soldier{filteredSoldiers.length !== 1 ? 's' : ''}
+              {filteredSoldiers.length} soldier{filteredSoldiers.length !== 1 ? "s" : ""}
             </Badge>
           </div>
 
@@ -132,7 +131,7 @@ export function AdminUserCredits() {
               </div>
             ) : (
               filteredSoldiers.map((user) => (
-                <div 
+                <div
                   key={user.id}
                   className="border rounded-md p-4 hover:bg-accent transition-colors"
                   data-testid={`card-user-mobile-${user.id}`}
@@ -168,7 +167,10 @@ export function AdminUserCredits() {
                           />
                         </div>
                       ) : (
-                        <p className="font-mono font-medium text-base" data-testid={`text-credits-${user.id}`}>
+                        <p
+                          className="font-mono font-medium text-base"
+                          data-testid={`text-credits-${user.id}`}
+                        >
                           {user.credits.toFixed(1)}
                         </p>
                       )}
@@ -224,27 +226,43 @@ export function AdminUserCredits() {
               <table className="w-full">
                 <thead className="bg-muted/50">
                   <tr>
-                    <th className="text-left text-xs font-semibold uppercase tracking-wide py-2 px-3">Rank</th>
-                    <th className="text-left text-xs font-semibold uppercase tracking-wide py-2 px-3">Name</th>
-                    <th className="text-left text-xs font-semibold uppercase tracking-wide py-2 px-3">Username</th>
-                    <th className="text-left text-xs font-semibold uppercase tracking-wide py-2 px-3">MSP</th>
-                    <th className="text-right text-xs font-semibold uppercase tracking-wide py-2 px-3">Credits</th>
-                    <th className="text-center text-xs font-semibold uppercase tracking-wide py-2 px-3 w-24">Actions</th>
+                    <th className="text-left text-xs font-semibold uppercase tracking-wide py-2 px-3">
+                      Rank
+                    </th>
+                    <th className="text-left text-xs font-semibold uppercase tracking-wide py-2 px-3">
+                      Name
+                    </th>
+                    <th className="text-left text-xs font-semibold uppercase tracking-wide py-2 px-3">
+                      Username
+                    </th>
+                    <th className="text-left text-xs font-semibold uppercase tracking-wide py-2 px-3">
+                      MSP
+                    </th>
+                    <th className="text-right text-xs font-semibold uppercase tracking-wide py-2 px-3">
+                      Credits
+                    </th>
+                    <th className="text-center text-xs font-semibold uppercase tracking-wide py-2 px-3 w-24">
+                      Actions
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredSoldiers.length === 0 ? (
                     <tr>
                       <td colSpan={6} className="text-center text-muted-foreground py-8">
-                        {searchTerm ? "No soldiers found matching your search" : "No soldiers found"}
+                        {searchTerm
+                          ? "No soldiers found matching your search"
+                          : "No soldiers found"}
                       </td>
                     </tr>
                   ) : (
                     filteredSoldiers.map((user) => (
-                      <tr key={user.id} data-testid={`row-user-${user.id}`} className="border-t hover-elevate">
-                        <td className="py-2 px-3 font-medium">
-                          {user.rank || "-"}
-                        </td>
+                      <tr
+                        key={user.id}
+                        data-testid={`row-user-${user.id}`}
+                        className="border-t hover-elevate"
+                      >
+                        <td className="py-2 px-3 font-medium">{user.rank || "-"}</td>
                         <td className="py-2 px-3">{user.fullName}</td>
                         <td className="py-2 px-3 text-muted-foreground">{user.username}</td>
                         <td className="py-2 px-3 text-muted-foreground">
@@ -263,7 +281,10 @@ export function AdminUserCredits() {
                               autoFocus
                             />
                           ) : (
-                            <span className="font-mono font-medium" data-testid={`text-credits-${user.id}`}>
+                            <span
+                              className="font-mono font-medium"
+                              data-testid={`text-credits-${user.id}`}
+                            >
                               {user.credits.toFixed(1)}
                             </span>
                           )}

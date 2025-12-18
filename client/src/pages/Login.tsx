@@ -5,7 +5,14 @@ import { loginSchema, type LoginCredentials, type SafeUser } from "@shared/schem
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
@@ -28,7 +35,7 @@ export default function Login() {
     setIsLoading(true);
     try {
       const user = await apiRequest("POST", "/api/auth/login", data);
-      
+
       toast({
         title: "Login successful",
         description: `Welcome back, ${user.fullName}!`,
@@ -56,7 +63,9 @@ export default function Login() {
         <CardHeader className="space-y-3">
           <div className="text-center">
             <CardTitle className="text-2xl font-bold">MSC DRIVr v2</CardTitle>
-            <CardDescription className="text-sm mt-2">MSC Trooper's All-in-one Platform</CardDescription>
+            <CardDescription className="text-sm mt-2">
+              MSC Trooper's All-in-one Platform
+            </CardDescription>
           </div>
         </CardHeader>
         <CardContent>

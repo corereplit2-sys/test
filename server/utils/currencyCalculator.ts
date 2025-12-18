@@ -15,7 +15,7 @@ export interface CurrencyCalculationResult {
 
 /**
  * Calculate currency status for a driver qualification based on their drive logs
- * 
+ *
  * Currency Rules:
  * - Initial currency valid for 88 days from qualification date
  * - To maintain currency: must drive ≥2km (cumulative) within any 88-day window
@@ -26,13 +26,13 @@ export function calculateCurrency(
   driveLogs: DriveLog[]
 ): CurrencyCalculationResult {
   // Sort logs by date ascending
-  const sortedLogs = [...driveLogs].sort((a, b) =>
-    new Date(a.date).getTime() - new Date(b.date).getTime()
+  const sortedLogs = [...driveLogs].sort(
+    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
   );
 
   // Helper to create Singapore date (treat YYYY-MM-DD as Singapore date)
   const sgDate = (dateStr: string) => {
-    const [year, month, day] = dateStr.split('-').map(Number);
+    const [year, month, day] = dateStr.split("-").map(Number);
     return new Date(year, month - 1, day, 12, 0, 0); // noon to avoid UTC issues
   };
 
@@ -81,12 +81,10 @@ export function calculateCurrency(
   }
 
   // For lastDriveDate, use the most recent drive log date
-  const mostRecentDriveDate = sortedLogs.length > 0 
-    ? sortedLogs[sortedLogs.length - 1].date 
-    : null;
+  const mostRecentDriveDate = sortedLogs.length > 0 ? sortedLogs[sortedLogs.length - 1].date : null;
 
   return {
-    currencyExpiryDate: finalExpiryDate.toISOString().split('T')[0],
+    currencyExpiryDate: finalExpiryDate.toISOString().split("T")[0],
     lastDriveDate: mostRecentDriveDate,
     status,
     daysRemaining: Math.max(0, daysRemaining),
@@ -99,10 +97,13 @@ export function calculateCurrency(
 export async function recalculateCurrencyForQualification(
   qualification: DriverQualification,
   driveLogs: DriveLog[],
-  updateFunction: (id: string, updates: Partial<DriverQualification>) => Promise<DriverQualification | undefined>
+  updateFunction: (
+    id: string,
+    updates: Partial<DriverQualification>
+  ) => Promise<DriverQualification | undefined>
 ): Promise<DriverQualification | undefined> {
   const result = calculateCurrency(qualification, driveLogs);
-  
+
   return await updateFunction(qualification.id, {
     currencyExpiryDate: result.currencyExpiryDate,
     lastDriveDate: result.lastDriveDate,
@@ -119,7 +120,7 @@ export function getCurrencyStatus(qualification: DriverQualification): {
   const today = new Date();
   const expiryDate = parseISO(qualification.currencyExpiryDate);
   const daysRemaining = differenceInDays(expiryDate, today);
-  
+
   let status: CurrencyStatus;
   if (daysRemaining < 0) {
     status = "EXPIRED";

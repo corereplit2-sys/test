@@ -3,18 +3,58 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Navbar } from "@/components/Navbar";
 import { useToast } from "@/hooks/use-toast";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { insertDriverQualificationSchema, insertDriveLogSchema, type QualificationWithStatus, type DriveLog, type SafeUser, type Msp } from "@shared/schema";
+import {
+  insertDriverQualificationSchema,
+  insertDriveLogSchema,
+  type QualificationWithStatus,
+  type DriveLog,
+  type SafeUser,
+  type Msp,
+} from "@shared/schema";
 import { z } from "zod";
-import { Car, Plus, Search, AlertTriangle, Award, Trash, Gauge, X, ArrowLeft, Upload, QrCode, Edit } from "lucide-react";
+import {
+  Car,
+  Plus,
+  Search,
+  AlertTriangle,
+  Award,
+  Trash,
+  Gauge,
+  X,
+  ArrowLeft,
+  Upload,
+  QrCode,
+  Edit,
+} from "lucide-react";
 import { QRScanner } from "@/components/soldier/QRScanner";
 import { AdminCurrencyDrives } from "@/components/admin/AdminCurrencyDrives";
 import { format } from "date-fns";
@@ -32,11 +72,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 type FilterTag = {
   id: string;
@@ -49,11 +85,11 @@ export default function CurrencyTracker() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const qualificationsCardRef = useRef<HTMLDivElement>(null);
-  
+
   // Read status filter from URL on mount
   const params = new URLSearchParams(window.location.search);
   const initialStatus = params.get("status") || "all";
-  
+
   const [searchTerm, setSearchTerm] = useState("");
   const [filterTags, setFilterTags] = useState<FilterTag[]>([]);
   const [isAddingQual, setIsAddingQual] = useState(false);
@@ -72,7 +108,9 @@ export default function CurrencyTracker() {
     queryKey: ["/api/auth/me"],
   });
 
-  const { data: qualifications = [], isLoading: qualificationsLoading } = useQuery<QualificationWithStatus[]>({
+  const { data: qualifications = [], isLoading: qualificationsLoading } = useQuery<
+    QualificationWithStatus[]
+  >({
     queryKey: ["/api/qualifications"],
   });
 
@@ -89,19 +127,19 @@ export default function CurrencyTracker() {
   });
 
   const getTimeInSingapore = (date: Date | string) => {
-    const utcDate = typeof date === 'string' ? new Date(date) : date;
-    return toZonedTime(utcDate, 'Asia/Singapore');
+    const utcDate = typeof date === "string" ? new Date(date) : date;
+    return toZonedTime(utcDate, "Asia/Singapore");
   };
 
   const formatSingapore = (date: Date | string, fmtStr: string) => {
-    return formatTz(getTimeInSingapore(date), fmtStr, { timeZone: 'Asia/Singapore' });
+    return formatTz(getTimeInSingapore(date), fmtStr, { timeZone: "Asia/Singapore" });
   };
 
   const vehicleTypes = ["TERREX", "BELREX"];
   const statusTypes = [
     { value: "CURRENT", label: "Current" },
     { value: "EXPIRING_SOON", label: "Expiring Soon" },
-    { value: "EXPIRED", label: "Expired" }
+    { value: "EXPIRED", label: "Expired" },
   ];
 
   const addFilterTag = (type: "msp" | "vehicle" | "status", value: string, label: string) => {
@@ -109,7 +147,7 @@ export default function CurrencyTracker() {
     // Clear all filters and add only the new one (single-select behavior)
     setFilterTags([{ id, type, label, value }]);
     setShowFilterPopover(false);
-    
+
     // Auto-scroll to qualifications card
     setTimeout(() => {
       qualificationsCardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -117,25 +155,25 @@ export default function CurrencyTracker() {
   };
 
   const removeFilterTag = (id: string) => {
-    setFilterTags(filterTags.filter(tag => tag.id !== id));
+    setFilterTags(filterTags.filter((tag) => tag.id !== id));
   };
 
   const handleSearchChange = (value: string) => {
     setSearchTerm(value);
-    
+
     // Auto-detect and create filter tags from search input
     const upperValue = value.toUpperCase().trim();
-    
+
     // Check for MSP match
-    const mspMatch = msps.find(msp => msp.name.toUpperCase() === upperValue);
+    const mspMatch = msps.find((msp) => msp.name.toUpperCase() === upperValue);
     if (mspMatch) {
       addFilterTag("msp", mspMatch.id, mspMatch.name);
       setSearchTerm("");
       return;
     }
-    
+
     // Check for vehicle type match
-    const vehicleMatch = vehicleTypes.find(vehicle => vehicle === upperValue);
+    const vehicleMatch = vehicleTypes.find((vehicle) => vehicle === upperValue);
     if (vehicleMatch) {
       addFilterTag("vehicle", vehicleMatch, vehicleMatch);
       setSearchTerm("");
@@ -148,28 +186,30 @@ export default function CurrencyTracker() {
     defaultValues: {
       userId: "",
       vehicleType: "",
-      qualifiedOnDate: new Date().toISOString().split('T')[0],
+      qualifiedOnDate: new Date().toISOString().split("T")[0],
     },
   });
 
-  const driveLogFormSchema = z.object({
-    vehicleType: z.string().min(1, "Vehicle type is required"),
-    vehicleNo: z.string().regex(/^\d{5}$/, "Vehicle number must be exactly 5 digits"),
-    date: z.string().min(1, "Date is required"),
-    initialMileageKm: z.number().min(0, "Initial mileage must be positive"),
-    finalMileageKm: z.number().min(0, "Final mileage must be positive"),
-    remarks: z.string().optional(),
-  }).refine((data) => data.finalMileageKm > data.initialMileageKm, {
-    message: "Final mileage must be greater than initial mileage",
-    path: ["finalMileageKm"],
-  });
+  const driveLogFormSchema = z
+    .object({
+      vehicleType: z.string().min(1, "Vehicle type is required"),
+      vehicleNo: z.string().regex(/^\d{5}$/, "Vehicle number must be exactly 5 digits"),
+      date: z.string().min(1, "Date is required"),
+      initialMileageKm: z.number().min(0, "Initial mileage must be positive"),
+      finalMileageKm: z.number().min(0, "Final mileage must be positive"),
+      remarks: z.string().optional(),
+    })
+    .refine((data) => data.finalMileageKm > data.initialMileageKm, {
+      message: "Final mileage must be greater than initial mileage",
+      path: ["finalMileageKm"],
+    });
 
   const driveLogForm = useForm({
     resolver: zodResolver(driveLogFormSchema),
     defaultValues: {
       vehicleType: selectedQual?.vehicleType || "",
       vehicleNo: "",
-      date: new Date().toISOString().split('T')[0],
+      date: new Date().toISOString().split("T")[0],
       initialMileageKm: "" as any,
       finalMileageKm: "" as any,
       remarks: "",
@@ -321,26 +361,33 @@ export default function CurrencyTracker() {
     return null;
   }
 
-  const filteredQualifications = qualifications.filter(qual => {
-    const matchesSearch = searchTerm === "" ||
-                          qual.user?.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          qual.user?.username.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const mspTags = filterTags.filter(t => t.type === "msp");
-    const vehicleTags = filterTags.filter(t => t.type === "vehicle");
-    const statusTags = filterTags.filter(t => t.type === "status");
-    
-    const matchesMsp = mspTags.length === 0 || mspTags.some(tag => qual.user?.mspId === tag.value);
-    const matchesVehicleType = vehicleTags.length === 0 || vehicleTags.some(tag => qual.vehicleType === tag.value);
-    const matchesStatus = statusTags.length === 0 || statusTags.some(tag => qual.status === tag.value);
-    
+  const filteredQualifications = qualifications.filter((qual) => {
+    const matchesSearch =
+      searchTerm === "" ||
+      qual.user?.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      qual.user?.username.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const mspTags = filterTags.filter((t) => t.type === "msp");
+    const vehicleTags = filterTags.filter((t) => t.type === "vehicle");
+    const statusTags = filterTags.filter((t) => t.type === "status");
+
+    const matchesMsp =
+      mspTags.length === 0 || mspTags.some((tag) => qual.user?.mspId === tag.value);
+    const matchesVehicleType =
+      vehicleTags.length === 0 || vehicleTags.some((tag) => qual.vehicleType === tag.value);
+    const matchesStatus =
+      statusTags.length === 0 || statusTags.some((tag) => qual.status === tag.value);
+
     return matchesSearch && matchesMsp && matchesVehicleType && matchesStatus;
   });
 
   const selectedQualLogs = selectedQual
-    ? allDriveLogs.filter(log =>
-        log.userId === selectedQual.userId && log.vehicleType === selectedQual.vehicleType
-      ).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    ? allDriveLogs
+        .filter(
+          (log) =>
+            log.userId === selectedQual.userId && log.vehicleType === selectedQual.vehicleType
+        )
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     : [];
 
   const getStatusBadge = (status: string, daysRemaining: number) => {
@@ -353,14 +400,22 @@ export default function CurrencyTracker() {
       );
     } else if (status === "EXPIRING_SOON") {
       return (
-        <Badge variant="secondary" className="gap-1 bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 border-yellow-500/30" data-testid="badge-status-expiring">
+        <Badge
+          variant="secondary"
+          className="gap-1 bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 border-yellow-500/30"
+          data-testid="badge-status-expiring"
+        >
           <AlertTriangle className="w-3 h-3" />
           Expiring ({daysRemaining}d)
         </Badge>
       );
     } else {
       return (
-        <Badge variant="outline" className="gap-1 bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/30" data-testid="badge-status-current">
+        <Badge
+          variant="outline"
+          className="gap-1 bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/30"
+          data-testid="badge-status-current"
+        >
           <Award className="w-3 h-3" />
           Current ({daysRemaining}d)
         </Badge>
@@ -402,39 +457,56 @@ export default function CurrencyTracker() {
     <>
       <div className="min-h-screen bg-background">
         <Navbar user={user} pageTitle="Currency Tracker" />
-        
+
         <div className="pt-16">
           <div className="max-w-7xl mx-auto px-4 md:px-6 py-6 md:py-8">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
               <div>
                 <h1 className="text-2xl md:text-3xl font-bold">Currency Tracker</h1>
-                <p className="text-muted-foreground mt-1 text-sm">Company-wide driver currency management</p>
+                <p className="text-muted-foreground mt-1 text-sm">
+                  Company-wide driver currency management
+                </p>
               </div>
-                {user?.role === "admin" && (
-                  <div className="flex gap-2 flex-wrap">
-                    <Button variant="outline" onClick={() => setShowBatchImport(true)} data-testid="button-batch-import" size="sm" className="md:size-auto">
-                      <Upload className="w-4 h-4 mr-2" />
-                      Batch Import
-                    </Button>
-                    <Button onClick={() => setIsAddingQual(true)} data-testid="button-add-qualification" size="sm" className="md:size-auto">
-                      <Plus className="w-4 h-4 mr-2" />
-                      Add Qualification
-                    </Button>
-                  </div>
-                )}
-              </div>
+              {user?.role === "admin" && (
+                <div className="flex gap-2 flex-wrap">
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowBatchImport(true)}
+                    data-testid="button-batch-import"
+                    size="sm"
+                    className="md:size-auto"
+                  >
+                    <Upload className="w-4 h-4 mr-2" />
+                    Batch Import
+                  </Button>
+                  <Button
+                    onClick={() => setIsAddingQual(true)}
+                    data-testid="button-add-qualification"
+                    size="sm"
+                    className="md:size-auto"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Qualification
+                  </Button>
+                </div>
+              )}
+            </div>
 
             <>
               {/* Analytics cards */}
               <div className="grid gap-2 grid-cols-2 md:grid-cols-4 mb-6">
                 <Card data-testid="card-analytics-total">
                   <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
-                    <CardTitle className="text-xs md:text-sm font-medium">Total Qualifications</CardTitle>
+                    <CardTitle className="text-xs md:text-sm font-medium">
+                      Total Qualifications
+                    </CardTitle>
                     <Award className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                   </CardHeader>
                   <CardContent>
                     <div className="text-xl md:text-2xl font-bold">{qualifications.length}</div>
-                    <p className="text-xs text-muted-foreground mt-1 hidden sm:block">Across all MSPs</p>
+                    <p className="text-xs text-muted-foreground mt-1 hidden sm:block">
+                      Across all MSPs
+                    </p>
                   </CardContent>
                 </Card>
 
@@ -449,11 +521,11 @@ export default function CurrencyTracker() {
                   </CardHeader>
                   <CardContent>
                     <div className="text-xl md:text-2xl font-bold">
-                      {qualifications.filter(q => q.status === "CURRENT").length}
+                      {qualifications.filter((q) => q.status === "CURRENT").length}
                     </div>
                     <p className="text-xs text-muted-foreground mt-1 hidden sm:block">
                       {qualifications.length > 0
-                        ? `${((qualifications.filter(q => q.status === "CURRENT").length / qualifications.length) * 100).toFixed(0)}% of total`
+                        ? `${((qualifications.filter((q) => q.status === "CURRENT").length / qualifications.length) * 100).toFixed(0)}% of total`
                         : "0%"}
                     </p>
                   </CardContent>
@@ -470,11 +542,11 @@ export default function CurrencyTracker() {
                   </CardHeader>
                   <CardContent>
                     <div className="text-xl md:text-2xl font-bold">
-                      {qualifications.filter(q => q.status === "EXPIRING_SOON").length}
+                      {qualifications.filter((q) => q.status === "EXPIRING_SOON").length}
                     </div>
                     <p className="text-xs text-muted-foreground mt-1 hidden sm:block">
                       {qualifications.length > 0
-                        ? `${((qualifications.filter(q => q.status === "EXPIRING_SOON").length / qualifications.length) * 100).toFixed(0)}% of total`
+                        ? `${((qualifications.filter((q) => q.status === "EXPIRING_SOON").length / qualifications.length) * 100).toFixed(0)}% of total`
                         : "0%"}
                     </p>
                   </CardContent>
@@ -491,11 +563,11 @@ export default function CurrencyTracker() {
                   </CardHeader>
                   <CardContent>
                     <div className="text-xl md:text-2xl font-bold">
-                      {qualifications.filter(q => q.status === "EXPIRED").length}
+                      {qualifications.filter((q) => q.status === "EXPIRED").length}
                     </div>
                     <p className="text-xs text-muted-foreground mt-1 hidden sm:block">
                       {qualifications.length > 0
-                        ? `${((qualifications.filter(q => q.status === "EXPIRED").length / qualifications.length) * 100).toFixed(0)}% of total`
+                        ? `${((qualifications.filter((q) => q.status === "EXPIRED").length / qualifications.length) * 100).toFixed(0)}% of total`
                         : "0%"}
                     </p>
                   </CardContent>
@@ -513,11 +585,13 @@ export default function CurrencyTracker() {
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-3">
-                        {msps.map(msp => {
-                          const mspQuals = qualifications.filter(q => q.user?.mspId === msp.id);
-                          const current = mspQuals.filter(q => q.status === "CURRENT").length;
-                          const expiring = mspQuals.filter(q => q.status === "EXPIRING_SOON").length;
-                          const expired = mspQuals.filter(q => q.status === "EXPIRED").length;
+                        {msps.map((msp) => {
+                          const mspQuals = qualifications.filter((q) => q.user?.mspId === msp.id);
+                          const current = mspQuals.filter((q) => q.status === "CURRENT").length;
+                          const expiring = mspQuals.filter(
+                            (q) => q.status === "EXPIRING_SOON"
+                          ).length;
+                          const expired = mspQuals.filter((q) => q.status === "EXPIRED").length;
 
                           return (
                             <div
@@ -527,12 +601,20 @@ export default function CurrencyTracker() {
                             >
                               <div className="flex-1">
                                 <p className="font-medium text-sm">{msp.name}</p>
-                                <p className="text-xs text-muted-foreground">Total: {mspQuals.length}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  Total: {mspQuals.length}
+                                </p>
                               </div>
                               <div className="flex gap-2 text-xs font-medium">
-                                <span className="text-green-600 dark:text-green-400 bg-green-500/10 px-2 py-1 rounded">{current}</span>
-                                <span className="text-yellow-600 dark:text-yellow-400 bg-yellow-500/10 px-2 py-1 rounded">{expiring}</span>
-                                <span className="text-red-600 dark:text-red-400 bg-red-500/10 px-2 py-1 rounded">{expired}</span>
+                                <span className="text-green-600 dark:text-green-400 bg-green-500/10 px-2 py-1 rounded">
+                                  {current}
+                                </span>
+                                <span className="text-yellow-600 dark:text-yellow-400 bg-yellow-500/10 px-2 py-1 rounded">
+                                  {expiring}
+                                </span>
+                                <span className="text-red-600 dark:text-red-400 bg-red-500/10 px-2 py-1 rounded">
+                                  {expired}
+                                </span>
                               </div>
                             </div>
                           );
@@ -549,11 +631,15 @@ export default function CurrencyTracker() {
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-3">
-                        {vehicleTypes.map(vehicle => {
-                          const vehicleQuals = qualifications.filter(q => q.vehicleType === vehicle);
-                          const current = vehicleQuals.filter(q => q.status === "CURRENT").length;
-                          const expiring = vehicleQuals.filter(q => q.status === "EXPIRING_SOON").length;
-                          const expired = vehicleQuals.filter(q => q.status === "EXPIRED").length;
+                        {vehicleTypes.map((vehicle) => {
+                          const vehicleQuals = qualifications.filter(
+                            (q) => q.vehicleType === vehicle
+                          );
+                          const current = vehicleQuals.filter((q) => q.status === "CURRENT").length;
+                          const expiring = vehicleQuals.filter(
+                            (q) => q.status === "EXPIRING_SOON"
+                          ).length;
+                          const expired = vehicleQuals.filter((q) => q.status === "EXPIRED").length;
 
                           return (
                             <div
@@ -565,13 +651,21 @@ export default function CurrencyTracker() {
                                 <Car className="w-4 h-4 text-muted-foreground" />
                                 <div>
                                   <p className="font-medium text-sm">{vehicle}</p>
-                                  <p className="text-xs text-muted-foreground">Total: {vehicleQuals.length}</p>
+                                  <p className="text-xs text-muted-foreground">
+                                    Total: {vehicleQuals.length}
+                                  </p>
                                 </div>
                               </div>
                               <div className="flex gap-2 text-xs font-medium">
-                                <span className="text-green-600 dark:text-green-400 bg-green-500/10 px-2 py-1 rounded">{current}</span>
-                                <span className="text-yellow-600 dark:text-yellow-400 bg-yellow-500/10 px-2 py-1 rounded">{expiring}</span>
-                                <span className="text-red-600 dark:text-red-400 bg-red-500/10 px-2 py-1 rounded">{expired}</span>
+                                <span className="text-green-600 dark:text-green-400 bg-green-500/10 px-2 py-1 rounded">
+                                  {current}
+                                </span>
+                                <span className="text-yellow-600 dark:text-yellow-400 bg-yellow-500/10 px-2 py-1 rounded">
+                                  {expiring}
+                                </span>
+                                <span className="text-red-600 dark:text-red-400 bg-red-500/10 px-2 py-1 rounded">
+                                  {expired}
+                                </span>
                               </div>
                             </div>
                           );
@@ -610,7 +704,7 @@ export default function CurrencyTracker() {
                               <div>
                                 <p className="text-sm font-medium mb-2">MSP</p>
                                 <div className="space-y-1">
-                                  {msps.map(msp => (
+                                  {msps.map((msp) => (
                                     <Button
                                       key={msp.id}
                                       variant="ghost"
@@ -628,7 +722,7 @@ export default function CurrencyTracker() {
                               <div>
                                 <p className="text-sm font-medium mb-2">Vehicle Type</p>
                                 <div className="space-y-1">
-                                  {vehicleTypes.map(vehicle => (
+                                  {vehicleTypes.map((vehicle) => (
                                     <Button
                                       key={vehicle}
                                       variant="ghost"
@@ -647,13 +741,15 @@ export default function CurrencyTracker() {
                               <div>
                                 <p className="text-sm font-medium mb-2">Status</p>
                                 <div className="space-y-1">
-                                  {statusTypes.map(status => (
+                                  {statusTypes.map((status) => (
                                     <Button
                                       key={status.value}
                                       variant="ghost"
                                       size="sm"
                                       className="w-full justify-start"
-                                      onClick={() => addFilterTag("status", status.value, status.label)}
+                                      onClick={() =>
+                                        addFilterTag("status", status.value, status.label)
+                                      }
                                       data-testid={`filter-status-${status.value}`}
                                     >
                                       {status.label}
@@ -668,8 +764,13 @@ export default function CurrencyTracker() {
 
                       {filterTags.length > 0 && (
                         <div className="flex flex-wrap gap-2">
-                          {filterTags.map(tag => (
-                            <Badge key={tag.id} variant="secondary" className="gap-1" data-testid={`tag-${tag.id}`}>
+                          {filterTags.map((tag) => (
+                            <Badge
+                              key={tag.id}
+                              variant="secondary"
+                              className="gap-1"
+                              data-testid={`tag-${tag.id}`}
+                            >
                               {tag.type === "vehicle" && <Car className="w-3 h-3" />}
                               {tag.label}
                               <Button
@@ -697,13 +798,14 @@ export default function CurrencyTracker() {
                       <CardHeader>
                         <CardTitle>All Qualifications</CardTitle>
                         <CardDescription>
-                          {filteredQualifications.length} qualification{filteredQualifications.length !== 1 ? "s" : ""}
+                          {filteredQualifications.length} qualification
+                          {filteredQualifications.length !== 1 ? "s" : ""}
                         </CardDescription>
                       </CardHeader>
                       <CardContent>
                         {qualificationsLoading ? (
                           <div className="space-y-3">
-                            {[1, 2, 3, 4].map(i => (
+                            {[1, 2, 3, 4].map((i) => (
                               <Skeleton key={i} className="h-16 w-full" />
                             ))}
                           </div>
@@ -719,9 +821,16 @@ export default function CurrencyTracker() {
                                   data-testid={`card-qualification-${qual.id}`}
                                 >
                                   <div className="flex items-start justify-between gap-3 mb-3">
-                                    <div className="flex-1 min-w-0 pr-2" onClick={() => setSelectedQual(qual)}>
-                                      <p className="font-semibold text-base truncate">{qual.user?.fullName || "Unknown"}</p>
-                                      <p className="text-xs text-muted-foreground">{qual.user?.rank || "-"}</p>
+                                    <div
+                                      className="flex-1 min-w-0 pr-2"
+                                      onClick={() => setSelectedQual(qual)}
+                                    >
+                                      <p className="font-semibold text-base truncate">
+                                        {qual.user?.fullName || "Unknown"}
+                                      </p>
+                                      <p className="text-xs text-muted-foreground">
+                                        {qual.user?.rank || "-"}
+                                      </p>
                                     </div>
                                     <div className="flex items-center gap-2 flex-shrink-0">
                                       {getStatusBadge(qual.status, qual.daysRemaining)}
@@ -731,7 +840,7 @@ export default function CurrencyTracker() {
                                     <div>
                                       <p className="text-xs text-muted-foreground">MSP</p>
                                       <p className="font-medium text-xs">
-                                        {msps.find(m => m.id === qual.user?.mspId)?.name || "-"}
+                                        {msps.find((m) => m.id === qual.user?.mspId)?.name || "-"}
                                       </p>
                                     </div>
                                     <div>
@@ -765,7 +874,10 @@ export default function CurrencyTracker() {
                                           // Set form values for editing
                                           qualForm.setValue("userId", qual.userId);
                                           qualForm.setValue("vehicleType", qual.vehicleType);
-                                          qualForm.setValue("qualifiedOnDate", qual.qualifiedOnDate);
+                                          qualForm.setValue(
+                                            "qualifiedOnDate",
+                                            qual.qualifiedOnDate
+                                          );
                                           setIsEditingQual(true);
                                         }}
                                         className="h-8 w-8 p-0 flex-shrink-0"
@@ -795,14 +907,28 @@ export default function CurrencyTracker() {
                                 <table className="w-full">
                                   <thead className="bg-muted/50">
                                     <tr>
-                                      <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">User</th>
-                                      <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">Rank</th>
-                                      <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">MSP</th>
-                                      <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">Vehicle</th>
-                                      <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">Last Drive</th>
-                                      <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">Status</th>
+                                      <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">
+                                        User
+                                      </th>
+                                      <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">
+                                        Rank
+                                      </th>
+                                      <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">
+                                        MSP
+                                      </th>
+                                      <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">
+                                        Vehicle
+                                      </th>
+                                      <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">
+                                        Last Drive
+                                      </th>
+                                      <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">
+                                        Status
+                                      </th>
                                       {(user?.role === "admin" || user?.role === "commander") && (
-                                        <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">Actions</th>
+                                        <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">
+                                          Actions
+                                        </th>
                                       )}
                                     </tr>
                                   </thead>
@@ -814,12 +940,18 @@ export default function CurrencyTracker() {
                                         onClick={() => setSelectedQual(qual)}
                                         data-testid={`row-qualification-${qual.id}`}
                                       >
-                                        <td className="py-3 px-4 font-medium">{qual.user?.fullName || "Unknown"}</td>
-                                        <td className="py-3 px-4 text-muted-foreground">{qual.user?.rank || "-"}</td>
-                                        <td className="py-3 px-4 text-muted-foreground">
-                                          {msps.find(m => m.id === qual.user?.mspId)?.name || "-"}
+                                        <td className="py-3 px-4 font-medium">
+                                          {qual.user?.fullName || "Unknown"}
                                         </td>
-                                        <td className="py-3 px-4 text-muted-foreground">{qual.vehicleType}</td>
+                                        <td className="py-3 px-4 text-muted-foreground">
+                                          {qual.user?.rank || "-"}
+                                        </td>
+                                        <td className="py-3 px-4 text-muted-foreground">
+                                          {msps.find((m) => m.id === qual.user?.mspId)?.name || "-"}
+                                        </td>
+                                        <td className="py-3 px-4 text-muted-foreground">
+                                          {qual.vehicleType}
+                                        </td>
                                         <td className="py-3 px-4 text-muted-foreground">
                                           {qual.lastDriveDate
                                             ? formatSingapore(qual.lastDriveDate, "dd MMM yyyy")
@@ -839,8 +971,14 @@ export default function CurrencyTracker() {
                                                   setSelectedQual(qual);
                                                   // Set form values for editing
                                                   qualForm.setValue("userId", qual.userId);
-                                                  qualForm.setValue("vehicleType", qual.vehicleType);
-                                                  qualForm.setValue("qualifiedOnDate", qual.qualifiedOnDate);
+                                                  qualForm.setValue(
+                                                    "vehicleType",
+                                                    qual.vehicleType
+                                                  );
+                                                  qualForm.setValue(
+                                                    "qualifiedOnDate",
+                                                    qual.qualifiedOnDate
+                                                  );
                                                   setIsEditingQual(true);
                                                 }}
                                                 className="h-8 w-8 p-0"
@@ -893,10 +1031,10 @@ export default function CurrencyTracker() {
         <Dialog open={!!selectedQual} onOpenChange={() => setSelectedQual(null)}>
           <DialogContent className="max-h-[90vh] overflow-y-auto">
             <DialogHeader className="sticky top-0 bg-background pb-4">
-              <DialogTitle>{selectedQual.user?.fullName} - {selectedQual.vehicleType}</DialogTitle>
-              <DialogDescription>
-                Qualification details and drive history
-              </DialogDescription>
+              <DialogTitle>
+                {selectedQual.user?.fullName} - {selectedQual.vehicleType}
+              </DialogTitle>
+              <DialogDescription>Qualification details and drive history</DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-3 p-4 bg-muted/50 rounded-md">
@@ -949,7 +1087,8 @@ export default function CurrencyTracker() {
                           <p className="text-sm font-medium">{log.vehicleNo}</p>
                         </div>
                         <p className="text-xs text-muted-foreground mt-1">
-                          {formatSingapore(log.date, "dd MMM yyyy")} • {log.distanceKm.toFixed(1)} km
+                          {formatSingapore(log.date, "dd MMM yyyy")} • {log.distanceKm.toFixed(1)}{" "}
+                          km
                         </p>
                         {log.remarks && (
                           <p className="text-xs text-muted-foreground mt-1">{log.remarks}</p>
@@ -981,9 +1120,7 @@ export default function CurrencyTracker() {
         <DialogContent data-testid="dialog-add-qualification">
           <DialogHeader>
             <DialogTitle>Add Qualification</DialogTitle>
-            <DialogDescription>
-              Create a new driver qualification
-            </DialogDescription>
+            <DialogDescription>Create a new driver qualification</DialogDescription>
           </DialogHeader>
           <Form {...qualForm}>
             <form onSubmit={qualForm.handleSubmit(handleSubmitQual)} className="space-y-4">
@@ -1014,7 +1151,7 @@ export default function CurrencyTracker() {
                       {selectedUserId && (
                         <div className="flex items-center justify-between p-2 bg-muted rounded-md">
                           <span className="text-sm">
-                            {users.find(u => u.id === selectedUserId)?.fullName}
+                            {users.find((u) => u.id === selectedUserId)?.fullName}
                           </span>
                           <Button
                             type="button"
@@ -1033,8 +1170,12 @@ export default function CurrencyTracker() {
                       {userSearchTerm && !selectedUserId && (
                         <div className="border rounded-md max-h-48 overflow-y-auto">
                           {users
-                            .filter(u => u.role === "soldier" && u.fullName.toLowerCase().includes(userSearchTerm.toLowerCase()))
-                            .map(u => (
+                            .filter(
+                              (u) =>
+                                (u.role === "soldier" || u.role === "commander") &&
+                                u.fullName.toLowerCase().includes(userSearchTerm.toLowerCase())
+                            )
+                            .map((u) => (
                               <div
                                 key={u.id}
                                 className="p-2 hover-elevate cursor-pointer text-sm"
@@ -1046,12 +1187,19 @@ export default function CurrencyTracker() {
                                 data-testid={`user-option-${u.id}`}
                               >
                                 <div className="font-medium">{u.fullName}</div>
-                                <div className="text-xs text-muted-foreground">{u.rank || "No rank"} • {msps.find(m => m.id === u.mspId)?.name || "No MSP"}</div>
+                                <div className="text-xs text-muted-foreground">
+                                  {u.rank || "No rank"} •{" "}
+                                  {msps.find((m) => m.id === u.mspId)?.name || "No MSP"}
+                                </div>
                               </div>
                             ))}
-                          {users.filter(u => u.role === "soldier" && u.fullName.toLowerCase().includes(userSearchTerm.toLowerCase())).length === 0 && (
+                          {users.filter(
+                            (u) =>
+                              (u.role === "soldier" || u.role === "commander") &&
+                              u.fullName.toLowerCase().includes(userSearchTerm.toLowerCase())
+                          ).length === 0 && (
                             <div className="p-4 text-center text-sm text-muted-foreground">
-                              No soldiers found
+                              No soldiers or commanders found
                             </div>
                           )}
                         </div>
@@ -1068,7 +1216,11 @@ export default function CurrencyTracker() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Vehicle Type</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value} disabled={createQualMutation.isPending}>
+                    <Select
+                      onValueChange={field.onChange}
+                      value={field.value}
+                      disabled={createQualMutation.isPending}
+                    >
                       <FormControl>
                         <SelectTrigger data-testid="select-qual-vehicle-type">
                           <SelectValue placeholder="Select vehicle type" />
@@ -1112,7 +1264,11 @@ export default function CurrencyTracker() {
                 >
                   Cancel
                 </Button>
-                <Button type="submit" disabled={createQualMutation.isPending} data-testid="button-submit-qualification">
+                <Button
+                  type="submit"
+                  disabled={createQualMutation.isPending}
+                  data-testid="button-submit-qualification"
+                >
                   {createQualMutation.isPending ? "Adding..." : "Add Qualification"}
                 </Button>
               </DialogFooter>
@@ -1131,29 +1287,34 @@ export default function CurrencyTracker() {
               </DialogDescription>
             </DialogHeader>
             <Form {...qualForm}>
-              <form onSubmit={qualForm.handleSubmit((data) => {
-                if (!selectedQual) return;
-                const qualData = {
-                  vehicleType: data.vehicleType,
-                  qualifiedOnDate: data.qualifiedOnDate,
-                };
-                // Update mutation here
-                apiRequest("PUT", `/api/qualifications/${selectedQual.id}`, qualData).then(() => {
-                  queryClient.invalidateQueries({ queryKey: ["/api/qualifications"] });
-                  toast({
-                    title: "Qualification updated",
-                    description: "Driver qualification has been updated successfully",
-                  });
-                  setIsEditingQual(false);
-                  qualForm.reset();
-                }).catch((error) => {
-                  toast({
-                    variant: "destructive",
-                    title: "Failed to update qualification",
-                    description: error.message || "Please try again",
-                  });
-                });
-              })} className="space-y-4">
+              <form
+                onSubmit={qualForm.handleSubmit((data) => {
+                  if (!selectedQual) return;
+                  const qualData = {
+                    vehicleType: data.vehicleType,
+                    qualifiedOnDate: data.qualifiedOnDate,
+                  };
+                  // Update mutation here
+                  apiRequest("PUT", `/api/qualifications/${selectedQual.id}`, qualData)
+                    .then(() => {
+                      queryClient.invalidateQueries({ queryKey: ["/api/qualifications"] });
+                      toast({
+                        title: "Qualification updated",
+                        description: "Driver qualification has been updated successfully",
+                      });
+                      setIsEditingQual(false);
+                      qualForm.reset();
+                    })
+                    .catch((error) => {
+                      toast({
+                        variant: "destructive",
+                        title: "Failed to update qualification",
+                        description: error.message || "Please try again",
+                      });
+                    });
+                })}
+                className="space-y-4"
+              >
                 <FormField
                   control={qualForm.control}
                   name="userId"
@@ -1183,10 +1344,7 @@ export default function CurrencyTracker() {
                     <FormItem>
                       <FormLabel>Vehicle Type</FormLabel>
                       <FormControl>
-                        <Select
-                          onValueChange={field.onChange}
-                          value={field.value}
-                        >
+                        <Select onValueChange={field.onChange} value={field.value}>
                           <SelectTrigger>
                             <SelectValue placeholder="Select vehicle type" />
                           </SelectTrigger>
@@ -1208,11 +1366,7 @@ export default function CurrencyTracker() {
                     <FormItem>
                       <FormLabel>Qualified Date</FormLabel>
                       <FormControl>
-                        <Input
-                          {...field}
-                          type="date"
-                          value={field.value}
-                        />
+                        <Input {...field} type="date" value={field.value} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -1220,16 +1374,10 @@ export default function CurrencyTracker() {
                 />
 
                 <DialogFooter>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setIsEditingQual(false)}
-                  >
+                  <Button type="button" variant="outline" onClick={() => setIsEditingQual(false)}>
                     Cancel
                   </Button>
-                  <Button type="submit">
-                    Update Qualification
-                  </Button>
+                  <Button type="submit">Update Qualification</Button>
                 </DialogFooter>
               </form>
             </Form>
@@ -1241,9 +1389,7 @@ export default function CurrencyTracker() {
         <DialogContent data-testid="dialog-add-drive-log-admin">
           <DialogHeader>
             <DialogTitle>Add Drive Log</DialogTitle>
-            <DialogDescription>
-              Record a drive for {selectedQual?.user?.fullName}
-            </DialogDescription>
+            <DialogDescription>Record a drive for {selectedQual?.user?.fullName}</DialogDescription>
           </DialogHeader>
           <Form {...driveLogForm}>
             <form onSubmit={driveLogForm.handleSubmit(handleSubmitLog)} className="space-y-4">
@@ -1367,7 +1513,11 @@ export default function CurrencyTracker() {
                 >
                   Cancel
                 </Button>
-                <Button type="submit" disabled={createLogMutation.isPending} data-testid="button-submit-drive-log-admin">
+                <Button
+                  type="submit"
+                  disabled={createLogMutation.isPending}
+                  data-testid="button-submit-drive-log-admin"
+                >
                   {createLogMutation.isPending ? "Adding..." : "Add Drive Log"}
                 </Button>
               </DialogFooter>
@@ -1381,7 +1531,8 @@ export default function CurrencyTracker() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Drive Log</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete this drive log? This will recalculate the driver's currency.
+              Are you sure you want to delete this drive log? This will recalculate the driver's
+              currency.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1402,8 +1553,8 @@ export default function CurrencyTracker() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Qualification</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete {deletingQual?.user?.fullName}'s qualification? This action cannot be undone
-              and will also delete all associated drive logs.
+              Are you sure you want to delete {deletingQual?.user?.fullName}'s qualification? This
+              action cannot be undone and will also delete all associated drive logs.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1419,7 +1570,10 @@ export default function CurrencyTracker() {
       </AlertDialog>
 
       <Dialog open={showBatchImport} onOpenChange={closeBatchImport}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto" data-testid="dialog-batch-import">
+        <DialogContent
+          className="max-w-3xl max-h-[90vh] overflow-y-auto"
+          data-testid="dialog-batch-import"
+        >
           <DialogHeader>
             <DialogTitle>Batch Import Qualifications</DialogTitle>
             <DialogDescription>
@@ -1431,7 +1585,9 @@ export default function CurrencyTracker() {
             <div className="space-y-4">
               <div className="rounded-md bg-muted p-4 text-sm">
                 <p className="font-semibold mb-2">Expected Format:</p>
-                <code className="text-xs">LAU LU WEI&nbsp;&nbsp;&nbsp;&nbsp;Terrex&nbsp;&nbsp;5/23/2025</code>
+                <code className="text-xs">
+                  LAU LU WEI&nbsp;&nbsp;&nbsp;&nbsp;Terrex&nbsp;&nbsp;5/23/2025
+                </code>
                 <p className="mt-2 text-muted-foreground">
                   Each line should have: Full Name (tab) Vehicle Type (tab) Date
                 </p>
@@ -1479,7 +1635,9 @@ export default function CurrencyTracker() {
 
               {importResults.success.length > 0 && (
                 <div className="space-y-2">
-                  <h4 className="font-semibold text-green-600">Successful Imports ({importResults.success.length})</h4>
+                  <h4 className="font-semibold text-green-600">
+                    Successful Imports ({importResults.success.length})
+                  </h4>
                   <div className="rounded-md border max-h-[200px] overflow-y-auto">
                     <table className="w-full text-sm">
                       <thead className="bg-muted sticky top-0">
@@ -1494,7 +1652,9 @@ export default function CurrencyTracker() {
                           <tr key={idx} className="border-t">
                             <td className="p-2">{item.user}</td>
                             <td className="p-2">{item.vehicleType}</td>
-                            <td className="p-2">{formatSingapore(item.qualifiedDate, "MMM dd, yyyy")}</td>
+                            <td className="p-2">
+                              {formatSingapore(item.qualifiedDate, "MMM dd, yyyy")}
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -1505,7 +1665,9 @@ export default function CurrencyTracker() {
 
               {importResults.failed.length > 0 && (
                 <div className="space-y-2">
-                  <h4 className="font-semibold text-destructive">Failed Imports ({importResults.failed.length})</h4>
+                  <h4 className="font-semibold text-destructive">
+                    Failed Imports ({importResults.failed.length})
+                  </h4>
                   <div className="rounded-md border max-h-[200px] overflow-y-auto">
                     <table className="w-full text-sm">
                       <thead className="bg-muted sticky top-0">

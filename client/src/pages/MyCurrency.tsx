@@ -3,16 +3,41 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { insertDriveLogSchema, type QualificationWithStatus, type DriveLog, type SafeUser } from "@shared/schema";
+import {
+  insertDriveLogSchema,
+  type QualificationWithStatus,
+  type DriveLog,
+  type SafeUser,
+} from "@shared/schema";
 import { z } from "zod";
 import { CalendarDays, Car, Plus, Gauge, Award, AlertTriangle, QrCode } from "lucide-react";
 import { format, addDays, differenceInDays } from "date-fns";
@@ -22,17 +47,19 @@ import { Navbar } from "@/components/Navbar";
 import { useLocation } from "wouter";
 import { QRScanner } from "@/components/soldier/QRScanner";
 
-const driveLogFormSchema = z.object({
-  vehicleType: z.string().min(1, "Vehicle type is required"),
-  vehicleNo: z.string().regex(/^\d{5}$/, "Vehicle number must be exactly 5 digits"),
-  date: z.string().min(1, "Date is required"),
-  initialMileageKm: z.number().min(0, "Initial mileage must be positive"),
-  finalMileageKm: z.number().min(0, "Final mileage must be positive"),
-  remarks: z.string().optional(),
-}).refine((data) => data.finalMileageKm > data.initialMileageKm, {
-  message: "Final mileage must be greater than initial mileage",
-  path: ["finalMileageKm"],
-});
+const driveLogFormSchema = z
+  .object({
+    vehicleType: z.string().min(1, "Vehicle type is required"),
+    vehicleNo: z.string().regex(/^\d{5}$/, "Vehicle number must be exactly 5 digits"),
+    date: z.string().min(1, "Date is required"),
+    initialMileageKm: z.number().min(0, "Initial mileage must be positive"),
+    finalMileageKm: z.number().min(0, "Final mileage must be positive"),
+    remarks: z.string().optional(),
+  })
+  .refine((data) => data.finalMileageKm > data.initialMileageKm, {
+    message: "Final mileage must be greater than initial mileage",
+    path: ["finalMileageKm"],
+  });
 
 export default function MyCurrency() {
   const [, setLocation] = useLocation();
@@ -42,26 +69,28 @@ export default function MyCurrency() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get('openLogDrive') === 'true') {
+    if (params.get("openLogDrive") === "true") {
       setIsAddingLog(true);
-      window.history.replaceState({}, '', '/my-currency');
+      window.history.replaceState({}, "", "/my-currency");
     }
   }, []);
 
   const getTimeInSingapore = (date: Date | string) => {
-    const utcDate = typeof date === 'string' ? new Date(date) : date;
-    return toZonedTime(utcDate, 'Asia/Singapore');
+    const utcDate = typeof date === "string" ? new Date(date) : date;
+    return toZonedTime(utcDate, "Asia/Singapore");
   };
 
   const formatSingapore = (date: Date | string, fmtStr: string) => {
-    return formatTz(getTimeInSingapore(date), fmtStr, { timeZone: 'Asia/Singapore' });
+    return formatTz(getTimeInSingapore(date), fmtStr, { timeZone: "Asia/Singapore" });
   };
 
   const { data: user, isLoading: userLoading } = useQuery<SafeUser>({
     queryKey: ["/api/auth/me"],
   });
 
-  const { data: qualifications, isLoading: qualificationsLoading } = useQuery<QualificationWithStatus[]>({
+  const { data: qualifications, isLoading: qualificationsLoading } = useQuery<
+    QualificationWithStatus[]
+  >({
     queryKey: ["/api/qualifications/my"],
   });
 
@@ -80,7 +109,7 @@ export default function MyCurrency() {
     defaultValues: {
       vehicleType: "",
       vehicleNo: "",
-      date: new Date().toISOString().split('T')[0],
+      date: new Date().toISOString().split("T")[0],
       initialMileageKm: "" as any,
       finalMileageKm: "" as any,
       remarks: "",
@@ -90,7 +119,7 @@ export default function MyCurrency() {
   // Auto-select vehicle type based on qualifications when dialog opens
   useEffect(() => {
     if (isAddingLog && qualifications && qualifications.length > 0) {
-      const vehicleTypes = Array.from(new Set(qualifications.map(q => q.vehicleType)));
+      const vehicleTypes = Array.from(new Set(qualifications.map((q) => q.vehicleType)));
       if (vehicleTypes.length === 1) {
         // Only qualified for one vehicle - auto-select it
         form.setValue("vehicleType", vehicleTypes[0]);
@@ -173,14 +202,22 @@ export default function MyCurrency() {
       );
     } else if (status === "EXPIRING_SOON") {
       return (
-        <Badge variant="secondary" className="gap-1 bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 border-yellow-500/30" data-testid="badge-status-expiring">
+        <Badge
+          variant="secondary"
+          className="gap-1 bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 border-yellow-500/30"
+          data-testid="badge-status-expiring"
+        >
           <AlertTriangle className="w-3 h-3" />
           Expiring ({daysRemaining}d left)
         </Badge>
       );
     } else {
       return (
-        <Badge variant="outline" className="gap-1 bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/30" data-testid="badge-status-current">
+        <Badge
+          variant="outline"
+          className="gap-1 bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/30"
+          data-testid="badge-status-current"
+        >
           <Award className="w-3 h-3" />
           Current ({daysRemaining}d left)
         </Badge>
@@ -196,12 +233,14 @@ export default function MyCurrency() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold">My Currency</h1>
-              <p className="text-muted-foreground mt-1">View your driver qualifications and log drives</p>
+              <p className="text-muted-foreground mt-1">
+                View your driver qualifications and log drives
+              </p>
             </div>
             <div className="flex gap-2">
-              <Button 
-                variant="outline" 
-                size="icon" 
+              <Button
+                variant="outline"
+                size="icon"
                 onClick={() => setIsScanningQR(true)}
                 title="Scan QR Code"
               >
@@ -271,299 +310,344 @@ export default function MyCurrency() {
             </div>
           )} */}
 
-        {qualificationsLoading ? (
-          <div className="grid gap-4 md:grid-cols-2">
-            <Skeleton className="h-48" />
-            <Skeleton className="h-48" />
-          </div>
-        ) : qualifications && qualifications.length > 0 ? (
-          <div className="grid gap-4 md:grid-cols-2">
-            {qualifications.map((qual) => (
-              <Card key={`${qual.id}-${qual.qualifiedOnDate}-${qual.lastDriveDate}`} data-testid={`card-qualification-${qual.vehicleType}`}>
-                <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
-                  <div className="flex items-center gap-2">
-                    <Car className="w-5 h-5 text-muted-foreground" />
-                    <CardTitle className="text-xl">{qual.vehicleType}</CardTitle>
-                  </div>
-                  {(() => {
-                    const { status, daysRemaining } = getComputedStatusForQual(qual);
-                    return getStatusBadge(status, daysRemaining);
-                  })()}
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="grid grid-cols-2 gap-3 text-sm">
-                    <div>
-                      <p className="text-muted-foreground">Qualified On</p>
-                      <p className="font-medium" data-testid={`text-qualified-date-${qual.vehicleType}`}>
-                        {formatSingapore(qual.qualifiedOnDate, "dd MMM yyyy")}
-                      </p>
+          {qualificationsLoading ? (
+            <div className="grid gap-4 md:grid-cols-2">
+              <Skeleton className="h-48" />
+              <Skeleton className="h-48" />
+            </div>
+          ) : qualifications && qualifications.length > 0 ? (
+            <div className="grid gap-4 md:grid-cols-2">
+              {qualifications.map((qual) => (
+                <Card
+                  key={`${qual.id}-${qual.qualifiedOnDate}-${qual.lastDriveDate}`}
+                  data-testid={`card-qualification-${qual.vehicleType}`}
+                >
+                  <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
+                    <div className="flex items-center gap-2">
+                      <Car className="w-5 h-5 text-muted-foreground" />
+                      <CardTitle className="text-xl">{qual.vehicleType}</CardTitle>
                     </div>
-                    <div>
-                      <p className="text-muted-foreground">Last Drive</p>
-                      <p className="font-medium" data-testid={`text-last-drive-${qual.vehicleType}`}>
-                        {qual.lastDriveDate ? formatSingapore(qual.lastDriveDate, "dd MMM yyyy") : "Never"}
-                      </p>
-                    </div>
-                    <div className="col-span-2">
-                      <p className="text-muted-foreground">Currency Expires</p>
-                      <p className="font-medium" data-testid={`text-expiry-date-${qual.vehicleType}`}>
-                        {(() => {
-                          const base = qual.lastDriveDate ?? qual.qualifiedOnDate;
-                          return formatSingapore(addDays(new Date(base), 88), "dd MMM yyyy");
-                        })()}
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        ) : (
-          <Card>
-            <CardContent className="flex flex-col items-center justify-center py-12">
-              <Award className="w-12 h-12 text-muted-foreground mb-4" />
-              <p className="text-lg font-medium">No Qualifications</p>
-              <p className="text-sm text-muted-foreground mt-1">Contact your admin to add vehicle qualifications</p>
-            </CardContent>
-          </Card>
-        )}
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Drive History</CardTitle>
-            <CardDescription>Your recent drive logs</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {logsLoading ? (
-              <div className="space-y-2">
-                <Skeleton className="h-16" />
-                <Skeleton className="h-16" />
-                <Skeleton className="h-16" />
-              </div>
-            ) : driveLogs && driveLogs.length > 0 ? (
-              <div className="space-y-2">
-                {driveLogs.map((log) => (
-                  <div
-                    key={log.id}
-                    className="flex items-center justify-between p-4 border rounded-md hover-elevate"
-                    data-testid={`drive-log-${log.id}`}
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="flex items-center justify-center w-10 h-10 rounded-md bg-primary/10">
-                        <Gauge className="w-5 h-5 text-primary" />
+                    {(() => {
+                      const { status, daysRemaining } = getComputedStatusForQual(qual);
+                      return getStatusBadge(status, daysRemaining);
+                    })()}
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div>
+                        <p className="text-muted-foreground">Qualified On</p>
+                        <p
+                          className="font-medium"
+                          data-testid={`text-qualified-date-${qual.vehicleType}`}
+                        >
+                          {formatSingapore(qual.qualifiedOnDate, "dd MMM yyyy")}
+                        </p>
                       </div>
                       <div>
-                        <div className="flex items-center gap-2">
-                          <p className="font-medium">{log.vehicleType}</p>
-                          {log.vehicleNo && <Badge variant="outline" className="text-xs">{log.vehicleNo}</Badge>}
-                          {log.isFromQRScan === "true" && (
-                            <Badge variant="secondary" className="text-xs">QR Scan</Badge>
-                          )}
-                        </div>
-                        <p className="text-sm text-muted-foreground">
-                          {formatSingapore(log.date, "dd MMM yyyy")} • {log.distanceKm.toFixed(1)} km
+                        <p className="text-muted-foreground">Last Drive</p>
+                        <p
+                          className="font-medium"
+                          data-testid={`text-last-drive-${qual.vehicleType}`}
+                        >
+                          {qual.lastDriveDate
+                            ? formatSingapore(qual.lastDriveDate, "dd MMM yyyy")
+                            : "Never"}
                         </p>
-                        {log.initialMileageKm !== null && log.finalMileageKm !== null && (
-                          <p className="text-xs text-muted-foreground">{log.initialMileageKm.toFixed(1)} → {log.finalMileageKm.toFixed(1)} km</p>
-                        )}
-                        {log.remarks && (
-                          <p className="text-xs text-muted-foreground mt-1">{log.remarks}</p>
-                        )}
+                      </div>
+                      <div className="col-span-2">
+                        <p className="text-muted-foreground">Currency Expires</p>
+                        <p
+                          className="font-medium"
+                          data-testid={`text-expiry-date-${qual.vehicleType}`}
+                        >
+                          {(() => {
+                            const base = qual.lastDriveDate ?? qual.qualifiedOnDate;
+                            return formatSingapore(addDays(new Date(base), 88), "dd MMM yyyy");
+                          })()}
+                        </p>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center py-8">
-                <CalendarDays className="w-12 h-12 text-muted-foreground mb-4" />
-                <p className="text-muted-foreground">No drive logs yet</p>
-                <Button variant="outline" className="mt-4" onClick={() => setIsAddingLog(true)} data-testid="button-log-first-drive">
-                  Log your first drive
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Dialog open={isAddingLog} onOpenChange={setIsAddingLog}>
-          <DialogContent data-testid="dialog-add-drive-log">
-            <DialogHeader>
-              <DialogTitle>Log Drive</DialogTitle>
-              <DialogDescription>
-                Record your drive to maintain currency
-              </DialogDescription>
-            </DialogHeader>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(handleSubmitLog)} className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="vehicleType"
-                  render={({ field }) => {
-                    const qualifiedVehicles = qualifications ? Array.from(new Set(qualifications.map(q => q.vehicleType))) : [];
-                    const isDisabled = createLogMutation.isPending || qualifiedVehicles.length === 1;
-                    
-                    return (
-                      <FormItem>
-                        <FormLabel>Vehicle Type</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value} disabled={isDisabled}>
-                          <FormControl>
-                            <SelectTrigger data-testid="select-vehicle-type">
-                              <SelectValue placeholder="Select vehicle type" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {qualifiedVehicles.includes("TERREX" as any) && <SelectItem value="TERREX">Terrex</SelectItem>}
-                            {qualifiedVehicles.includes("BELREX" as any) && <SelectItem value="BELREX">Belrex</SelectItem>}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    );
-                  }}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="vehicleNo"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Vehicle No. (MID)</FormLabel>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          placeholder="12345 (5 digits)"
-                          disabled={createLogMutation.isPending}
-                          maxLength={5}
-                          data-testid="input-vehicle-no"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="date"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Date of Drive</FormLabel>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          type="date"
-                          disabled={createLogMutation.isPending}
-                          data-testid="input-date"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="initialMileageKm"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Initial Mileage (KM)</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="number"
-                            step="0.1"
-                            placeholder="0.0"
-                            disabled={createLogMutation.isPending}
-                            value={field.value === 0 || field.value === "" ? "" : field.value}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              field.onChange(val === "" ? "" : parseFloat(val) || "");
-                            }}
-                            data-testid="input-initial-mileage"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="finalMileageKm"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Final Mileage (KM)</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="number"
-                            step="0.1"
-                            placeholder="0.0"
-                            disabled={createLogMutation.isPending}
-                            value={field.value === 0 || field.value === "" ? "" : field.value}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              field.onChange(val === "" ? "" : parseFloat(val) || "");
-                            }}
-                            data-testid="input-final-mileage"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <FormField
-                  control={form.control}
-                  name="remarks"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Remarks (Optional)</FormLabel>
-                      <FormControl>
-                        <Textarea
-                          {...field}
-                          value={field.value || ""}
-                          placeholder="Any additional notes..."
-                          disabled={createLogMutation.isPending}
-                          data-testid="input-remarks"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <DialogFooter>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setIsAddingLog(false)}
-                    disabled={createLogMutation.isPending}
-                  >
-                    Cancel
-                  </Button>
-                  <Button type="submit" disabled={createLogMutation.isPending} data-testid="button-submit-drive-log">
-                    {createLogMutation.isPending ? "Submitting..." : "Submit"}
-                  </Button>
-                </DialogFooter>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
-
-        {/* QR Scanner Modal */}
-        <Dialog open={isScanningQR} onOpenChange={setIsScanningQR}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>Scan Currency Drive QR Code</DialogTitle>
-              <DialogDescription>Scan or paste the QR code to auto-log a 2km verified drive</DialogDescription>
-            </DialogHeader>
-            <div className="py-4">
-              <QRScanner onClose={() => setIsScanningQR(false)} />
+                  </CardContent>
+                </Card>
+              ))}
             </div>
-          </DialogContent>
-        </Dialog>
+          ) : (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-12">
+                <Award className="w-12 h-12 text-muted-foreground mb-4" />
+                <p className="text-lg font-medium">No Qualifications</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Contact your admin to add vehicle qualifications
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Drive History</CardTitle>
+              <CardDescription>Your recent drive logs</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {logsLoading ? (
+                <div className="space-y-2">
+                  <Skeleton className="h-16" />
+                  <Skeleton className="h-16" />
+                  <Skeleton className="h-16" />
+                </div>
+              ) : driveLogs && driveLogs.length > 0 ? (
+                <div className="space-y-2">
+                  {driveLogs.map((log) => (
+                    <div
+                      key={log.id}
+                      className="flex items-center justify-between p-4 border rounded-md hover-elevate"
+                      data-testid={`drive-log-${log.id}`}
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center justify-center w-10 h-10 rounded-md bg-primary/10">
+                          <Gauge className="w-5 h-5 text-primary" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium">{log.vehicleType}</p>
+                            {log.vehicleNo && (
+                              <Badge variant="outline" className="text-xs">
+                                {log.vehicleNo}
+                              </Badge>
+                            )}
+                            {log.isFromQRScan === "true" && (
+                              <Badge variant="secondary" className="text-xs">
+                                QR Scan
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            {formatSingapore(log.date, "dd MMM yyyy")} • {log.distanceKm.toFixed(1)}{" "}
+                            km
+                          </p>
+                          {log.initialMileageKm !== null && log.finalMileageKm !== null && (
+                            <p className="text-xs text-muted-foreground">
+                              {log.initialMileageKm.toFixed(1)} → {log.finalMileageKm.toFixed(1)} km
+                            </p>
+                          )}
+                          {log.remarks && (
+                            <p className="text-xs text-muted-foreground mt-1">{log.remarks}</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-8">
+                  <CalendarDays className="w-12 h-12 text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground">No drive logs yet</p>
+                  <Button
+                    variant="outline"
+                    className="mt-4"
+                    onClick={() => setIsAddingLog(true)}
+                    data-testid="button-log-first-drive"
+                  >
+                    Log your first drive
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Dialog open={isAddingLog} onOpenChange={setIsAddingLog}>
+            <DialogContent data-testid="dialog-add-drive-log">
+              <DialogHeader>
+                <DialogTitle>Log Drive</DialogTitle>
+                <DialogDescription>Record your drive to maintain currency</DialogDescription>
+              </DialogHeader>
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(handleSubmitLog)} className="space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="vehicleType"
+                    render={({ field }) => {
+                      const qualifiedVehicles = qualifications
+                        ? Array.from(new Set(qualifications.map((q) => q.vehicleType)))
+                        : [];
+                      const isDisabled =
+                        createLogMutation.isPending || qualifiedVehicles.length === 1;
+
+                      return (
+                        <FormItem>
+                          <FormLabel>Vehicle Type</FormLabel>
+                          <Select
+                            onValueChange={field.onChange}
+                            value={field.value}
+                            disabled={isDisabled}
+                          >
+                            <FormControl>
+                              <SelectTrigger data-testid="select-vehicle-type">
+                                <SelectValue placeholder="Select vehicle type" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {qualifiedVehicles.includes("TERREX" as any) && (
+                                <SelectItem value="TERREX">Terrex</SelectItem>
+                              )}
+                              {qualifiedVehicles.includes("BELREX" as any) && (
+                                <SelectItem value="BELREX">Belrex</SelectItem>
+                              )}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      );
+                    }}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="vehicleNo"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Vehicle No. (MID)</FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            placeholder="12345 (5 digits)"
+                            disabled={createLogMutation.isPending}
+                            maxLength={5}
+                            data-testid="input-vehicle-no"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="date"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Date of Drive</FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            type="date"
+                            disabled={createLogMutation.isPending}
+                            data-testid="input-date"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="initialMileageKm"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Initial Mileage (KM)</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              step="0.1"
+                              placeholder="0.0"
+                              disabled={createLogMutation.isPending}
+                              value={field.value === 0 || field.value === "" ? "" : field.value}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                field.onChange(val === "" ? "" : parseFloat(val) || "");
+                              }}
+                              data-testid="input-initial-mileage"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="finalMileageKm"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Final Mileage (KM)</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              step="0.1"
+                              placeholder="0.0"
+                              disabled={createLogMutation.isPending}
+                              value={field.value === 0 || field.value === "" ? "" : field.value}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                field.onChange(val === "" ? "" : parseFloat(val) || "");
+                              }}
+                              data-testid="input-final-mileage"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <FormField
+                    control={form.control}
+                    name="remarks"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Remarks (Optional)</FormLabel>
+                        <FormControl>
+                          <Textarea
+                            {...field}
+                            value={field.value || ""}
+                            placeholder="Any additional notes..."
+                            disabled={createLogMutation.isPending}
+                            data-testid="input-remarks"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <DialogFooter>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setIsAddingLog(false)}
+                      disabled={createLogMutation.isPending}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="submit"
+                      disabled={createLogMutation.isPending}
+                      data-testid="button-submit-drive-log"
+                    >
+                      {createLogMutation.isPending ? "Submitting..." : "Submit"}
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </Form>
+            </DialogContent>
+          </Dialog>
+
+          {/* QR Scanner Modal */}
+          <Dialog open={isScanningQR} onOpenChange={setIsScanningQR}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Scan Currency Drive QR Code</DialogTitle>
+                <DialogDescription>
+                  Scan or paste the QR code to auto-log a 2km verified drive
+                </DialogDescription>
+              </DialogHeader>
+              <div className="py-4">
+                <QRScanner onClose={() => setIsScanningQR(false)} />
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
     </div>

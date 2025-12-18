@@ -88,9 +88,7 @@ export function ChangePasswordDialog() {
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Change Password</DialogTitle>
-          <DialogDescription>
-            Enter your current password and choose a new one.
-          </DialogDescription>
+          <DialogDescription>Enter your current password and choose a new one.</DialogDescription>
         </DialogHeader>
         <div className="space-y-4 pt-4">
           <div>
@@ -129,11 +127,7 @@ export function ChangePasswordDialog() {
               className="mt-2"
             />
           </div>
-          <Button
-            onClick={handleChangePassword}
-            disabled={loading}
-            className="w-full"
-          >
+          <Button onClick={handleChangePassword} disabled={loading} className="w-full">
             {loading ? "Changing..." : "Change Password"}
           </Button>
         </div>

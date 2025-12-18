@@ -7,7 +7,7 @@ import { PageLoader } from "@/components/ui/PageLoader";
 
 export default function Credits() {
   const [, setLocation] = useLocation();
-  
+
   const { data: user, isLoading } = useQuery<SafeUser>({
     queryKey: ["/api/auth/me"],
     staleTime: 5 * 60 * 1000, // 5 minutes

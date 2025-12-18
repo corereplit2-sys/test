@@ -4,7 +4,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -109,7 +115,8 @@ export function AdminSettings() {
     );
   }
 
-  const currentDayLabel = DAYS_OF_WEEK.find(d => d.value === scheduleConfig?.releaseDay.toString())?.label || "Not set";
+  const currentDayLabel =
+    DAYS_OF_WEEK.find((d) => d.value === scheduleConfig?.releaseDay?.toString())?.label || "Not set";
 
   return (
     <div className="space-y-6">
@@ -202,7 +209,11 @@ export function AdminSettings() {
             <div className="space-y-4">
               <div>
                 <p className="text-sm font-medium mb-2">Current Release Day</p>
-                <Badge variant="default" className="text-base px-4 py-2" data-testid="badge-current-release-day">
+                <Badge
+                  variant="default"
+                  className="text-base px-4 py-2"
+                  data-testid="badge-current-release-day"
+                >
                   {currentDayLabel}
                 </Badge>
               </div>

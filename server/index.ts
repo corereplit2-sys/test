@@ -1,19 +1,27 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import dotenv from "dotenv";
+
+// Load environment variables from .env.local in development
+if (process.env.NODE_ENV !== "production") {
+  dotenv.config({ path: ".env.local" });
+}
 
 const app = express();
 
-declare module 'http' {
+declare module "http" {
   interface IncomingMessage {
-    rawBody: unknown
+    rawBody: unknown;
   }
 }
-app.use(express.json({
-  verify: (req, _res, buf) => {
-    req.rawBody = buf;
-  }
-}));
+app.use(
+  express.json({
+    verify: (req, _res, buf) => {
+      req.rawBody = buf;
+    },
+  })
+);
 app.use(express.urlencoded({ extended: false }));
 
 app.use((req, res, next) => {
@@ -67,7 +75,7 @@ app.use((req, res, next) => {
   }
 
   // ALWAYS serve the app on the port specified in the environment variable PORT
-  const port = parseInt(process.env.PORT || '5000', 10);
+  const port = parseInt(process.env.PORT || "5000", 10);
 
   // only enable reusePort on non-Windows platforms
   const listenOptions: any = { port, host: "0.0.0.0" };
@@ -78,11 +86,14 @@ app.use((req, res, next) => {
   // handle listen errors (retry without reusePort / on localhost)
   server.on("error", (err: NodeJS.ErrnoException) => {
     console.error("server error:", err?.code ?? err);
-    if (err && (err.code === "ENOTSUP" || err.code === "EOPNOTSUPP" || err.code === "EADDRNOTAVAIL")) {
+    if (
+      err &&
+      (err.code === "ENOTSUP" || err.code === "EOPNOTSUPP" || err.code === "EADDRNOTAVAIL")
+    ) {
       console.warn("listen failed (unsupported). Retrying without reusePort on 127.0.0.1...");
       try {
-        server.listen({ port, host: "127.0.0.1" }, () => {
-          log(`serving on 127.0.0.1:${port} (fallback)`);
+        server.listen({ port, host: "0.0.0.0" }, () => {
+          log(`serving on 0.0.0.0:${port} (accessible from all devices)`);
         });
       } catch (e) {
         console.error("fallback listen also failed:", (e as Error).message);

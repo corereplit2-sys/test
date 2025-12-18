@@ -9,7 +9,7 @@ import { SafeUser } from "@shared/schema";
 
 export default function DriveQR() {
   const [, setLocation] = useLocation();
-  
+
   const { data: user, isLoading } = useQuery<SafeUser>({
     queryKey: ["/api/auth/me"],
   });
@@ -25,13 +25,15 @@ export default function DriveQR() {
   return (
     <div className="min-h-screen bg-background">
       <Navbar user={user} pageTitle="Currency Drives" />
-      
+
       <div className="pt-16">
         <div className="max-w-7xl mx-auto px-4 md:px-6 py-6 md:py-8">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
             <div>
               <h1 className="text-2xl md:text-3xl font-bold">Currency Drives</h1>
-              <p className="text-muted-foreground mt-1 text-sm">Manage QR codes for currency drive verification</p>
+              <p className="text-muted-foreground mt-1 text-sm">
+                Manage QR codes for currency drive verification
+              </p>
             </div>
           </div>
 

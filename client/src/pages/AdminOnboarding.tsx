@@ -1,12 +1,18 @@
-import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Label } from '@/components/ui/label';
-import { SafeUser } from '@shared/schema';
-import { RefreshCw } from 'lucide-react';
+import React, { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { SafeUser } from "@shared/schema";
+import { RefreshCw } from "lucide-react";
 
 interface OnboardingRequest {
   id: string;
@@ -16,7 +22,7 @@ interface OnboardingRequest {
   rank: string;
   serviceNumber: string;
   doe: string;
-  status: 'pending' | 'approved' | 'rejected';
+  status: "pending" | "approved" | "rejected";
   createdAt: string;
   updatedAt: string;
 }
@@ -25,29 +31,29 @@ export default function AdminOnboarding() {
   const queryClient = useQueryClient();
   const [selectedRequest, setSelectedRequest] = useState<OnboardingRequest | null>(null);
   const [approvalForm, setApprovalForm] = useState({
-    accountType: 'soldier' as 'soldier' | 'commander' | 'admin',
-    mspName: ''
+    accountType: "soldier" as "soldier" | "commander" | "admin",
+    mspName: "",
   });
 
   const { data: requests, isLoading } = useQuery<OnboardingRequest[]>({
-    queryKey: ['/api/admin/onboarding-requests'],
+    queryKey: ["/api/admin/onboarding-requests"],
     retry: false,
   });
 
   const approveMutation = useMutation({
     mutationFn: async ({ requestId, data }: { requestId: string; data: any }) => {
       const response = await fetch(`/api/admin/onboarding-requests/${requestId}/approve`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
-      if (!response.ok) throw new Error('Failed to approve request');
+      if (!response.ok) throw new Error("Failed to approve request");
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/onboarding-requests'] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/onboarding-requests"] });
       setSelectedRequest(null);
-      alert('Request approved successfully!');
+      alert("Request approved successfully!");
     },
     onError: (error: any) => {
       alert(`Error approving request: ${error.message}`);
@@ -57,16 +63,16 @@ export default function AdminOnboarding() {
   const rejectMutation = useMutation({
     mutationFn: async ({ requestId }: { requestId: string }) => {
       const response = await fetch(`/api/admin/onboarding-requests/${requestId}/reject`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
       });
-      if (!response.ok) throw new Error('Failed to reject request');
+      if (!response.ok) throw new Error("Failed to reject request");
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/onboarding-requests'] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/onboarding-requests"] });
       setSelectedRequest(null);
-      alert('Request rejected successfully!');
+      alert("Request rejected successfully!");
     },
     onError: (error: any) => {
       alert(`Error rejecting request: ${error.message}`);
@@ -75,9 +81,9 @@ export default function AdminOnboarding() {
 
   const handleApprove = () => {
     if (!selectedRequest) return;
-    
+
     if (!approvalForm.accountType) {
-      alert('Please select an account type');
+      alert("Please select an account type");
       return;
     }
 
@@ -114,7 +120,9 @@ export default function AdminOnboarding() {
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-3xl font-bold">Onboarding Requests</h1>
           <Button
-            onClick={() => queryClient.invalidateQueries({ queryKey: ['/api/admin/onboarding-requests'] })}
+            onClick={() =>
+              queryClient.invalidateQueries({ queryKey: ["/api/admin/onboarding-requests"] })
+            }
             variant="outline"
             className="flex items-center gap-2"
           >
@@ -122,7 +130,7 @@ export default function AdminOnboarding() {
             Refresh
           </Button>
         </div>
-          
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">
             <Card>
@@ -130,36 +138,40 @@ export default function AdminOnboarding() {
                 <CardTitle>Pending Requests</CardTitle>
               </CardHeader>
               <CardContent>
-                {requests?.filter(r => r.status === 'pending').length === 0 ? (
+                {requests?.filter((r) => r.status === "pending").length === 0 ? (
                   <p className="text-muted-foreground text-center py-8">No pending requests</p>
                 ) : (
                   <div className="space-y-4">
-                    {requests?.filter(r => r.status === 'pending').map((request) => (
-                      <div
-                        key={request.id}
-                        className={`border rounded-lg p-4 cursor-pointer transition-colors ${
-                          selectedRequest?.id === request.id
-                            ? 'border-primary bg-primary/5'
-                            : 'border-border hover:bg-muted/50'
-                        }`}
-                        onClick={() => {
-                          setSelectedRequest(request);
-                          setApprovalForm({
-                            accountType: 'soldier',
-                            mspName: '',
-                          });
-                        }}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <h3 className="font-semibold">{request.fullName}</h3>
-                            <p className="text-sm text-muted-foreground">{request.username} • {request.rank}</p>
-                            <p className="text-sm text-muted-foreground">{request.email}</p>
+                    {requests
+                      ?.filter((r) => r.status === "pending")
+                      .map((request) => (
+                        <div
+                          key={request.id}
+                          className={`border rounded-lg p-4 cursor-pointer transition-colors ${
+                            selectedRequest?.id === request.id
+                              ? "border-primary bg-primary/5"
+                              : "border-border hover:bg-muted/50"
+                          }`}
+                          onClick={() => {
+                            setSelectedRequest(request);
+                            setApprovalForm({
+                              accountType: "soldier",
+                              mspName: "",
+                            });
+                          }}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h3 className="font-semibold">{request.fullName}</h3>
+                              <p className="text-sm text-muted-foreground">
+                                {request.username} • {request.rank}
+                              </p>
+                              <p className="text-sm text-muted-foreground">{request.email}</p>
+                            </div>
+                            <Badge variant="outline">Pending</Badge>
                           </div>
-                          <Badge variant="outline">Pending</Badge>
                         </div>
-                      </div>
-                    ))}
+                      ))}
                   </div>
                 )}
               </CardContent>
@@ -176,13 +188,28 @@ export default function AdminOnboarding() {
                   <div className="bg-muted/30 rounded-lg p-4">
                     <h3 className="font-semibold mb-3">Request Details</h3>
                     <div className="space-y-2 text-sm">
-                      <div><strong>Name:</strong> {selectedRequest.fullName}</div>
-                      <div><strong>Username:</strong> {selectedRequest.username}</div>
-                      <div><strong>Email:</strong> {selectedRequest.email}</div>
-                      <div><strong>Rank:</strong> {selectedRequest.rank}</div>
-                      <div><strong>Service Number:</strong> {selectedRequest.serviceNumber}</div>
-                      <div><strong>DOE:</strong> {new Date(selectedRequest.doe).toLocaleDateString()}</div>
-                      <div><strong>Submitted:</strong> {new Date(selectedRequest.createdAt).toLocaleDateString()}</div>
+                      <div>
+                        <strong>Name:</strong> {selectedRequest.fullName}
+                      </div>
+                      <div>
+                        <strong>Username:</strong> {selectedRequest.username}
+                      </div>
+                      <div>
+                        <strong>Email:</strong> {selectedRequest.email}
+                      </div>
+                      <div>
+                        <strong>Rank:</strong> {selectedRequest.rank}
+                      </div>
+                      <div>
+                        <strong>Service Number:</strong> {selectedRequest.serviceNumber}
+                      </div>
+                      <div>
+                        <strong>DOE:</strong> {new Date(selectedRequest.doe).toLocaleDateString()}
+                      </div>
+                      <div>
+                        <strong>Submitted:</strong>{" "}
+                        {new Date(selectedRequest.createdAt).toLocaleDateString()}
+                      </div>
                     </div>
                   </div>
 
@@ -191,8 +218,8 @@ export default function AdminOnboarding() {
                       <Label htmlFor="accountType">Account Type *</Label>
                       <Select
                         value={approvalForm.accountType}
-                        onValueChange={(value: 'soldier' | 'commander' | 'admin') =>
-                          setApprovalForm(prev => ({ ...prev, accountType: value }))
+                        onValueChange={(value: "soldier" | "commander" | "admin") =>
+                          setApprovalForm((prev) => ({ ...prev, accountType: value }))
                         }
                       >
                         <SelectTrigger>
@@ -213,7 +240,7 @@ export default function AdminOnboarding() {
                       disabled={approveMutation.isPending}
                       className="flex-1"
                     >
-                      {approveMutation.isPending ? 'Approving...' : 'Approve'}
+                      {approveMutation.isPending ? "Approving..." : "Approve"}
                     </Button>
                     <Button
                       onClick={handleReject}
@@ -221,7 +248,7 @@ export default function AdminOnboarding() {
                       variant="destructive"
                       className="flex-1"
                     >
-                      {rejectMutation.isPending ? 'Rejecting...' : 'Reject'}
+                      {rejectMutation.isPending ? "Rejecting..." : "Reject"}
                     </Button>
                   </div>
                 </CardContent>

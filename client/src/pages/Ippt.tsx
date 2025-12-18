@@ -25,7 +25,7 @@ export default function IPPT() {
   return (
     <div className="min-h-screen bg-background">
       <Navbar user={user} pageTitle="My IPPT" />
-      
+
       <div className="pt-16">
         <div className="max-w-7xl mx-auto px-4 md:px-6 py-6 md:py-8">
           <div className="flex items-center justify-center py-16">
@@ -34,7 +34,8 @@ export default function IPPT() {
                 Work in Progress
               </h2>
               <p className="text-muted-foreground max-w-md">
-                The IPPT feature is coming soon. We're currently working on bringing this feature to you.
+                The IPPT feature is coming soon. We're currently working on bringing this feature to
+                you.
               </p>
             </div>
           </div>

@@ -86,9 +86,9 @@ export function QRScanner({ onClose }: QRScannerProps = {}) {
 
     setIsScanning(true);
     try {
-      const response = await apiRequest("POST", "/api/currency-drives/scan", { 
+      const response = await apiRequest("POST", "/api/currency-drives/scan", {
         code,
-        vehicleNo: vehicleNo || vehicleNumber
+        vehicleNo: vehicleNo || vehicleNumber,
       });
 
       setScanResult(response);
@@ -142,16 +142,20 @@ export function QRScanner({ onClose }: QRScannerProps = {}) {
     return (
       <div className="space-y-4 text-center">
         <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-6">
-          <h3 className="text-lg font-semibold text-green-600 dark:text-green-400 mb-2">✓ Drive Logged Successfully</h3>
+          <h3 className="text-lg font-semibold text-green-600 dark:text-green-400 mb-2">
+            ✓ Drive Logged Successfully
+          </h3>
           <div className="space-y-2">
             <p className="text-sm text-muted-foreground">Vehicle Type</p>
             <p className="text-2xl font-bold">{scanResult.vehicleType}</p>
-            <p className="text-xs text-muted-foreground mt-3 pt-2 border-t">2km verified drive logged via QR code</p>
+            <p className="text-xs text-muted-foreground mt-3 pt-2 border-t">
+              2km verified drive logged via QR code
+            </p>
             <p className="text-xs text-muted-foreground">Currency extended by 88 days</p>
           </div>
         </div>
         <p className="text-xs text-muted-foreground">Show this screen to your commander</p>
-        <button 
+        <button
           onClick={() => onClose?.()}
           className="w-full px-4 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 text-sm font-medium"
         >
@@ -166,15 +170,19 @@ export function QRScanner({ onClose }: QRScannerProps = {}) {
     return (
       <div className="space-y-4 text-center">
         <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-6">
-          <h3 className="text-lg font-semibold text-blue-600 dark:text-blue-400 mb-2">QR Code Scanned!</h3>
-          <p className="text-sm text-muted-foreground mb-4">Please enter the vehicle number (5 digits)</p>
-          
+          <h3 className="text-lg font-semibold text-blue-600 dark:text-blue-400 mb-2">
+            QR Code Scanned!
+          </h3>
+          <p className="text-sm text-muted-foreground mb-4">
+            Please enter the vehicle number (5 digits)
+          </p>
+
           <div className="space-y-2">
             <label className="text-xs font-medium text-muted-foreground">Vehicle Number:</label>
             <Input
               placeholder="12345"
               value={vehicleNumber}
-              onChange={(e) => setVehicleNumber(e.target.value.replace(/\D/g, '').slice(0, 5))}
+              onChange={(e) => setVehicleNumber(e.target.value.replace(/\D/g, "").slice(0, 5))}
               onKeyDown={(e) => e.key === "Enter" && submitWithVehicleNumber()}
               disabled={isScanning}
               maxLength={5}
@@ -184,16 +192,16 @@ export function QRScanner({ onClose }: QRScannerProps = {}) {
             <p className="text-xs text-muted-foreground">Enter exactly 5 digits</p>
           </div>
         </div>
-        
+
         <div className="flex gap-2">
-          <Button 
+          <Button
             onClick={submitWithVehicleNumber}
             disabled={isScanning || !vehicleNumber.trim() || !/^\d{5}$/.test(vehicleNumber)}
             className="flex-1"
           >
             {isScanning ? "Processing..." : "Submit Drive"}
           </Button>
-          <Button 
+          <Button
             variant="outline"
             onClick={resumeScanning}
             disabled={isScanning}
@@ -211,10 +219,7 @@ export function QRScanner({ onClose }: QRScannerProps = {}) {
       {/* Camera Feed */}
       {!showManualInput && (
         <div className="relative rounded-lg overflow-hidden bg-black border border-muted">
-          <video 
-            ref={videoRef} 
-            className="w-full aspect-square object-cover"
-          />
+          <video ref={videoRef} className="w-full aspect-square object-cover" />
           <div className="absolute bottom-2 left-0 right-0 text-center text-white text-xs font-medium pointer-events-none">
             Point camera at QR code
           </div>
@@ -240,7 +245,7 @@ export function QRScanner({ onClose }: QRScannerProps = {}) {
               disabled={isScanning}
               autoFocus
             />
-            <Button 
+            <Button
               onClick={() => {
                 setScannedCode(manualCode);
                 setShowVehicleInput(true);
@@ -252,9 +257,9 @@ export function QRScanner({ onClose }: QRScannerProps = {}) {
               {isScanning ? "..." : "Next"}
             </Button>
           </div>
-          <Button 
-            variant="ghost" 
-            size="sm" 
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => {
               setShowManualInput(false);
               startCameraScanner();
@@ -265,9 +270,9 @@ export function QRScanner({ onClose }: QRScannerProps = {}) {
           </Button>
         </div>
       ) : (
-        <Button 
-          variant="ghost" 
-          size="sm" 
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={() => setShowManualInput(true)}
           className="w-full text-xs text-muted-foreground"
         >

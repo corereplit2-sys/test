@@ -2,7 +2,13 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -69,7 +75,8 @@ export function AdminSchedule() {
     );
   }
 
-  const currentDayLabel = DAYS_OF_WEEK.find(d => d.value === scheduleConfig?.releaseDay.toString())?.label || "Not set";
+  const currentDayLabel =
+    DAYS_OF_WEEK.find((d) => d.value === scheduleConfig?.releaseDay?.toString())?.label || "Not set";
 
   return (
     <div className="space-y-6">
@@ -92,7 +99,9 @@ export function AdminSchedule() {
                 <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
                   <li>Soldiers can only view one week of bookings at a time</li>
                   <li>The week becomes visible starting on the configured day</li>
-                  <li>Example: If set to Sunday, the next week (Mon-Sun) becomes visible every Sunday</li>
+                  <li>
+                    Example: If set to Sunday, the next week (Mon-Sun) becomes visible every Sunday
+                  </li>
                   <li>Before the release day, soldiers see the current week</li>
                 </ul>
               </div>
@@ -103,7 +112,11 @@ export function AdminSchedule() {
             <div className="space-y-4">
               <div>
                 <p className="text-sm font-medium mb-2">Current Release Day</p>
-                <Badge variant="default" className="text-base px-4 py-2" data-testid="badge-current-release-day">
+                <Badge
+                  variant="default"
+                  className="text-base px-4 py-2"
+                  data-testid="badge-current-release-day"
+                >
                   {currentDayLabel}
                 </Badge>
               </div>

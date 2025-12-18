@@ -1,10 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import { useLocation } from 'wouter';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import React, { useState, useEffect } from "react";
+import { useLocation } from "wouter";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface OnboardingFormData {
   fullName: string;
@@ -20,16 +26,16 @@ interface OnboardingFormData {
 export default function Onboarding() {
   const [, setLocation] = useLocation();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [msps, setMsps] = useState<Array<{id: string, name: string}>>([]);
+  const [msps, setMsps] = useState<Array<{ id: string; name: string }>>([]);
   const [formData, setFormData] = useState<OnboardingFormData>({
-    fullName: '',
-    username: '',
-    rank: '',
-    dob: '',
-    doe: '',
-    mspId: '',
-    password: '',
-    confirmPassword: ''
+    fullName: "",
+    username: "",
+    rank: "",
+    dob: "",
+    doe: "",
+    mspId: "",
+    password: "",
+    confirmPassword: "",
   });
 
   const [errors, setErrors] = useState<Partial<OnboardingFormData>>({});
@@ -38,21 +44,21 @@ export default function Onboarding() {
   useEffect(() => {
     const fetchMsps = async () => {
       try {
-        const response = await fetch('/api/public/msps');
+        const response = await fetch("/api/public/msps");
         if (response.ok) {
           const mspsData = await response.json();
           setMsps(mspsData);
         }
       } catch (error) {
-        console.error('Failed to fetch MSPs:', error);
+        console.error("Failed to fetch MSPs:", error);
         // Fallback to hardcoded options
         setMsps([
-          {id: 'hq', name: 'HQ'},
-          {id: 'msp1', name: 'MSP 1'},
-          {id: 'msp2', name: 'MSP 2'},
-          {id: 'msp3', name: 'MSP 3'},
-          {id: 'msp4', name: 'MSP 4'},
-          {id: 'msp5', name: 'MSP 5'}
+          { id: "hq", name: "HQ" },
+          { id: "msp1", name: "MSP 1" },
+          { id: "msp2", name: "MSP 2" },
+          { id: "msp3", name: "MSP 3" },
+          { id: "msp4", name: "MSP 4" },
+          { id: "msp5", name: "MSP 5" },
         ]);
       }
     };
@@ -63,39 +69,39 @@ export default function Onboarding() {
     const newErrors: Partial<OnboardingFormData> = {};
 
     if (!formData.fullName.trim()) {
-      newErrors.fullName = 'Full name is required';
+      newErrors.fullName = "Full name is required";
     }
 
     if (!formData.username.trim()) {
-      newErrors.username = 'Username is required';
+      newErrors.username = "Username is required";
     } else if (formData.username.length < 3) {
-      newErrors.username = 'Username must be at least 3 characters';
+      newErrors.username = "Username must be at least 3 characters";
     }
 
     if (!formData.rank.trim()) {
-      newErrors.rank = 'Rank is required';
+      newErrors.rank = "Rank is required";
     }
 
     if (!formData.dob) {
-      newErrors.dob = 'Date of birth is required';
+      newErrors.dob = "Date of birth is required";
     }
 
     if (!formData.doe) {
-      newErrors.doe = 'Date of enlistment is required';
+      newErrors.doe = "Date of enlistment is required";
     }
 
     if (!formData.mspId) {
-      newErrors.mspId = 'MSP selection is required';
+      newErrors.mspId = "MSP selection is required";
     }
 
     if (!formData.password) {
-      newErrors.password = 'Password is required';
+      newErrors.password = "Password is required";
     } else if (formData.password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters';
+      newErrors.password = "Password must be at least 6 characters";
     }
 
     if (formData.password !== formData.confirmPassword) {
-      newErrors.confirmPassword = 'Passwords do not match';
+      newErrors.confirmPassword = "Passwords do not match";
     }
 
     setErrors(newErrors);
@@ -103,16 +109,16 @@ export default function Onboarding() {
   };
 
   const handleInputChange = (field: keyof OnboardingFormData, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
     // Clear error for this field when user starts typing
     if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: undefined }));
+      setErrors((prev) => ({ ...prev, [field]: undefined }));
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       return;
     }
@@ -120,26 +126,26 @@ export default function Onboarding() {
     setIsSubmitting(true);
 
     try {
-      const response = await fetch('/api/auth/onboarding', {
-        method: 'POST',
+      const response = await fetch("/api/auth/onboarding", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify(formData),
       });
 
       if (response.ok) {
         // Success - redirect to success page or login
-        setLocation('/onboarding-success');
+        setLocation("/onboarding-success");
       } else {
         const errorData = await response.json();
-        alert(errorData.message || 'Registration failed. Please try again.');
+        alert(errorData.message || "Registration failed. Please try again.");
       }
     } catch (error) {
-      console.error('Onboarding error:', error);
+      console.error("Onboarding error:", error);
       // For now, show success even if backend doesn't exist
-      console.log('Onboarding submitted (backend not implemented yet):', formData);
-      setLocation('/onboarding-success');
+      console.log("Onboarding submitted (backend not implemented yet):", formData);
+      setLocation("/onboarding-success");
     } finally {
       setIsSubmitting(false);
     }
@@ -159,7 +165,7 @@ export default function Onboarding() {
             {/* Personal Information */}
             <div className="space-y-4">
               <h3 className="text-lg font-semibold">Personal Information</h3>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="fullName">Full Name *</Label>
@@ -167,13 +173,11 @@ export default function Onboarding() {
                     id="fullName"
                     type="text"
                     value={formData.fullName}
-                    onChange={(e) => handleInputChange('fullName', e.target.value)}
-                    className={errors.fullName ? 'border-red-500' : ''}
+                    onChange={(e) => handleInputChange("fullName", e.target.value)}
+                    className={errors.fullName ? "border-red-500" : ""}
                     placeholder="Enter your full name"
                   />
-                  {errors.fullName && (
-                    <p className="text-sm text-red-500">{errors.fullName}</p>
-                  )}
+                  {errors.fullName && <p className="text-sm text-red-500">{errors.fullName}</p>}
                 </div>
 
                 <div className="space-y-2">
@@ -182,21 +186,22 @@ export default function Onboarding() {
                     id="username"
                     type="text"
                     value={formData.username}
-                    onChange={(e) => handleInputChange('username', e.target.value)}
-                    className={errors.username ? 'border-red-500' : ''}
+                    onChange={(e) => handleInputChange("username", e.target.value)}
+                    className={errors.username ? "border-red-500" : ""}
                     placeholder="Choose a username"
                   />
-                  {errors.username && (
-                    <p className="text-sm text-red-500">{errors.username}</p>
-                  )}
+                  {errors.username && <p className="text-sm text-red-500">{errors.username}</p>}
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="rank">Rank *</Label>
-                  <Select value={formData.rank} onValueChange={(value) => handleInputChange('rank', value)}>
-                    <SelectTrigger className={errors.rank ? 'border-red-500' : ''}>
+                  <Select
+                    value={formData.rank}
+                    onValueChange={(value) => handleInputChange("rank", value)}
+                  >
+                    <SelectTrigger className={errors.rank ? "border-red-500" : ""}>
                       <SelectValue placeholder="Select your rank" />
                     </SelectTrigger>
                     <SelectContent>
@@ -212,9 +217,7 @@ export default function Onboarding() {
                       <SelectItem value="CPT">CPT</SelectItem>
                     </SelectContent>
                   </Select>
-                  {errors.rank && (
-                    <p className="text-sm text-red-500">{errors.rank}</p>
-                  )}
+                  {errors.rank && <p className="text-sm text-red-500">{errors.rank}</p>}
                 </div>
 
                 <div className="space-y-2">
@@ -223,12 +226,10 @@ export default function Onboarding() {
                     id="dob"
                     type="date"
                     value={formData.dob}
-                    onChange={(e) => handleInputChange('dob', e.target.value)}
-                    className={errors.dob ? 'border-red-500' : ''}
+                    onChange={(e) => handleInputChange("dob", e.target.value)}
+                    className={errors.dob ? "border-red-500" : ""}
                   />
-                  {errors.dob && (
-                    <p className="text-sm text-red-500">{errors.dob}</p>
-                  )}
+                  {errors.dob && <p className="text-sm text-red-500">{errors.dob}</p>}
                 </div>
               </div>
 
@@ -239,29 +240,30 @@ export default function Onboarding() {
                     id="doe"
                     type="date"
                     value={formData.doe}
-                    onChange={(e) => handleInputChange('doe', e.target.value)}
-                    className={errors.doe ? 'border-red-500' : ''}
+                    onChange={(e) => handleInputChange("doe", e.target.value)}
+                    className={errors.doe ? "border-red-500" : ""}
                   />
-                  {errors.doe && (
-                    <p className="text-sm text-red-500">{errors.doe}</p>
-                  )}
+                  {errors.doe && <p className="text-sm text-red-500">{errors.doe}</p>}
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="mspId">MSP *</Label>
-                  <Select value={formData.mspId} onValueChange={(value) => handleInputChange('mspId', value)}>
-                    <SelectTrigger className={errors.mspId ? 'border-red-500' : ''}>
+                  <Select
+                    value={formData.mspId}
+                    onValueChange={(value) => handleInputChange("mspId", value)}
+                  >
+                    <SelectTrigger className={errors.mspId ? "border-red-500" : ""}>
                       <SelectValue placeholder="Select MSP" />
                     </SelectTrigger>
                     <SelectContent>
-                      {msps.map(msp => (
-                        <SelectItem key={msp.id} value={msp.id}>{msp.name}</SelectItem>
+                      {msps.map((msp) => (
+                        <SelectItem key={msp.id} value={msp.id}>
+                          {msp.name}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                  {errors.mspId && (
-                    <p className="text-sm text-red-500">{errors.mspId}</p>
-                  )}
+                  {errors.mspId && <p className="text-sm text-red-500">{errors.mspId}</p>}
                 </div>
               </div>
             </div>
@@ -269,7 +271,7 @@ export default function Onboarding() {
             {/* Account Security */}
             <div className="space-y-4">
               <h3 className="text-lg font-semibold">Account Security</h3>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="password">Password *</Label>
@@ -277,13 +279,11 @@ export default function Onboarding() {
                     id="password"
                     type="password"
                     value={formData.password}
-                    onChange={(e) => handleInputChange('password', e.target.value)}
-                    className={errors.password ? 'border-red-500' : ''}
+                    onChange={(e) => handleInputChange("password", e.target.value)}
+                    className={errors.password ? "border-red-500" : ""}
                     placeholder="Create a password"
                   />
-                  {errors.password && (
-                    <p className="text-sm text-red-500">{errors.password}</p>
-                  )}
+                  {errors.password && <p className="text-sm text-red-500">{errors.password}</p>}
                 </div>
 
                 <div className="space-y-2">
@@ -292,8 +292,8 @@ export default function Onboarding() {
                     id="confirmPassword"
                     type="password"
                     value={formData.confirmPassword}
-                    onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
-                    className={errors.confirmPassword ? 'border-red-500' : ''}
+                    onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
+                    className={errors.confirmPassword ? "border-red-500" : ""}
                     placeholder="Confirm your password"
                   />
                   {errors.confirmPassword && (
@@ -304,12 +304,8 @@ export default function Onboarding() {
             </div>
 
             {/* Submit Button */}
-            <Button
-              type="submit"
-              className="w-full"
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? 'Submitting...' : 'Submit Onboarding Request'}
+            <Button type="submit" className="w-full" disabled={isSubmitting}>
+              {isSubmitting ? "Submitting..." : "Submit Onboarding Request"}
             </Button>
           </form>
         </CardContent>

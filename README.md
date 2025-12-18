@@ -5,12 +5,14 @@ A credit-based booking system for military unit personnel to reserve the company
 ## Features
 
 ### For Soldiers
+
 - View available credits and upcoming bookings
 - Interactive calendar to book mess room time slots
 - Credit-based system (1 credit = 1 hour)
 - Smart cancellation policy with automatic refunds
 
 ### For Administrators
+
 - User management (create, edit, delete soldiers)
 - View all bookings across the unit
 - Adjust individual user credits
@@ -29,10 +31,12 @@ A credit-based booking system for military unit personnel to reserve the company
 ## Default Login Credentials
 
 ### Admin Account
+
 - Username: `admin`
 - Password: `admin123`
 
 ### Sample Soldier Accounts
+
 - Username: `soldier1`, Password: `password123` (10 credits)
 - Username: `soldier2`, Password: `password123` (10 credits)
 - Username: `soldier3`, Password: `password123` (10 credits)
@@ -84,17 +88,20 @@ Administrators can configure and execute monthly credit resets:
 ## API Endpoints
 
 ### Authentication
+
 - `POST /api/auth/login` - Login
 - `POST /api/auth/logout` - Logout
 - `GET /api/auth/me` - Get current user
 
 ### Bookings (Soldiers & Admins)
+
 - `GET /api/bookings` - Get all bookings
 - `GET /api/bookings/my` - Get current user's bookings
 - `POST /api/bookings` - Create booking
 - `POST /api/bookings/:id/cancel` - Cancel booking
 
 ### Admin Only
+
 - `GET /api/admin/stats` - Dashboard statistics
 - `GET /api/admin/users` - List all users
 - `POST /api/admin/users` - Create user

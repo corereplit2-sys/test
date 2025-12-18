@@ -26,13 +26,34 @@ export function AdminBookings() {
   const [searchTerm, setSearchTerm] = useState("");
   const [cancellingBooking, setCancellingBooking] = useState<BookingWithUser | null>(null);
 
+  // Helper function to get actual booking status (checks if time has passed)
+  const getBookingStatus = (booking: BookingWithUser) => {
+    // If already cancelled, always show as cancelled
+    if (booking.status === "cancelled") {
+      return { status: "Cancelled", variant: "destructive" as const, canCancel: false };
+    }
+
+    const now = new Date();
+    const endTime = new Date(booking.endTime);
+
+    if (endTime < now) {
+      return { status: "Completed", variant: "default" as const, canCancel: false };
+    }
+    return {
+      status: "Active",
+      variant: "secondary" as const,
+      canCancel: booking.status === "active",
+    };
+  };
+
   const { data: bookings = [], isLoading } = useQuery<BookingWithUser[]>({
     queryKey: ["/api/bookings"],
   });
 
-  const filteredBookings = bookings.filter(booking =>
-    booking.user?.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    booking.user?.username.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredBookings = bookings.filter(
+    (booking) =>
+      booking.user?.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      booking.user?.username.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handleCancelBooking = async () => {
@@ -40,7 +61,7 @@ export function AdminBookings() {
 
     try {
       await apiRequest("POST", `/api/bookings/${cancellingBooking.id}/cancel`);
-      
+
       const hoursUntilStart = differenceInHours(new Date(cancellingBooking.startTime), new Date());
       const willRefund = hoursUntilStart > 24;
 
@@ -85,7 +106,9 @@ export function AdminBookings() {
 
         {isLoading ? (
           <div className="space-y-3">
-            {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-16 w-full" />)}
+            {[1, 2, 3, 4].map((i) => (
+              <Skeleton key={i} className="h-16 w-full" />
+            ))}
           </div>
         ) : filteredBookings.length === 0 ? (
           <div className="text-center py-12">
@@ -102,34 +125,45 @@ export function AdminBookings() {
                 );
 
                 return (
-                  <div 
+                  <div
                     key={booking.id}
                     className="border rounded-md p-4 hover:bg-accent transition-colors"
                     data-testid={`booking-card-mobile-${booking.id}`}
                   >
                     <div className="flex items-start justify-between gap-3 mb-3">
                       <div className="flex-1">
-                        <p className="font-semibold text-base">{booking.user?.fullName || "Unknown"}</p>
+                        <p className="font-semibold text-base">
+                          {booking.user?.fullName || "Unknown"}
+                        </p>
                         <p className="text-xs text-muted-foreground">
                           {format(new Date(booking.startTime), "MMM d, yyyy")}
                         </p>
                       </div>
                       <Badge
                         variant="secondary"
-                        className={
-                          booking.status === "active"
-                            ? "bg-green-500 text-green-950"
-                            : "bg-gray-500 text-gray-950"
-                        }
+                        className={(() => {
+                          const statusInfo = getBookingStatus(booking);
+                          if (statusInfo.status === "Completed") {
+                            return "bg-blue-500 text-blue-950";
+                          } else if (statusInfo.status === "Active") {
+                            return "bg-green-500 text-green-950";
+                          } else {
+                            return "bg-gray-500 text-gray-950";
+                          }
+                        })()}
                       >
-                        {booking.status}
+                        {(() => {
+                          const statusInfo = getBookingStatus(booking);
+                          return statusInfo.status;
+                        })()}
                       </Badge>
                     </div>
                     <div className="grid grid-cols-2 gap-3 text-sm mb-3">
                       <div>
                         <p className="text-xs text-muted-foreground">Time</p>
                         <p className="font-medium text-xs">
-                          {format(new Date(booking.startTime), "HH:mm")} - {format(new Date(booking.endTime), "HH:mm")}
+                          {format(new Date(booking.startTime), "HH:mm")} -{" "}
+                          {format(new Date(booking.endTime), "HH:mm")}
                         </p>
                       </div>
                       <div>
@@ -138,20 +172,28 @@ export function AdminBookings() {
                       </div>
                       <div>
                         <p className="text-xs text-muted-foreground">Credits</p>
-                        <p className="font-mono font-medium text-xs">{booking.creditsCharged.toFixed(1)}</p>
+                        <p className="font-mono font-medium text-xs">
+                          {booking.creditsCharged.toFixed(1)}
+                        </p>
                       </div>
                     </div>
-                    {booking.status === "active" && (
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        className="w-full"
-                        onClick={() => setCancellingBooking(booking)}
-                        data-testid={`button-cancel-booking-mobile-${booking.id}`}
-                      >
-                        Cancel
-                      </Button>
-                    )}
+                    {(() => {
+                      const statusInfo = getBookingStatus(booking);
+                      return (
+                        statusInfo.canCancel && (
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            className="w-full"
+                            onClick={() => setCancellingBooking(booking)}
+                            data-testid={`button-cancel-booking-${booking.id}`}
+                            disabled={cancellingBooking?.id === booking.id}
+                          >
+                            {cancellingBooking?.id === booking.id ? "Cancelling..." : "Cancel"}
+                          </Button>
+                        )
+                      );
+                    })()}
                   </div>
                 );
               })}
@@ -163,13 +205,27 @@ export function AdminBookings() {
                 <table className="w-full">
                   <thead className="bg-muted/50">
                     <tr>
-                      <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">Soldier</th>
-                      <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">Date</th>
-                      <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">Time</th>
-                      <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">Duration</th>
-                      <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">Credits</th>
-                      <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">Status</th>
-                      <th className="text-right text-sm font-semibold uppercase tracking-wide py-3 px-4">Actions</th>
+                      <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">
+                        Soldier
+                      </th>
+                      <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">
+                        Date
+                      </th>
+                      <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">
+                        Time
+                      </th>
+                      <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">
+                        Duration
+                      </th>
+                      <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">
+                        Credits
+                      </th>
+                      <th className="text-left text-sm font-semibold uppercase tracking-wide py-3 px-4">
+                        Status
+                      </th>
+                      <th className="text-right text-sm font-semibold uppercase tracking-wide py-3 px-4">
+                        Actions
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
@@ -180,7 +236,11 @@ export function AdminBookings() {
                       );
 
                       return (
-                        <tr key={booking.id} className="border-t hover-elevate" data-testid={`booking-row-${booking.id}`}>
+                        <tr
+                          key={booking.id}
+                          className="border-t hover-elevate"
+                          data-testid={`booking-row-${booking.id}`}
+                        >
                           <td className="py-3 px-4 font-medium">
                             {booking.user?.fullName || "Unknown"}
                           </td>
@@ -198,27 +258,40 @@ export function AdminBookings() {
                           <td className="py-3 px-4">
                             <Badge
                               variant="secondary"
-                              className={
-                                booking.status === "active"
-                                  ? "bg-green-500 text-green-950"
-                                  : "bg-gray-500 text-gray-950"
-                              }
+                              className={(() => {
+                                const statusInfo = getBookingStatus(booking);
+                                if (statusInfo.status === "Completed") {
+                                  return "bg-blue-500 text-blue-950";
+                                } else if (statusInfo.status === "Active") {
+                                  return "bg-green-500 text-green-950";
+                                } else {
+                                  return "bg-gray-500 text-gray-950";
+                                }
+                              })()}
                             >
-                              {booking.status}
+                              {(() => {
+                                const statusInfo = getBookingStatus(booking);
+                                return statusInfo.status;
+                              })()}
                             </Badge>
                           </td>
                           <td className="py-3 px-4">
                             <div className="flex items-center justify-end gap-2">
-                              {booking.status === "active" && (
-                                <Button
-                                  variant="destructive"
-                                  size="sm"
-                                  onClick={() => setCancellingBooking(booking)}
-                                  data-testid={`button-cancel-booking-${booking.id}`}
-                                >
-                                  Cancel
-                                </Button>
-                              )}
+                              {(() => {
+                                const statusInfo = getBookingStatus(booking);
+                                return (
+                                  statusInfo.canCancel && (
+                                    <Button
+                                      variant="destructive"
+                                      size="sm"
+                                      onClick={() => setCancellingBooking(booking)}
+                                      data-testid={`button-cancel-booking-${booking.id}`}
+                                    >
+                                      Cancel
+                                    </Button>
+                                  )
+                                );
+                              })()}
                             </div>
                           </td>
                         </tr>
