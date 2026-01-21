@@ -11,7 +11,7 @@ export const AZURE_CONFIG = {
 
 // IPPT Score Thresholds
 export const IPPT_THRESHOLDS = {
-  GOLD: 90,
+  GOLD: 85,
   SILVER: 75,
   PASS: 61,
 } as const;

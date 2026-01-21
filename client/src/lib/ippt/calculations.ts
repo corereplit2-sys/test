@@ -99,7 +99,7 @@ export const calculateIpptScore = async (
 
     // Determine result
     let result = "Fail";
-    if (totalScore >= 90) result = "Gold";
+    if (totalScore >= IPPT_THRESHOLDS.GOLD) result = "Gold";
     else if (totalScore >= 75) result = "Silver";
     else if (totalScore >= 61) result = "Pass";
 

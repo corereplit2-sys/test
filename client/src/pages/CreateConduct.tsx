@@ -365,13 +365,69 @@ const AZURE_API_KEY = import.meta.env.VITE_AZURE_API_KEY;
 
 // Helper function to convert run time string to seconds
 const parseRunTimeToSeconds = (runTime: string | number | undefined | null): number => {
-  if (!runTime) return 0;
-  if (typeof runTime === "number") return runTime;
-  if (typeof runTime === "string" && runTime.includes(":")) {
-    const [minutes, seconds] = runTime.split(":").map(Number);
-    return minutes * 60 + seconds;
+  if (runTime === null || runTime === undefined) return 0;
+  if (typeof runTime === "number") {
+    return Number.isFinite(runTime) ? runTime : 0;
+  }
+  if (typeof runTime === "string") {
+    const trimmed = runTime.trim();
+    if (!trimmed) return 0;
+    if (trimmed.includes(":")) {
+      const [minutes, seconds] = trimmed.split(":").map((val) => Number(val));
+      if (Number.isNaN(minutes) || Number.isNaN(seconds)) return 0;
+      return minutes * 60 + seconds;
+    }
+    const numeric = Number(trimmed);
+    return Number.isNaN(numeric) ? 0 : numeric;
   }
   return 0;
+};
+
+const getSingaporeDateParts = (dateInput: Date | string) => {
+  const date =
+    typeof dateInput === "string"
+      ? new Date(dateInput.includes("T") ? dateInput : `${dateInput}T00:00:00Z`)
+      : dateInput;
+
+  const formatter = new Intl.DateTimeFormat("en-SG", {
+    timeZone: "Asia/Singapore",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+
+  const parts = formatter.formatToParts(date);
+  const lookup = parts.reduce<Record<string, string>>((acc, part) => {
+    if (part.type === "year" || part.type === "month" || part.type === "day") {
+      acc[part.type] = part.value;
+    }
+    return acc;
+  }, {});
+
+  return {
+    year: Number(lookup.year),
+    month: Number(lookup.month),
+    day: Number(lookup.day),
+  };
+};
+
+const calculateFinancialYearAge = (dob: Date | string, conductDate: string) => {
+  const dobParts = getSingaporeDateParts(dob);
+  const conductParts = getSingaporeDateParts(conductDate);
+
+  const financialYearStartYear = conductParts.month >= 4 ? conductParts.year : conductParts.year - 1;
+  const financialYearStart = { year: financialYearStartYear, month: 4, day: 1 };
+
+  let age = financialYearStart.year - dobParts.year;
+  const birthOccursAfterFYStart =
+    financialYearStart.month < dobParts.month ||
+    (financialYearStart.month === dobParts.month && financialYearStart.day < dobParts.day);
+
+  if (birthOccursAfterFYStart) {
+    age -= 1;
+  }
+
+  return age;
 };
 
 // Helper function to calculate IPPT score using database scoring matrix
@@ -401,20 +457,11 @@ const calculateIpptScore = async (
       return { totalScore: 0, result: "Fail", situpScore: 0, pushupScore: 0, runScore: 0 };
     }
 
-    // Calculate age as of the conduct date using the person's DOB (Singapore time)
-    let age;
-    if (dob) {
-      // Convert both dates to Singapore time (UTC+8)
-      const conductDateSG = new Date(conductDate + "T00:00:00+08:00");
-      const dobSG = new Date(dob.toLocaleString("en-US", { timeZone: "Asia/Singapore" }));
-
-      age = Math.floor(
-        (conductDateSG.getTime() - dobSG.getTime()) / (365.25 * 24 * 60 * 60 * 1000)
-      );
-    } else {
-      // No DOB available, return without age
+    if (!dob) {
       return { totalScore: 0, result: "Fail", situpScore: 0, pushupScore: 0, runScore: 0 };
     }
+
+    const age = calculateFinancialYearAge(dob, conductDate);
 
     // Don't calculate if age is invalid (less than 16 or greater than 60)
     if (age < 16 || age > 60) {
@@ -446,7 +493,14 @@ const calculateIpptScore = async (
     const runScore = findExerciseScore(scoringData, "run", runTime);
 
     const totalScore = situpScore + pushupScore + runScore;
-    const result = totalScore >= 51 ? "Pass" : "Fail";
+    let result = "Fail";
+    if (totalScore >= 85) {
+      result = "Gold";
+    } else if (totalScore >= 75) {
+      result = "Silver";
+    } else if (totalScore >= 61) {
+      result = "Pass";
+    }
 
     return { totalScore, result, situpScore, pushupScore, runScore, age };
   } catch (error) {
@@ -457,30 +511,21 @@ const calculateIpptScore = async (
 
 // Helper function to find exercise score from scoring data
 const findExerciseScore = (scoringData: any, exercise: string, value: number): number => {
-  const scoringKey = `${exercise}_scoring`;
+  // API returns situps_scoring, pushups_scoring, run_scoring (plural for situps/pushups)
+  const scoringKey =
+    exercise === "situp" ? "situps_scoring" : exercise === "pushup" ? "pushups_scoring" : "run_scoring";
   const scoringArray = scoringData[scoringKey];
 
-  console.log(`Finding score for ${exercise} with value ${value}`);
-  console.log(`Looking for key: ${scoringKey}`);
-  console.log(`Scoring array:`, scoringArray);
-
   if (!scoringArray || !Array.isArray(scoringArray)) {
-    console.log(`No scoring array found for ${exercise}`);
     return 0;
   }
 
-  // For situps and pushups, find the score for the given reps
-  if (exercise === "situp" || exercise === "pushup") {
-    const scoreEntry = scoringArray.find(([reps]: [number, number]) => reps >= value);
-    console.log(`Score entry found for ${exercise}:`, scoreEntry);
-    return scoreEntry ? scoreEntry[1] : 0;
-  }
+  const comparator = exercise === "run" ? (val: number, threshold: number) => val <= threshold : (val: number, threshold: number) => val >= threshold;
 
-  // For run, find the score for the given time
-  if (exercise === "run") {
-    const scoreEntry = scoringArray.find(([seconds]: [number, number]) => seconds >= value);
-    console.log(`Score entry found for ${exercise}:`, scoreEntry);
-    return scoreEntry ? scoreEntry[1] : 0;
+  for (const [threshold, score] of scoringArray) {
+    if (comparator(value, threshold)) {
+      return score;
+    }
   }
 
   return 0;
@@ -494,7 +539,7 @@ interface ConductParticipant {
   platoon: string;
   situpReps: number;
   pushupReps: number;
-  runTime: number;
+  runTime: number | string;
   situpScore?: number;
   pushupScore?: number;
   runScore?: number;
@@ -503,6 +548,7 @@ interface ConductParticipant {
   isEditing?: boolean;
   matchPercentage?: number;
   matchedUser?: SafeUser | null;
+  age?: number | string;
 }
 
 // Find best name match using fuzzy matching
@@ -562,9 +608,20 @@ const findBestNameMatch = (
 };
 
 // Helper function to format run time
-const formatRunTime = (seconds: number): string => {
-  const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = seconds % 60;
+const formatRunTime = (value: number | string | null | undefined): string => {
+  if (value === null || value === undefined) return "";
+  if (typeof value === "string") {
+    if (value.trim() === "") return "";
+    if (value.includes(":")) return value;
+    const numericSeconds = Number(value);
+    if (Number.isNaN(numericSeconds)) return value;
+    const minutes = Math.floor(numericSeconds / 60);
+    const remainingSeconds = numericSeconds % 60;
+    return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
+  }
+
+  const minutes = Math.floor(value / 60);
+  const remainingSeconds = value % 60;
   return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
 };
 
@@ -661,7 +718,8 @@ const parseTextBasedResults = async (content: string, conductDate?: string): Pro
       // Only add entry if we have at least a name
       if (name) {
         // Calculate scores using database instead of OCR points
-        const runTimeSeconds = parseRunTimeToSeconds(runTimeStr);
+        const runTimeSeconds = parseRunTimeToSeconds(runTimeStr) ?? 0;
+        const runTimeDisplay = runTimeStr || formatRunTime(runTimeSeconds);
         const scoreResult = await calculateIpptScore(
           situpReps,
           pushupReps,
@@ -680,7 +738,7 @@ const parseTextBasedResults = async (content: string, conductDate?: string): Pro
           situpScore: scoreResult.situpScore,
           pushupReps,
           pushupScore: scoreResult.pushupScore,
-          runTime: runTimeSeconds,
+          runTime: runTimeDisplay,
           runScore: scoreResult.runScore,
           totalScore: scoreResult.totalScore,
           result: scoreResult.result,
@@ -850,11 +908,8 @@ const parseIpptResults = async (
       }
 
       // Parse run time
-      let runTime = 0;
-      if (runTimeStr.includes(":")) {
-        const [minutes, seconds] = runTimeStr.split(":").map(Number);
-        runTime = minutes * 60 + seconds;
-      }
+      const runTimeSeconds = parseRunTimeToSeconds(runTimeStr) ?? 0;
+      const runTimeDisplay = runTimeStr || formatRunTime(runTimeSeconds);
 
       // Find matching user to get their details
       const nameMatch = findBestNameMatch(name, allUsers);
@@ -870,7 +925,7 @@ const parseIpptResults = async (
       const scoreResult = await calculateIpptScore(
         situpReps,
         pushupReps,
-        runTime,
+        runTimeSeconds,
         conductDate,
         new Date(userDob)
       );
@@ -881,8 +936,6 @@ const parseIpptResults = async (
       const finalRunScore = scoreResult.runScore;
       const finalTotalScore = scoreResult.totalScore;
       const finalResult = scoreResult.result;
-      const formattedRunTime = formatRunTime(runTime);
-
       entries.push({
         name: finalName,
         rank: userRank,
@@ -891,7 +944,7 @@ const parseIpptResults = async (
         situpScore: finalSitupScore,
         pushupReps,
         pushupScore: finalPushupScore,
-        runTime: runTime,
+        runTime: runTimeDisplay,
         runScore: finalRunScore,
         totalScore: finalTotalScore,
         result: finalResult,
@@ -947,11 +1000,11 @@ export default function CreateConduct() {
       const recalculateScores = async () => {
         for (let index = 0; index < participants.length; index++) {
           const participant = participants[index];
-          if (participant.situpReps > 0 || participant.pushupReps > 0 || participant.runTime > 0) {
-            const runTimeSeconds = parseRunTimeToSeconds(participant.runTime);
+          const runTimeSeconds = parseRunTimeToSeconds(participant.runTime);
+          if ((participant.situpReps || 0) > 0 || (participant.pushupReps || 0) > 0 || runTimeSeconds > 0) {
             const scoreResult = await calculateIpptScore(
-              participant.situpReps,
-              participant.pushupReps,
+              participant.situpReps || 0,
+              participant.pushupReps || 0,
               runTimeSeconds,
               conductDate,
               participant.matchedUser?.dob ? new Date(participant.matchedUser.dob) : undefined
@@ -1783,9 +1836,10 @@ export default function CreateConduct() {
                   name: finalName,
                   rank: userRank,
                   platoon: userPlatoon,
-                  situpReps: participant.situps,
-                  pushupReps: participant.pushups,
-                  runTime: participant.runTime,
+                  age: participant.age,
+                  situpReps: participant.situps ?? null,
+                  pushupReps: participant.pushups ?? null,
+                  runTime: participant.runTime ?? null,
                   situpScore: participant.situpScore,
                   pushupScore: participant.pushupScore,
                   runScore: participant.runScore,
@@ -1878,6 +1932,7 @@ export default function CreateConduct() {
       name: "",
       rank: "",
       platoon: "",
+      age: "",
       situpReps: 0,
       situpScore: 0,
       pushupReps: 0,
@@ -2221,36 +2276,25 @@ export default function CreateConduct() {
                           <td className="p-1 sm:p-2 md:p-3 border border-border text-center">
                             <span className="font-medium">
                               {conductDate && participant.matchedUser?.dob
-                                ? (() => {
-                                    // Convert both dates to Singapore time (UTC+8)
-                                    const conductDateSG = new Date(conductDate + "T00:00:00+08:00");
-                                    const dobSG = new Date(
-                                      participant.matchedUser.dob.toLocaleString("en-US", {
-                                        timeZone: "Asia/Singapore",
-                                      })
-                                    );
-                                    return Math.floor(
-                                      (conductDateSG.getTime() - dobSG.getTime()) /
-                                        (365.25 * 24 * 60 * 60 * 1000)
-                                    );
-                                  })()
-                                : ""}
+                                ? calculateFinancialYearAge(participant.matchedUser.dob, conductDate)
+                                : participant.age || ""}
                             </span>
                           </td>
                           <td className="p-1 sm:p-2 md:p-3 border border-border">
                             <div className="flex flex-col gap-1">
                               <Input
                                 type="number"
-                                value={participant.situpReps}
+                                value={participant.situpReps === 0 ? "" : participant.situpReps}
                                 onChange={(e) =>
                                   handleUpdateParticipant(
                                     index,
                                     "situpReps",
-                                    parseInt(e.target.value) || 0
+                                    e.target.value === "" ? 0 : parseInt(e.target.value) || 0
                                   )
                                 }
                                 min="0"
                                 max="100"
+                                placeholder="0"
                                 className="w-full p-1 sm:p-2 border border-border rounded-md bg-background text-foreground text-center font-medium text-xs sm:text-sm focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                               />
                               <div className="text-xs text-center font-bold text-foreground">
@@ -2262,16 +2306,17 @@ export default function CreateConduct() {
                             <div className="flex flex-col gap-1">
                               <Input
                                 type="number"
-                                value={participant.pushupReps}
+                                value={participant.pushupReps === 0 ? "" : participant.pushupReps}
                                 onChange={(e) =>
                                   handleUpdateParticipant(
                                     index,
                                     "pushupReps",
-                                    parseInt(e.target.value) || 0
+                                    e.target.value === "" ? 0 : parseInt(e.target.value) || 0
                                   )
                                 }
                                 min="0"
                                 max="100"
+                                placeholder="0"
                                 className="w-full p-1 sm:p-2 border border-border rounded-md bg-background text-foreground text-center font-medium text-xs sm:text-sm focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                               />
                               <div className="text-xs text-center font-bold text-foreground">
@@ -2283,12 +2328,46 @@ export default function CreateConduct() {
                             <div className="flex flex-col gap-1">
                               <Input
                                 type="text"
-                                value={formatRunTime(participant.runTime)}
-                                onChange={(e) =>
-                                  handleUpdateParticipant(index, "runTime", e.target.value)
-                                }
+                                value={(() => {
+                                  const rt = participant.runTime;
+                                  if (rt === 0 || rt === "" || rt === null || rt === undefined) return "";
+                                  if (typeof rt === "string") return rt;
+                                  const seconds = Number(rt);
+                                  if (!Number.isFinite(seconds) || seconds === 0) return "";
+                                  const mins = Math.floor(seconds / 60);
+                                  const secs = seconds % 60;
+                                  return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+                                })()}
+                                onChange={(e) => {
+                                  let digits = e.target.value.replace(/[^0-9]/g, "");
+                                  if (digits.length > 4) digits = digits.slice(0, 4);
+                                  if (digits.length === 0) {
+                                    handleUpdateParticipant(index, "runTime", "");
+                                    return;
+                                  }
+                                  let formatted = digits;
+                                  if (digits.length > 2) {
+                                    formatted = `${digits.slice(0, 2)}:${digits.slice(2)}`;
+                                  }
+                                  handleUpdateParticipant(index, "runTime", formatted);
+                                }}
+                                onBlur={(e) => {
+                                  let digits = e.target.value.replace(/[^0-9]/g, "");
+                                  if (digits.length === 0) {
+                                    handleUpdateParticipant(index, "runTime", "");
+                                    return;
+                                  }
+                                  digits = digits.padEnd(4, "0");
+                                  const minsNumber = parseInt(digits.slice(0, 2)) || 0;
+                                  let secsNumber = parseInt(digits.slice(2, 4)) || 0;
+                                  if (secsNumber > 59) secsNumber = 59;
+                                  const formatted = `${minsNumber.toString().padStart(2, "0")}:${secsNumber.toString().padStart(2, "0")}`;
+                                  handleUpdateParticipant(index, "runTime", formatted);
+                                }}
+                                inputMode="numeric"
+                                maxLength={5}
                                 placeholder="MM:SS"
-                                className="w-full p-1 sm:p-2 border border-border rounded-md bg-background text-foreground text-center font-medium text-xs sm:text-sm focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                                className="w-full p-1 sm:p-2 border border-border rounded-md bg-background text-foreground text-center font-medium text-xs sm:text-sm focus:ring-2 focus:ring-primary focus-border-primary transition-all"
                               />
                               <div className="text-xs text-center font-bold text-foreground">
                                 {participant.runScore || ""} pts
