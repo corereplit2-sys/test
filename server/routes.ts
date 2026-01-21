@@ -65,6 +65,7 @@ import {
 import { DatabaseStorage } from "./storage";
 import { WebSocketServer, WebSocket } from "ws";
 import { randomUUID } from "crypto";
+import { setupConductSync } from "./conduct-sync";
 
 // Configure multer for file uploads
 const upload = multer({
@@ -112,6 +113,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         secure: false, // Set to true in production with HTTPS
         httpOnly: true,
         maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
+        sameSite: "lax", // Required for modern browsers
       },
     })
   );
@@ -2088,5 +2090,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/events/:id", deleteEvent);
 
   const httpServer = createServer(app);
+  
   return httpServer;
 }
+
+// Export function to set up WebSocket after server is listening
+export { setupConductSync } from "./conduct-sync";

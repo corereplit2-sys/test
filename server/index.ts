@@ -1,5 +1,5 @@
 import express, { type Request, Response, NextFunction } from "express";
-import { registerRoutes } from "./routes";
+import { registerRoutes, setupConductSync } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import dotenv from "dotenv";
 
@@ -83,6 +83,15 @@ app.use((req, res, next) => {
     listenOptions.reusePort = true;
   }
 
+  // Track if WebSocket server has been set up
+  let wsInitialized = false;
+  const initWebSocket = () => {
+    if (!wsInitialized) {
+      setupConductSync(server);
+      wsInitialized = true;
+    }
+  };
+
   // handle listen errors (retry without reusePort / on localhost)
   server.on("error", (err: NodeJS.ErrnoException) => {
     console.error("server error:", err?.code ?? err);
@@ -94,6 +103,7 @@ app.use((req, res, next) => {
       try {
         server.listen({ port, host: "0.0.0.0" }, () => {
           log(`serving on 0.0.0.0:${port} (accessible from all devices)`);
+          initWebSocket();
         });
       } catch (e) {
         console.error("fallback listen also failed:", (e as Error).message);
@@ -106,5 +116,6 @@ app.use((req, res, next) => {
 
   server.listen(listenOptions, () => {
     log(`serving on port ${port}`);
+    initWebSocket();
   });
 })();

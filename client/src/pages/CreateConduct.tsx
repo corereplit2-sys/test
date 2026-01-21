@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,9 +11,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Users, Scan, Plus, Edit, Save, X, Camera } from "lucide-react";
+import { ArrowLeft, Users, Scan, Plus, Edit, Save, X, Camera, Wifi, WifiOff, Smartphone, Monitor } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { SafeUser } from "@shared/schema";
+import { useConductSync, type ConductParticipant as SyncParticipant } from "@/hooks/use-conduct-sync";
 
 // Point type for document detection
 interface Point {
@@ -992,6 +993,234 @@ export default function CreateConduct() {
     conflicts: Array<{ name: string; existingIndex: number; newParticipant: ConductParticipant }>;
   }>({ isOpen: false, conflicts: [] });
 
+  // Generate a unique conduct ID based on user + conduct name + date
+  const conductId = user?.id && conductName && conductDate 
+    ? `${user.id}-${conductName}-${conductDate}`.replace(/\s+/g, '-').toLowerCase()
+    : undefined;
+
+  // Sync hook callbacks - handle incoming updates from other devices
+  const handleRemoteParticipantAdd = useCallback((participant: SyncParticipant) => {
+    console.log("[Sync] Remote participant add:", participant);
+
+    const normalized = (() => {
+      if (typeof participant.name === "object" && participant.name) {
+        return {
+          ...participant,
+          name: participant.name.fullName,
+          matchedUser: participant.name,
+        } as ConductParticipant;
+      }
+      return {
+        ...participant,
+        name: typeof participant.name === "string" ? participant.name : "",
+      } as ConductParticipant;
+    })();
+
+    setParticipants((prev) => {
+      const nameToCheck = typeof normalized.name === "string" ? normalized.name.trim().toLowerCase() : "";
+      const hasName = nameToCheck.length > 0;
+      const exists = hasName
+        ? prev.some((p) => {
+            const pName = typeof p.name === "string" ? p.name.trim().toLowerCase() : "";
+            return pName === nameToCheck;
+          })
+        : false;
+      if (exists) return prev;
+      
+      const newIndex = prev.length;
+      const newList = [...prev, normalized];
+      
+      // Recalculate scores for the added participant
+      if (conductDate && normalized.matchedUser?.dob) {
+        const runTimeSeconds = parseRunTimeToSeconds(normalized.runTime);
+        calculateIpptScore(
+          normalized.situpReps || 0,
+          normalized.pushupReps || 0,
+          runTimeSeconds,
+          conductDate,
+          new Date(normalized.matchedUser.dob)
+        ).then((scoreResult) => {
+          setParticipants((current) =>
+            current.map((p, i) =>
+              i === newIndex
+                ? {
+                    ...p,
+                    situpScore: scoreResult.situpScore,
+                    pushupScore: scoreResult.pushupScore,
+                    runScore: scoreResult.runScore,
+                    totalScore: scoreResult.totalScore,
+                    result: scoreResult.result,
+                  }
+                : p
+            )
+          );
+        });
+      }
+      
+      return newList;
+    });
+  }, [conductDate]);
+
+  const handleRemoteParticipantUpdate = useCallback((index: number, updates: Partial<SyncParticipant>) => {
+    console.log("[Sync] Remote participant update:", index, updates);
+
+    const normalizedUpdates: Partial<ConductParticipant> = (() => {
+      if (typeof updates.name === "object" && updates.name) {
+        return {
+          ...updates,
+          name: updates.name.fullName,
+          matchedUser: updates.name,
+        } as Partial<ConductParticipant>;
+      }
+      return {
+        ...updates,
+        name: typeof updates.name === "string" ? updates.name : undefined,
+      } as Partial<ConductParticipant>;
+    })();
+
+    setParticipants((prev) => {
+      const updated = prev.map((p, i) => (i === index ? { ...p, ...normalizedUpdates } : p));
+      
+      // Recalculate scores for the updated participant
+      const participant = updated[index];
+      if (participant && conductDate) {
+        const runTimeSeconds = parseRunTimeToSeconds(participant.runTime);
+        calculateIpptScore(
+          participant.situpReps || 0,
+          participant.pushupReps || 0,
+          runTimeSeconds,
+          conductDate,
+          participant.matchedUser?.dob ? new Date(participant.matchedUser.dob) : undefined
+        ).then((scoreResult) => {
+          setParticipants((current) =>
+            current.map((p, i) =>
+              i === index
+                ? {
+                    ...p,
+                    situpScore: scoreResult.situpScore,
+                    pushupScore: scoreResult.pushupScore,
+                    runScore: scoreResult.runScore,
+                    totalScore: scoreResult.totalScore,
+                    result: scoreResult.result,
+                  }
+                : p
+            )
+          );
+        });
+      }
+      
+      return updated;
+    });
+  }, [conductDate]);
+
+  const handleRemoteParticipantRemove = useCallback((index: number) => {
+    console.log("[Sync] Remote participant remove:", index);
+    setParticipants((prev) => prev.filter((_, i) => i !== index));
+  }, []);
+
+  const handleRemoteParticipantsSync = useCallback(async (remoteParticipants: SyncParticipant[]) => {
+    console.log("[Sync] Remote participants sync:", remoteParticipants.length, "participants");
+    
+    // Normalize and recalculate scores for all participants
+    const normalizedParticipants: ConductParticipant[] = remoteParticipants.map((p) => {
+      if (typeof p.name === "object" && p.name) {
+        return { ...p, name: p.name.fullName, matchedUser: p.name } as ConductParticipant;
+      }
+      return { ...p, name: typeof p.name === "string" ? p.name : "" } as ConductParticipant;
+    });
+    
+    setParticipants(normalizedParticipants);
+    
+    // Recalculate scores for all participants with valid data
+    if (conductDate) {
+      for (let i = 0; i < normalizedParticipants.length; i++) {
+        const participant = normalizedParticipants[i];
+        if (participant.matchedUser?.dob) {
+          const runTimeSeconds = parseRunTimeToSeconds(participant.runTime);
+          const scoreResult = await calculateIpptScore(
+            participant.situpReps || 0,
+            participant.pushupReps || 0,
+            runTimeSeconds,
+            conductDate,
+            new Date(participant.matchedUser.dob)
+          );
+          setParticipants((current) =>
+            current.map((p, idx) =>
+              idx === i
+                ? {
+                    ...p,
+                    situpScore: scoreResult.situpScore,
+                    pushupScore: scoreResult.pushupScore,
+                    runScore: scoreResult.runScore,
+                    totalScore: scoreResult.totalScore,
+                    result: scoreResult.result,
+                  }
+                : p
+            )
+          );
+        }
+      }
+    }
+  }, [conductDate]);
+
+  // State for sync status warnings
+  const [syncWarning, setSyncWarning] = useState<string | null>(null);
+  const [lastSyncInfo, setLastSyncInfo] = useState<{ time: number; from: string } | null>(null);
+
+  // Initialize conduct sync hook
+  const {
+    isConnected,
+    isSyncing,
+    isReconnecting,
+    lastSyncTime,
+    lastSyncFromDevice,
+    presence,
+    otherDevices,
+    deviceType,
+    broadcastParticipantAdd,
+    broadcastParticipantUpdate,
+    broadcastParticipantRemove,
+    broadcastParticipantsSync,
+    requestSync,
+  } = useConductSync({
+    userId: user?.id || "",
+    conductId,
+    onParticipantAdd: handleRemoteParticipantAdd,
+    onParticipantUpdate: handleRemoteParticipantUpdate,
+    onParticipantRemove: handleRemoteParticipantRemove,
+    onParticipantsSync: (remoteParticipants, fromDevice) => {
+      handleRemoteParticipantsSync(remoteParticipants);
+      setLastSyncInfo({ time: Date.now(), from: fromDevice || "unknown" });
+      setSyncWarning(null); // Clear warning after successful sync
+    },
+    onReconnect: () => {
+      // Show warning that we may be out of sync after reconnect
+      if (isSyncing) {
+        setSyncWarning("Reconnected - data may be out of sync");
+      }
+    },
+    onDeviceJoin: (joinedDeviceType) => {
+      console.log(`[Sync] Device joined: ${joinedDeviceType}`);
+      // Automatically send our data to the newly joined device
+      if (participants.length > 0) {
+        setTimeout(() => {
+          broadcastParticipantsSync(participants as unknown as SyncParticipant[]);
+        }, 500);
+      }
+    },
+    onDeviceLeave: (leftDeviceType) => {
+      console.log(`[Sync] Device left: ${leftDeviceType}`);
+      setSyncWarning(`${leftDeviceType === "mobile" ? "Phone" : "Laptop"} disconnected`);
+    },
+    onSyncRequested: (fromDevice) => {
+      console.log(`[Sync] Sync requested by: ${fromDevice}`);
+      // Automatically respond with our current data
+      if (participants.length > 0) {
+        broadcastParticipantsSync(participants as unknown as SyncParticipant[]);
+      }
+    },
+  });
+
   // Recalculate all scores when conduct date changes
   useEffect(() => {
     if (conductDate && participants.length > 0) {
@@ -1055,11 +1284,15 @@ export default function CreateConduct() {
     }> = [];
 
     scannedParticipants.forEach((newParticipant, newIndex) => {
-      const normalizedName = newParticipant.name.toLowerCase().trim();
+      const normalizedName =
+        typeof newParticipant.name === "string" ? newParticipant.name.toLowerCase().trim() : "";
 
       // Check if this participant already exists in the current table
       existingParticipants.forEach((existingParticipant, existingIndex) => {
-        const existingNormalizedName = existingParticipant.name.toLowerCase().trim();
+        const existingNormalizedName =
+          typeof existingParticipant.name === "string"
+            ? existingParticipant.name.toLowerCase().trim()
+            : "";
 
         if (normalizedName === existingNormalizedName && normalizedName !== "") {
           conflicts.push({
@@ -1080,7 +1313,8 @@ export default function CreateConduct() {
 
     for (let i = 0; i < participantList.length; i++) {
       const participant = participantList[i];
-      const normalizedName = participant.name.toLowerCase().trim();
+      const normalizedName =
+        typeof participant.name === "string" ? participant.name.toLowerCase().trim() : "";
 
       if (!normalizedName) continue; // Skip empty names
 
@@ -1148,7 +1382,7 @@ export default function CreateConduct() {
     const hasIncompleteData = participants.some(
       (participant) =>
         !participant.name ||
-        participant.name.trim() === "" ||
+        (typeof participant.name === "string" && participant.name.trim() === "") ||
         participant.situpReps === 0 ||
         participant.pushupReps === 0 ||
         !participant.runTime ||
@@ -1179,14 +1413,17 @@ export default function CreateConduct() {
   const [scannedParticipants, setScannedParticipants] = useState<ConductParticipant[]>([]);
 
   // Function to filter users based on input
-  const filterUsers = (input: string, index: number) => {
-    if (!input || !allUsers) {
+  const filterUsers = (input: string | any, index: number) => {
+    // Ensure input is a string
+    const searchString = typeof input === "string" ? input : "";
+    
+    if (!searchString || !allUsers) {
       setUserSuggestions((prev) => ({ ...prev, [index]: [] }));
       return;
     }
 
     const filtered = allUsers
-      .filter((user: SafeUser) => user.fullName.toLowerCase().includes(input.toLowerCase()))
+      .filter((user: SafeUser) => user.fullName.toLowerCase().includes(searchString.toLowerCase()))
       .slice(0, 5); // Limit to 5 suggestions
 
     setUserSuggestions((prev) => ({ ...prev, [index]: filtered }));
@@ -1344,6 +1581,17 @@ export default function CreateConduct() {
         return p;
       })
     );
+    
+    // Broadcast update to other devices (debounced for performance)
+    if (isSyncing && (field === "situpReps" || field === "pushupReps" || field === "runTime" || field === "name")) {
+      // For score-related fields, broadcast after a short delay to batch updates
+      setTimeout(() => {
+        const updatedParticipant = participants[index];
+        if (updatedParticipant) {
+          broadcastParticipantUpdate(index, { [field]: value } as Partial<SyncParticipant>);
+        }
+      }, 300);
+    }
   };
 
   // Find best name match using fuzzy matching
@@ -1945,6 +2193,11 @@ export default function CreateConduct() {
     };
 
     setParticipants((prev) => [...prev, newParticipant]);
+    
+    // Broadcast to other devices
+    if (isSyncing) {
+      broadcastParticipantAdd(newParticipant as unknown as SyncParticipant);
+    }
   };
 
   const handleEditParticipant = (index: number) => {
@@ -1964,6 +2217,11 @@ export default function CreateConduct() {
       setDuplicateError("");
     }
     setParticipants(newParticipants);
+    
+    // Broadcast to other devices
+    if (isSyncing) {
+      broadcastParticipantRemove(index);
+    }
   };
 
   const handleCreateConduct = async () => {
@@ -2076,16 +2334,101 @@ export default function CreateConduct() {
     <div className="min-h-screen bg-background p-2 md:p-6">
       <div className="max-w-6xl mx-auto space-y-6">
         {/* Header */}
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => setLocation("/ippt-tracker")}>
-            <ArrowLeft className="w-4 h-4" />
-          </Button>
-          <div>
-            <h1 className="text-2xl font-bold">Create New Conduct</h1>
-            <p className="text-muted-foreground">
-              Set up a new IPPT conduct session with participants
-            </p>
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" onClick={() => setLocation("/ippt-tracker")}>
+              <ArrowLeft className="w-4 h-4" />
+            </Button>
+            <div>
+              <h1 className="text-2xl font-bold">Create New Conduct</h1>
+              <p className="text-muted-foreground">
+                Set up a new IPPT conduct session with participants
+              </p>
+            </div>
           </div>
+          
+          {/* Sync Status Indicator */}
+          {conductId && (
+            <div className="flex flex-col items-end gap-1">
+              {/* Main status badge */}
+              <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium ${
+                isReconnecting
+                  ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400 animate-pulse"
+                  : isConnected
+                    ? isSyncing 
+                      ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" 
+                      : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+                    : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
+              }`}>
+                {isReconnecting ? (
+                  <>
+                    <Wifi className="w-3 h-3 animate-pulse" />
+                    <span>Reconnecting...</span>
+                  </>
+                ) : isConnected ? (
+                  <>
+                    <Wifi className="w-3 h-3" />
+                    {isSyncing ? (
+                      <>
+                        <span>Synced</span>
+                        <div className="flex items-center gap-1 ml-1">
+                          {otherDevices.filter(d => d.deviceType !== deviceType).map((device, i) => (
+                            <span key={i} title={`Connected to ${device.deviceType}`} className="flex items-center">
+                              {device.deviceType === "mobile" ? (
+                                <Smartphone className="w-3 h-3" />
+                              ) : (
+                                <Monitor className="w-3 h-3" />
+                              )}
+                            </span>
+                          ))}
+                        </div>
+                      </>
+                    ) : (
+                      <span>Connected (single device)</span>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <WifiOff className="w-3 h-3" />
+                    <span>Offline</span>
+                  </>
+                )}
+              </div>
+              
+              {/* Sync warning banner */}
+              {syncWarning && (
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400">
+                  <span>{syncWarning}</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-5 px-2 text-xs"
+                    onClick={() => {
+                      broadcastParticipantsSync(participants as unknown as SyncParticipant[]);
+                      setSyncWarning(null);
+                    }}
+                  >
+                    Sync Now
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-5 px-1 text-xs"
+                    onClick={() => setSyncWarning(null)}
+                  >
+                    <X className="w-3 h-3" />
+                  </Button>
+                </div>
+              )}
+              
+              {/* Last sync info */}
+              {lastSyncInfo && isSyncing && !syncWarning && (
+                <div className="text-[10px] text-muted-foreground">
+                  Last synced from {lastSyncInfo.from === "mobile" ? "phone" : "laptop"} {Math.round((Date.now() - lastSyncInfo.time) / 1000) < 60 ? "just now" : `${Math.round((Date.now() - lastSyncInfo.time) / 60000)}m ago`}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Conduct Details */}
