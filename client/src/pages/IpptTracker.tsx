@@ -3829,27 +3829,38 @@ function IpptTracker() {
                           <th className="px-4 py-3 text-left font-semibold text-foreground border-b">
                             Name
                           </th>
-                          <th className="px-4 py-3 text-left font-semibold text-foreground border-b">
-                            Total Score
+                          <th className="px-4 py-3 text-center font-semibold text-foreground border-b">
+                            Total
                           </th>
-                          <th className="px-4 py-3 text-left font-semibold text-foreground border-b">
-                            Sit-Up Reps
+                          <th className="px-4 py-3 text-center font-semibold text-foreground border-b" colSpan={2}>
+                            Sit-Ups
                           </th>
-                          <th className="px-4 py-3 text-left font-semibold text-foreground border-b">
-                            Push-Up Reps
+                          <th className="px-4 py-3 text-center font-semibold text-foreground border-b" colSpan={2}>
+                            Push-Ups
                           </th>
-                          <th className="px-4 py-3 text-left font-semibold text-foreground border-b">
-                            Run Time
+                          <th className="px-4 py-3 text-center font-semibold text-foreground border-b" colSpan={2}>
+                            2.4km Run
                           </th>
-                          <th className="px-4 py-3 text-left font-semibold text-foreground border-b">
+                          <th className="px-4 py-3 text-center font-semibold text-foreground border-b">
                             Status
                           </th>
+                        </tr>
+                        <tr className="bg-muted/30">
+                          <th className="px-4 py-1 border-b"></th>
+                          <th className="px-4 py-1 text-center text-xs text-muted-foreground border-b">pts</th>
+                          <th className="px-4 py-1 text-center text-xs text-muted-foreground border-b">reps</th>
+                          <th className="px-4 py-1 text-center text-xs text-muted-foreground border-b">pts</th>
+                          <th className="px-4 py-1 text-center text-xs text-muted-foreground border-b">reps</th>
+                          <th className="px-4 py-1 text-center text-xs text-muted-foreground border-b">pts</th>
+                          <th className="px-4 py-1 text-center text-xs text-muted-foreground border-b">time</th>
+                          <th className="px-4 py-1 text-center text-xs text-muted-foreground border-b">pts</th>
+                          <th className="px-4 py-1 border-b"></th>
                         </tr>
                       </thead>
                       <tbody>
                         {attemptsLoading ? (
                           <tr>
-                            <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
+                            <td colSpan={9} className="px-4 py-8 text-center text-muted-foreground">
                               Loading IPPT attempts...
                             </td>
                           </tr>
@@ -3860,19 +3871,28 @@ function IpptTracker() {
                                 <td className="px-4 py-3 border-b border-border font-medium">
                                   {attempt.user?.fullName || "Unknown"}
                                 </td>
-                                <td className="px-4 py-3 border-b border-border">
+                                <td className="px-4 py-3 border-b border-border text-center font-bold">
                                   {attempt.totalScore}
                                 </td>
-                                <td className="px-4 py-3 border-b border-border">
+                                <td className="px-4 py-3 border-b border-border text-center">
                                   {attempt.situpReps}
                                 </td>
-                                <td className="px-4 py-3 border-b border-border">
+                                <td className="px-4 py-3 border-b border-border text-center text-blue-600 font-medium">
+                                  {attempt.situpScore}
+                                </td>
+                                <td className="px-4 py-3 border-b border-border text-center">
                                   {attempt.pushupReps}
                                 </td>
-                                <td className="px-4 py-3 border-b border-border">
+                                <td className="px-4 py-3 border-b border-border text-center text-blue-600 font-medium">
+                                  {attempt.pushupScore}
+                                </td>
+                                <td className="px-4 py-3 border-b border-border text-center">
                                   {attempt.runTime}
                                 </td>
-                                <td className="px-4 py-3 border-b border-border">
+                                <td className="px-4 py-3 border-b border-border text-center text-blue-600 font-medium">
+                                  {attempt.runScore}
+                                </td>
+                                <td className="px-4 py-3 border-b border-border text-center">
                                   <span
                                     className={`px-2 py-1 text-xs font-medium rounded-full ${
                                       attempt.result === "Gold"
@@ -3894,7 +3914,7 @@ function IpptTracker() {
                           )
                         ) : (
                           <tr>
-                            <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
+                            <td colSpan={9} className="px-4 py-8 text-center text-muted-foreground">
                               No IPPT attempts found for this conduct session.
                             </td>
                           </tr>
