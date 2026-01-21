@@ -561,6 +561,7 @@ export default function MessBooking() {
                         const minutes = date.date.minute.toString().padStart(2, "0");
                         return `${hours}${minutes}`;
                       }}
+                      dayHeaderFormat={{ weekday: "short", day: "numeric", month: "short" }}
                       headerToolbar={{
                         left: "",
                         center: "title",

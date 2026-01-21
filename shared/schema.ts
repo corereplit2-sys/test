@@ -323,6 +323,7 @@ export type IpptSessionWithAttempts = IpptSession & {
 
 export type IpptAttemptWithUser = IpptAttempt & {
   user?: SafeUser;
+  sessionName?: string;
 };
 
 export type IpptCommanderStats = {
@@ -332,8 +333,8 @@ export type IpptCommanderStats = {
 };
 
 export type TrooperIpptSummary = SafeUser & {
-  yearOneAttempts?: IpptAttempt[];
-  yearTwoAttempts?: IpptAttempt[];
+  yearOneAttempts?: IpptAttemptWithUser[];
+  yearTwoAttempts?: IpptAttemptWithUser[];
 };
 
 export type UserEligibility = {

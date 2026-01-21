@@ -18,6 +18,7 @@ import {
   Gamepad2,
   Users,
   ChevronDown,
+  TrendingUp,
 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -57,6 +58,7 @@ export function Navbar({ user, pageTitle }: NavbarProps) {
     { name: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
     { name: "My Currency", path: "/my-currency", icon: Car },
     { name: "My IPPT", path: "/ippt", icon: CalendarIcon },
+    { name: "Forecast", path: "/forecast", icon: TrendingUp },
     { name: "Mess Booking", path: "/mess-booking", icon: Gamepad2 },
   ];
 
@@ -70,14 +72,8 @@ export function Navbar({ user, pageTitle }: NavbarProps) {
         { name: "Currency Tracker", path: "/currency-tracker" },
       ],
     },
-    {
-      name: "IPPT",
-      icon: CalendarIcon,
-      submenu: [
-        { name: "My IPPT", path: "/ippt" },
-        { name: "IPPT Tracker", path: "/ippt-tracker" },
-      ],
-    },
+    { name: "IPPT Tracker", path: "/ippt-tracker", icon: CalendarIcon },
+    { name: "Forecast", path: "/forecast", icon: TrendingUp },
     { name: "Mess Booking", path: "/mess-booking", icon: Gamepad2 },
   ];
 
@@ -92,6 +88,7 @@ export function Navbar({ user, pageTitle }: NavbarProps) {
       ],
     },
     { name: "IPPT Tracker", path: "/ippt-tracker", icon: LayoutDashboard },
+    { name: "Forecast", path: "/forecast", icon: TrendingUp },
     { name: "Mess Booking", path: "/mess-booking", icon: Gamepad2 },
     { name: "Users", path: "/users", icon: Users },
   ];

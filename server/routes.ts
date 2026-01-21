@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { getEvents, createEvent, updateEvent, deleteEvent, type Event } from "./api-events";
 import session from "express-session";
 import * as bcrypt from "bcryptjs";
 import multer from "multer";
@@ -1850,25 +1851,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("=== IPPT Attempts API Called ===");
       const { pool } = await import("./db");
 
-      // Simple query - just get all attempts with basic info
+      // Simple query - get all attempts with session name
       const result = await pool.query(`
         SELECT 
-          id,
-          user_id,
-          session_id,
-          ippt_date,
-          age_as_of_ippt,
-          situp_reps,
-          situp_score,
-          pushup_reps,
-          pushup_score,
-          run_time,
-          run_score,
-          total_score,
-          result,
-          created_at
-        FROM ippt_attempts
-        ORDER BY ippt_date DESC
+          ia.id,
+          ia.user_id,
+          ia.session_id,
+          s.name as session_name,
+          ia.ippt_date,
+          ia.age_as_of_ippt,
+          ia.situp_reps,
+          ia.situp_score,
+          ia.pushup_reps,
+          ia.pushup_score,
+          ia.run_time,
+          ia.run_score,
+          ia.total_score,
+          ia.result,
+          ia.created_at
+        FROM ippt_attempts ia
+        LEFT JOIN ippt_sessions s ON ia.session_id = s.id
+        ORDER BY ia.ippt_date DESC
       `);
 
       console.log(`Found ${result.rows.length} attempts`);
@@ -1878,6 +1881,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         id: row.id,
         userId: row.user_id,
         sessionId: row.session_id,
+        sessionName: row.session_name,
         ipptDate: row.ippt_date,
         ageAsOfIppt: row.age_as_of_ippt,
         situpReps: row.situp_reps,
@@ -2076,6 +2080,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: error.message || "Failed to create IPPT session" });
     }
   });
+
+  // Events API routes
+  app.get("/api/events", getEvents);
+  app.post("/api/events", createEvent);
+  app.put("/api/events/:id", updateEvent);
+  app.delete("/api/events/:id", deleteEvent);
 
   const httpServer = createServer(app);
   return httpServer;

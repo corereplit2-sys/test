@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import {
@@ -200,11 +200,30 @@ function IpptTracker() {
     queryKey: ["/api/auth/me"],
     retry: false,
   });
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
   const [selectedGroup, setSelectedGroup] = useState("MSC Overall");
+  const extractSearch = useCallback((loc: string) => {
+    if (loc) {
+      const idx = loc.indexOf("?");
+      if (idx !== -1) {
+        return loc.slice(idx + 1);
+      }
+    }
+    if (typeof window !== "undefined") {
+      return window.location.search.replace(/^\?/, "");
+    }
+    return "";
+  }, []);
+  const [searchString, setSearchString] = useState(() => extractSearch(location));
+  useEffect(() => {
+    setSearchString(extractSearch(location));
+  }, [location, extractSearch]);
+  const searchParams = useMemo(() => new URLSearchParams(searchString), [searchString]);
+  const urlViewParam = searchParams.get("view");
+  const focusUserParam = searchParams.get("focusUser");
   
-  // Determine if user is a soldier (not admin)
-  const isSoldier = user?.role !== "admin";
+  // Determine if user is limited to soldier view (admins + commanders share full view)
+  const isSoldier = user?.role === "soldier";
   
   const [viewMode, setViewMode] = useState<"stats" | "leaderboard" | "conduct" | "scores">(() => {
     // Restore last view mode from localStorage
@@ -218,7 +237,7 @@ function IpptTracker() {
       return "scores"; // Default to Individual view for soldiers
     }
     
-    // For admins, allow all views
+    // For admins/commanders, allow all views
     return (
       (savedView as
         | "stats"
@@ -232,6 +251,7 @@ function IpptTracker() {
     return localStorage.getItem("ippt-tracker-selected-conduct") || "";
   });
   const [viewMenuOpen, setViewMenuOpen] = useState(false);
+  const [focusAppliedFor, setFocusAppliedFor] = useState<string | null>(null);
 
   // Save view mode to localStorage when it changes
   const handleViewModeChange = (newViewMode: "stats" | "leaderboard" | "conduct" | "scores") => {
@@ -242,6 +262,17 @@ function IpptTracker() {
     setViewMode(newViewMode);
     localStorage.setItem("ippt-tracker-view-mode", newViewMode);
   };
+
+  // Apply view mode overrides from query params (e.g. My IPPT shortcut)
+  useEffect(() => {
+    if (!urlViewParam) return;
+    const normalized = urlViewParam.toLowerCase();
+    const validViews = ["stats", "leaderboard", "conduct", "scores"] as const;
+    if (!validViews.includes(normalized as typeof validViews[number])) return;
+    if (isSoldier && normalized === "conduct") return;
+    if (viewMode === normalized) return;
+    handleViewModeChange(normalized as "stats" | "leaderboard" | "conduct" | "scores");
+  }, [urlViewParam, viewMode, isSoldier]);
 
   // Save selected conduct to localStorage when it changes
   const handleSelectedConductChange = (newConduct: string) => {
@@ -277,6 +308,19 @@ function IpptTracker() {
   const [showFilterPopover, setShowFilterPopover] = useState<boolean>(false);
   const [expandedUsers, setExpandedUsers] = useState<{ [key: string]: boolean }>({});
   const [debugTrooperId, setDebugTrooperId] = useState<string | null>(null);
+  const userElementRefs = useRef<Record<string, HTMLElement | null>>({});
+  const registerUserElement = useCallback((userId: string, el: HTMLElement | null) => {
+    userElementRefs.current[userId] = el;
+  }, []);
+  const scrollToUser = useCallback((userId: string) => {
+    if (typeof window === "undefined") return;
+    const element = userElementRefs.current[userId];
+    if (!element) return;
+    const navOffset = 100;
+    const rect = element.getBoundingClientRect();
+    const absoluteY = rect.top + window.scrollY - navOffset;
+    window.scrollTo({ top: absoluteY, behavior: "smooth" });
+  }, []);
 
   // Eligibility Editor State
   const [eligibilityEditorOpen, setEligibilityEditorOpen] = useState<boolean>(false);
@@ -2507,6 +2551,35 @@ function IpptTracker() {
         });
     }, [allUsers, allIpptAttempts, allSessions, searchTerm, filterTags]) || [];
 
+  // Auto-expand a focused user when requested via query string
+  const focusedUserId = focusUserParam === "self" ? user?.id : focusUserParam;
+  useEffect(() => {
+    if (!focusedUserId) {
+      setFocusAppliedFor(null);
+      return;
+    }
+    if (focusAppliedFor === focusedUserId) return;
+    const exists = filteredPersonnel.some((trooper: any) => trooper.user.id === focusedUserId);
+    if (!exists) return;
+    setExpandedUsers((prev) => ({ ...prev, [focusedUserId]: true }));
+
+    let attempts = 0;
+    const maxAttempts = 10;
+
+    const tryScroll = () => {
+      const element = userElementRefs.current[focusedUserId];
+      if (element) {
+        scrollToUser(focusedUserId);
+        setFocusAppliedFor(focusedUserId);
+      } else if (attempts < maxAttempts) {
+        attempts += 1;
+        requestAnimationFrame(tryScroll);
+      }
+    };
+
+    requestAnimationFrame(tryScroll);
+  }, [focusedUserId, filteredPersonnel, focusAppliedFor, scrollToUser]);
+
   // Function to get group-specific statistics
   const getGroupStats = (groupName: string): GroupStatistics => {
     let groupTroopers = filteredPersonnel || [];
@@ -2708,14 +2781,8 @@ function IpptTracker() {
                     ? "View top performers and rankings according to group"
                     : viewMode === "conduct"
                       ? "View conduct participants and IPPT scores by session"
-                      : viewMode === "scores"
-                        ? "Click on any personnel to view detailed IPPT records and eligibility information"
-                        : "Manage IPPT data and personnel records"}
+                      : "Click on any personnel to view detailed IPPT records and eligibility information"}
             </p>
-          </div>
-
-          {/* Navigation Controls */}
-          <div className="mb-6 md:mb-8 md:max-w-none">
             {/* View Toggle - Always visible */}
             <div className="flex flex-col sm:flex-row items-start sm:items-end gap-3">
               {/* Tab Navigation */}
@@ -4531,6 +4598,7 @@ function IpptTracker() {
                           filteredPersonnel.map((trooper) => (
                             <React.Fragment key={trooper.user.id}>
                               <tr
+                                ref={(el) => registerUserElement(trooper.user.id, el)}
                                 className="hover:bg-muted/30 transition-colors cursor-pointer"
                                 onClick={() => toggleUserDetail(trooper.user.id)}
                               >
@@ -5693,6 +5761,7 @@ function IpptTracker() {
                       filteredPersonnel.map((trooper) => (
                         <Card
                           key={trooper.user.id}
+                          ref={(el) => registerUserElement(trooper.user.id, el)}
                           className="hover:shadow-xl transition-all duration-300 cursor-pointer bg-background border border-border shadow-2xl"
                           onClick={() => toggleUserDetail(trooper.user.id)}
                         >
@@ -5987,46 +6056,57 @@ function IpptTracker() {
                                     {/* Timeline Line */}
                                     <div className="absolute left-8 top-0 bottom-0 w-0.5 bg-border"></div>
 
-                                    {/* Check if any IPPT data exists */}
-                                    {(!trooper.yearOneAttempts ||
-                                      trooper.yearOneAttempts.length === 0) &&
-                                    (!trooper.yearTwoAttempts ||
-                                      trooper.yearTwoAttempts.length === 0) ? (
-                                      <div className="relative ml-10 mb-4">
-                                        <div className="bg-muted/30 border border-dashed border-border rounded-lg p-3 sm:p-4 text-center text-muted-foreground">
-                                          <div className="text-sm mb-2">No IPPT attempts found</div>
-                                          <div className="text-xs">
-                                            IPPT records will appear here once available
-                                          </div>
-                                        </div>
-                                      </div>
-                                    ) : (
-                                      <React.Fragment>
-                                        {/* All IPPT Attempts */}
-                                        <div className="mb-6 sm:mb-8">
-                                          <div className="flex items-center mb-3 sm:mb-4">
-                                            <div className="w-8"></div>
-                                            <div className="relative flex items-center">
-                                              <div className="absolute -left-[5px] w-3 h-3 sm:-left-[7px] sm:w-4 sm:h-4 bg-blue-500 rounded-full border-2 border-background z-10"></div>
-                                              <div className="pl-4 sm:pl-5 text-base sm:text-lg font-bold text-foreground">
-                                                IPPT History
+                                    {/* Check if any IPPT data exists - use allAttempts like desktop */}
+                                    {(() => {
+                                      // Calculate days since enlistment to determine if regular or NSF
+                                      const days = trooper.user.doe
+                                        ? Math.floor(
+                                            (new Date().getTime() -
+                                              new Date(trooper.user.doe).getTime()) /
+                                              (1000 * 60 * 60 * 24)
+                                          )
+                                        : 0;
+                                      const isRegular = days > 730;
+
+                                      const hasNoAttempts =
+                                        !trooper.allAttempts ||
+                                        trooper.allAttempts.length === 0;
+
+                                      if (hasNoAttempts) {
+                                        return (
+                                          <div className="relative ml-10 mb-4">
+                                            <div className="bg-muted/30 border border-dashed border-border rounded-lg p-3 sm:p-4 text-center text-muted-foreground">
+                                              <div className="text-sm mb-2">No IPPT attempts found</div>
+                                              <div className="text-xs">
+                                                IPPT records will appear here once available
                                               </div>
                                             </div>
                                           </div>
+                                        );
+                                      }
 
-                                          {/* All IPPT Attempts Combined */}
-                                          {(() => {
-                                            const allAttempts = [
-                                              ...(trooper.yearOneAttempts || []),
-                                              ...(trooper.yearTwoAttempts || []),
-                                            ].sort(
-                                              (a, b) =>
-                                                new Date(a.ipptDate).getTime() -
-                                                new Date(b.ipptDate).getTime()
-                                            );
+                                      if (isRegular) {
+                                        // Show all attempts together for regulars
+                                        const sortedAttempts = [...trooper.allAttempts].sort(
+                                          (a, b) =>
+                                            new Date(a.ipptDate).getTime() -
+                                            new Date(b.ipptDate).getTime()
+                                        );
 
-                                            return allAttempts.length > 0 ? (
-                                              allAttempts.map((attempt, index) => (
+                                        return (
+                                          <React.Fragment>
+                                            <div className="mb-6 sm:mb-8">
+                                              <div className="flex items-center mb-3 sm:mb-4">
+                                                <div className="w-8"></div>
+                                                <div className="relative flex items-center">
+                                                  <div className="absolute -left-[5px] w-3 h-3 sm:-left-[7px] sm:w-4 sm:h-4 bg-blue-500 rounded-full border-2 border-background z-10"></div>
+                                                  <div className="pl-4 sm:pl-5 text-base sm:text-lg font-bold text-foreground">
+                                                    IPPT History
+                                                  </div>
+                                                </div>
+                                              </div>
+
+                                              {sortedAttempts.map((attempt, index) => (
                                                 <div
                                                   key={attempt.id || index}
                                                   className="relative ml-10 mb-4"
@@ -6048,7 +6128,7 @@ function IpptTracker() {
                                                           {attempt.result}
                                                         </div>
                                                         <div className="text-sm text-muted-foreground">
-                                                          IPPT Test •{" "}
+                                                          {(attempt as any).sessionName || "IPPT Test"} •{" "}
                                                           {new Date(
                                                             attempt.ipptDate
                                                           ).toLocaleDateString()}
@@ -6095,20 +6175,207 @@ function IpptTracker() {
                                                     </div>
                                                   </div>
                                                 </div>
-                                              ))
-                                            ) : (
-                                              <div className="relative ml-10 mb-4">
-                                                <div className="bg-muted/30 border border-dashed border-border rounded-lg p-3 sm:p-4 text-center text-muted-foreground">
-                                                  <div className="text-sm mb-2">
-                                                    No IPPT attempts found
+                                              ))}
+                                            </div>
+                                          </React.Fragment>
+                                        );
+                                      } else {
+                                        // Show Year 1 and Year 2 separately for NSFs
+                                        return (
+                                          <React.Fragment>
+                                            {/* Year 1 */}
+                                            <div className="mb-6 sm:mb-8">
+                                              <div className="flex items-center mb-3 sm:mb-4">
+                                                <div className="w-8"></div>
+                                                <div className="relative flex items-center">
+                                                  <div className="absolute -left-[5px] w-3 h-3 sm:-left-[7px] sm:w-4 sm:h-4 bg-blue-500 rounded-full border-2 border-background z-10"></div>
+                                                  <div className="pl-4 sm:pl-5 text-base sm:text-lg font-bold text-foreground">
+                                                    Year 1
                                                   </div>
                                                 </div>
                                               </div>
-                                            );
-                                          })()}
-                                        </div>
-                                      </React.Fragment>
-                                    )}
+
+                                              {trooper.yearOneAttempts && trooper.yearOneAttempts.length > 0 ? (
+                                                [...trooper.yearOneAttempts]
+                                                  .sort(
+                                                    (a, b) =>
+                                                      new Date(a.ipptDate).getTime() -
+                                                      new Date(b.ipptDate).getTime()
+                                                  )
+                                                  .map((attempt, index) => (
+                                                    <div
+                                                      key={attempt.id || index}
+                                                      className="relative ml-10 mb-4"
+                                                    >
+                                                      <div className="bg-card border border-border rounded-lg p-3 sm:p-4 hover:shadow-md transition-shadow">
+                                                        <div className="flex items-center justify-between mb-3">
+                                                          <div>
+                                                            <div
+                                                              className={`text-lg font-bold ${
+                                                                attempt.result === "Gold"
+                                                                  ? "bg-gradient-to-r from-yellow-400 via-amber-300 to-yellow-500 bg-clip-text text-transparent"
+                                                                  : attempt.result === "Silver"
+                                                                    ? "bg-gradient-to-r from-gray-600 via-slate-500 to-gray-700 bg-clip-text text-transparent"
+                                                                    : attempt.result === "Pass"
+                                                                      ? "text-green-600"
+                                                                      : "text-gray-600"
+                                                              }`}
+                                                            >
+                                                              {attempt.result}
+                                                            </div>
+                                                            <div className="text-sm text-muted-foreground">
+                                                              {(attempt as any).sessionName || "IPPT Test"} •{" "}
+                                                              {new Date(
+                                                                attempt.ipptDate
+                                                              ).toLocaleDateString()}
+                                                            </div>
+                                                          </div>
+                                                          <div className="text-2xl font-bold text-foreground">
+                                                            {attempt.totalScore}
+                                                          </div>
+                                                        </div>
+                                                        <div className="grid grid-cols-3 gap-3 text-xs">
+                                                          <div>
+                                                            <div className="text-muted-foreground">
+                                                              Sit-Ups
+                                                            </div>
+                                                            <div className="font-bold">
+                                                              {attempt.situpReps} reps
+                                                            </div>
+                                                            <div className="text-blue-600 font-semibold">
+                                                              {attempt.situpScore} pts
+                                                            </div>
+                                                          </div>
+                                                          <div>
+                                                            <div className="text-muted-foreground">
+                                                              Push-Ups
+                                                            </div>
+                                                            <div className="font-bold">
+                                                              {attempt.pushupReps} reps
+                                                            </div>
+                                                            <div className="text-green-600 font-semibold">
+                                                              {attempt.pushupScore} pts
+                                                            </div>
+                                                          </div>
+                                                          <div>
+                                                            <div className="text-muted-foreground">
+                                                              2.4km Run
+                                                            </div>
+                                                            <div className="font-bold">
+                                                              {attempt.runTime}
+                                                            </div>
+                                                            <div className="text-orange-600 font-semibold">
+                                                              {attempt.runScore} pts
+                                                            </div>
+                                                          </div>
+                                                        </div>
+                                                      </div>
+                                                    </div>
+                                                  ))
+                                              ) : (
+                                                <div className="relative ml-10 mb-4">
+                                                  <div className="bg-muted/30 border border-dashed border-border rounded-lg p-3 sm:p-4 text-center text-muted-foreground">
+                                                    <div className="text-sm">No IPPT attempts found in Year 1</div>
+                                                  </div>
+                                                </div>
+                                              )}
+                                            </div>
+
+                                            {/* Year 2 - Only show if there are records */}
+                                            {trooper.yearTwoAttempts && trooper.yearTwoAttempts.length > 0 && (
+                                              <div className="mb-6 sm:mb-8">
+                                                <div className="flex items-center mb-3 sm:mb-4">
+                                                  <div className="w-8"></div>
+                                                  <div className="relative flex items-center">
+                                                    <div className="absolute -left-[5px] w-3 h-3 sm:-left-[7px] sm:w-4 sm:h-4 bg-green-500 rounded-full border-2 border-background z-10"></div>
+                                                    <div className="pl-4 sm:pl-5 text-base sm:text-lg font-bold text-foreground">
+                                                      Year 2
+                                                    </div>
+                                                  </div>
+                                                </div>
+
+                                                {[...trooper.yearTwoAttempts]
+                                                  .sort(
+                                                    (a, b) =>
+                                                      new Date(a.ipptDate).getTime() -
+                                                      new Date(b.ipptDate).getTime()
+                                                  )
+                                                  .map((attempt, index) => (
+                                                    <div
+                                                      key={attempt.id || index}
+                                                      className="relative ml-10 mb-4"
+                                                    >
+                                                      <div className="bg-card border border-border rounded-lg p-3 sm:p-4 hover:shadow-md transition-shadow">
+                                                        <div className="flex items-center justify-between mb-3">
+                                                          <div>
+                                                            <div
+                                                              className={`text-lg font-bold ${
+                                                                attempt.result === "Gold"
+                                                                  ? "bg-gradient-to-r from-yellow-400 via-amber-300 to-yellow-500 bg-clip-text text-transparent"
+                                                                  : attempt.result === "Silver"
+                                                                    ? "bg-gradient-to-r from-gray-600 via-slate-500 to-gray-700 bg-clip-text text-transparent"
+                                                                    : attempt.result === "Pass"
+                                                                      ? "text-green-600"
+                                                                      : "text-gray-600"
+                                                              }`}
+                                                            >
+                                                              {attempt.result}
+                                                            </div>
+                                                            <div className="text-sm text-muted-foreground">
+                                                              {(attempt as any).sessionName || "IPPT Test"} •{" "}
+                                                              {new Date(
+                                                                attempt.ipptDate
+                                                              ).toLocaleDateString()}
+                                                            </div>
+                                                          </div>
+                                                          <div className="text-2xl font-bold text-foreground">
+                                                            {attempt.totalScore}
+                                                          </div>
+                                                        </div>
+                                                        <div className="grid grid-cols-3 gap-3 text-xs">
+                                                          <div>
+                                                            <div className="text-muted-foreground">
+                                                              Sit-Ups
+                                                            </div>
+                                                            <div className="font-bold">
+                                                              {attempt.situpReps} reps
+                                                            </div>
+                                                            <div className="text-blue-600 font-semibold">
+                                                              {attempt.situpScore} pts
+                                                            </div>
+                                                          </div>
+                                                          <div>
+                                                            <div className="text-muted-foreground">
+                                                              Push-Ups
+                                                            </div>
+                                                            <div className="font-bold">
+                                                              {attempt.pushupReps} reps
+                                                            </div>
+                                                            <div className="text-green-600 font-semibold">
+                                                              {attempt.pushupScore} pts
+                                                            </div>
+                                                          </div>
+                                                          <div>
+                                                            <div className="text-muted-foreground">
+                                                              2.4km Run
+                                                            </div>
+                                                            <div className="font-bold">
+                                                              {attempt.runTime}
+                                                            </div>
+                                                            <div className="text-orange-600 font-semibold">
+                                                              {attempt.runScore} pts
+                                                            </div>
+                                                          </div>
+                                                        </div>
+                                                      </div>
+                                                    </div>
+                                                  ))}
+                                              </div>
+                                            )}
+                                          </React.Fragment>
+                                        );
+                                      }
+                                    })()}
                                   </div>
                                 </div>
                               </div>

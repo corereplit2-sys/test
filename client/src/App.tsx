@@ -22,6 +22,7 @@ import Onboarding from "./pages/Onboarding";
 import OnboardingSuccess from "./pages/OnboardingSuccess";
 import AdminOnboarding from "./pages/AdminOnboarding";
 import CreateConduct from "./pages/CreateConduct";
+import ForecastPage from "./pages/ForecastPage";
 
 function ProtectedRoute({
   component: Component,
@@ -118,6 +119,7 @@ function Router() {
         {() => <ProtectedRoute component={AdminOnboarding} allowedRoles={["admin"]} />}
       </Route>
       <Route path="/create-conduct">{() => <ProtectedRoute component={CreateConduct} />}</Route>
+      <Route path="/forecast">{() => <ProtectedRoute component={ForecastPage} />}</Route>
       <Route component={NotFound} />
     </Switch>
   );
